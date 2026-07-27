@@ -1,19 +1,21 @@
 ---
-title: UX Approval Prerequisites
-classification: proposal
-status: draft pending UX approval
+title: Approved UX Baseline
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX prerequisite
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../mvp-scope.md","../../discovery/decisions.md","../../../DESIGN.md"]
 ---
 
-# UX Approval Prerequisites
+# Approved UX Baseline
 
 ## Purpose
 
-This directory contains the proposal package that must be reviewed before endpoint-level OpenAPI, database schema, real-time protocol, frontend contracts or implementation planning can become authoritative. It contains no final visual design and does not infer interaction behavior from architecture.
+This directory contains the owner-approved D-024 UX baseline. It authorizes
+only the isolated low-fidelity React Mock Prototype. It contains no final
+visual design and does not authorize production contracts or implementation.
 
 ## Required approval areas
 
@@ -28,9 +30,25 @@ This directory contains the proposal package that must be reviewed before endpoi
 9. Korean critical-state microcopy and emotional-safety treatment.
 10. Low-fi wireflows, a tool-neutral visual brief for a future React Mock Prototype, usability evidence and acceptance criteria.
 
-## Approval rule
+## UX gate closure matrix
 
-All ten areas require explicit project-owner approval recorded in [decisions.md](../../discovery/decisions.md). Partial approval may support research prototypes but cannot make API, DB, real-time protocol, frontend contract or implementation plan authoritative. This package does not close D-024.
+| Required area | Decision coverage | Primary UX document |
+| --- | --- | --- |
+| Information architecture | 001 | [Information architecture](information-architecture.md) |
+| Screen inventory | 002 | [Screen inventory](screen-inventory.md) |
+| Primary journeys/session | 003–005 | [Session wireflow](session-wireflow.md) |
+| Disclosure/interest/no-match | 006–008 | [Disclosure](progressive-disclosure-wireflow.md) |
+| Reconnect/failure | 009 | [Failure/recovery](failure-and-recovery-workflow.md) |
+| Report/block/moderator | 010 | [Safety/reporting](safety-and-reporting-wireflow.md) |
+| Responsive/mobile | 011 | [Mobile rules](mobile-interaction-rules.md) |
+| Accessibility | 012 | [Accessibility](accessibility-requirements.md) |
+| Visual language/Korean copy | 013 | [Frontend visual brief](frontend-visual-brief.md) |
+| Prototype scope/evidence | 003–013 | [Acceptance criteria](ux-acceptance-criteria.md) |
+
+All areas are approved in the [decision register](open-ux-decisions.md) and
+[decision log](../../discovery/decisions.md). The gate is satisfied for a
+low-fidelity prototype only. API, DB, real-time, production frontend/backend,
+vendor and infrastructure work require a new explicit phase.
 
 ## Source-of-truth layers
 
@@ -42,21 +60,21 @@ All ten areas require explicit project-owner approval recorded in [decisions.md]
 | Approved progression | [Matching/progression](../matching-and-progression.md) | private choices, mutuality, 10-minute voice |
 | Approved safety | [Trust/safety](../trust-safety-moderation.md) | admission, block, report, moderation principles |
 | Durable design proposal | [Root DESIGN.md](../../../DESIGN.md) | design principles, content voice and review boundary |
-| UX decision register | [Open UX decisions](open-ux-decisions.md) | material unresolved choices UX-OQ-001–013 |
+| UX decision register | [Approved UX decisions](open-ux-decisions.md) | approved UX-OQ-001–013 and residual limits |
 
-## Existing prerequisite drafts
+## Core approved UX documents
 
 | Document | Responsibility |
 | --- | --- |
-| [Information architecture](information-architecture.md) | candidate content areas and unresolved navigation |
-| [Screen inventory](screen-inventory.md) | required participant/operator screen candidates |
-| [User-flow decisions](user-flow-decisions.md) | approved constraints versus unresolved interaction choices |
-| [Session wireflow](session-wireflow.md) | session entry, stages and recovery decision points |
-| [Progressive disclosure wireflow](progressive-disclosure-wireflow.md) | consent, reveal, interest and no-match decisions |
-| [Safety/reporting wireflow](safety-and-reporting-wireflow.md) | block, report, operator and appeal decisions |
-| [Accessibility requirements](accessibility-requirements.md) | interaction alternatives and test obligations |
+| [Information architecture](information-architecture.md) | approved service areas and navigation |
+| [Screen inventory](screen-inventory.md) | participant/operator review boundaries |
+| [User-flow decisions](user-flow-decisions.md) | approved interaction behavior and deferred contracts |
+| [Session wireflow](session-wireflow.md) | session entry, stages and recovery |
+| [Progressive disclosure wireflow](progressive-disclosure-wireflow.md) | consent, reveal, interest and no-match |
+| [Safety/reporting wireflow](safety-and-reporting-wireflow.md) | block, report, operator and appeal |
+| [Accessibility requirements](accessibility-requirements.md) | interaction alternatives and evidence obligations |
 
-## Completed proposal extensions
+## Supporting approved UX documents
 
 | Document | Responsibility |
 | --- | --- |
@@ -83,6 +101,7 @@ All ten areas require explicit project-owner approval recorded in [decisions.md]
 
 These drafts do not approve routes, components, visual styling, token values, microcopy, API paths, DTOs, database columns/enums, event names/payloads, page authorization, implementation issues or source code. Approved ADRs, vendors, region and technical baseline remain unchanged.
 
-## Review entry point
+## Review and prototype entry point
 
-Use the [Korean MVP UX review package](../../reviews/mvp-ux-review-package-ko.md) for the proposed review order, unresolved decision map, evidence gaps and explicit owner decision boundary.
+Use the [Korean MVP UX review package](../../reviews/mvp-ux-review-package-ko.md)
+for approval history, residual risks and prototype evidence.

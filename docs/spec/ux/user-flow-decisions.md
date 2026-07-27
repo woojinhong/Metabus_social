@@ -1,15 +1,15 @@
 ---
 title: Draft User-Flow Decisions
 document_type: UX prerequisite
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["README.md","../../discovery/decisions.md"]
 decision_authority: D-024
 ---
 
-# Draft User-Flow Decisions
+# Approved User-Flow Decisions
 
 ## Approved product constraints
 
@@ -21,20 +21,22 @@ decision_authority: D-024
 - Final romantic choice allows zero or one; final mutual grants ten-minute pair voice only.
 - No public counts, rejection reason, group webcam, private text, payment, recording or external-contact exchange.
 
-## Interaction decisions requiring approval
+## Approved interaction decisions
 
-| Flow | Decision required | Why it matters downstream |
+| Flow | Approved review behavior | Deferred implementation boundary |
 | --- | --- | --- |
 | Registration | page sequence, email verification timing, recovery confirmation | auth API/session and abandonment measurement |
 | Eligibility | provider handoff/return, retry/support presentation | callback status model and accessibility |
 | Profile/media | progressive vs single setup, photo replacement/hold explanation | media states and persistence |
 | Reservation | list/detail split, underfill/standby wording, cancel confirmation | query model and notification timing |
-| Device/waiting | combined vs separate, readiness definition, missing-member presentation | real-time presence and support events |
-| Session | control hierarchy, participant representation, prompt/turn behavior | state/event and accessibility model |
-| Interest/reveal | selection layout, confirmation/edit, shoulder-surfing protection, revoke path | privacy/API/state requirements |
-| No-match | timing, language, exit/follow-up and safe blocking | outcome model and notifications |
-| Reconnect/failure | overlay vs route, retry ownership, cancel/rebook handoff | event replay and error contracts |
-| Safety | contextual/global entry, immediate block order, evidence capture | authorization and case model |
+| Device/waiting | distinct `P08`/`P09`, explicit readiness, neutral cohort state | presence and notification contracts |
+| Session | persistent hierarchy, neutral stable participants, restrained timer | state/event and layout implementation |
+| Interest/reveal | explicit choices, resource-specific live consent, protected view | privacy/API/state contracts |
+| No-match | capability-only result, common timing and closing | outcome model and notifications |
+| Reconnect/failure | inline/overlay/blocking classes and current-authority recovery | replay and error contracts |
+| Safety | persistent entry with independent leave/block/report | authorization and case contracts |
 
-No flow is approved merely because its product rule is fixed. Wireflows below are decision checklists, not designs.
+Registration, eligibility, profile/media and reservation detail layouts remain
+within the approved screen/IA boundaries but are outside the first prototype.
+No row defines a final route, component, API, state or event.
 

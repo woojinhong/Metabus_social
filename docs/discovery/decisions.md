@@ -3,7 +3,7 @@ title: Approved Decision Log
 document_type: decision-log
 classification: user decision
 status: Approved baseline
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["product-brief.md","../spec/mvp-scope.md","../adr/README.md"]
 decision_authority: explicit project-owner delegation in the 2026-07-27 task
 ---
@@ -178,8 +178,15 @@ These decisions are approved for the bounded Korean MVP Pilot. Approval does not
 <a id="d-024-required-ux-approval-gate"></a>
 
 ### D-024 — Required UX approval gate
-- **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
+- **Status/date/authority:** Gate satisfied; 2026-07-28; explicit project-owner delegation.
 - **Decision/scope:** API, database, real-time and implementation planning cannot become authoritative until information architecture, screen inventory, primary journeys, session wireflow, disclosure, interest/no-match, reconnect/failure, report/block/moderator, responsive/mobile and accessibility behavior are explicitly approved.
 - **Rationale/rejected:** Interaction behavior determines contracts and states; reject architecture-derived UI inference.
-- **Reversibility/gate:** Only a later explicit user approval recorded here may close this gate.
+- **Reversibility/gate:** UX approval is complete; production contracts and code still require a new explicit phase.
 - **ADR/SOT:** [UX gate](../spec/ux/README.md), [traceability](../spec/traceability-implementation.md).
+
+#### UX approval record
+- **Owner approvals:** Items 001–002 approved 2026-07-27; items 003–013 approved 2026-07-28 under explicit autonomous delegation. The complete decision and rejected-alternative record is in [Open UX Decisions](../spec/ux/open-ux-decisions.md).
+- **Approved boundaries:** Hybrid preparation/dashboard/`P10` shell; distinct `P01`–`P21` and `O01`–`O07` review boundaries; private choices and consent; safe waiting/live/game/result/recovery/reporting; mobile, accessibility, visual language and Korean copy.
+- **Closure evidence:** Required UX areas, low-fidelity prototype scope and acceptance criteria are explicit; documentation validation passed before prototype authorization.
+- **Authorized next work:** An isolated, synthetic-data, local-state, low-fidelity React Mock Prototype for UX validation.
+- **Still not authorized:** Production frontend/backend code, routes or page authorization, OpenAPI/AsyncAPI, endpoints/DTOs, schema/migrations, real-time contracts, vendor integration, cloud provisioning or live participant operation.

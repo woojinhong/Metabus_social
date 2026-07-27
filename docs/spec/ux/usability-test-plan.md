@@ -1,19 +1,21 @@
 ---
-title: MVP UX 사용성 시험 계획 제안
-classification: proposal
-status: draft pending UX approval
+title: MVP UX 사용성 시험 계획
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX research plan proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["ux-acceptance-criteria.md","low-fi-wireflows.md","accessibility-requirements.md"]
 ---
 
-# MVP UX 사용성 시험 계획 제안
+# MVP UX 사용성 시험 계획
 
 ## 목적과 안전 경계
 
-D-024 승인 전에 저충실도/클릭형 프로토타입으로 이해, 과업 성공, 안전 종료, 접근성, 모바일 복구를 평가한다. 실제 데이팅 매칭, 실제 신원·사진·음성, 프로덕션 공급자, 라이브 참가자 운영 또는 민감 데이터 수집을 승인하지 않는다.
+D-024가 허용한 저충실도/클릭형 프로토타입으로 이해, 과업 성공, 안전
+종료, 접근성, 모바일 복구를 평가한다. 실제 데이팅 매칭, 실제 신원·사진·
+음성, 프로덕션 공급자, 라이브 참가자 운영 또는 민감 데이터 수집은 금지한다.
 
 ## 연구 질문
 
@@ -85,6 +87,8 @@ D-024 승인 전에 저충실도/클릭형 프로토타입으로 이해, 과업 
 - 라운드 간 문구·흐름 변경을 버전으로 남기고 이전 결과와 섞지 않는다.
 - 긍정적 반응만으로 승인하지 않고 실패·패스·노매치·안전 경로를 우선 검토한다.
 
-## 완료와 승인 경계
+## 완료와 권한 경계
 
-[UX 수용 기준](ux-acceptance-criteria.md)의 제안 증거가 충족되고 P0/P1이 없어도 D-024는 자동으로 닫히지 않는다. 소유자가 정보 구조·화면·흐름·모바일·접근성·카피를 명시적으로 승인해 결정 로그에 기록해야 한다.
+[UX 수용 기준](ux-acceptance-criteria.md)의 증거와 P0/P1 0건은 프로토타입
+검토 결과다. D-024는 이미 UX 기준을 승인했지만 생산 코드, 실사용자
+시험, 공급자 연동 또는 기술 계약은 별도 권한이 필요하다.

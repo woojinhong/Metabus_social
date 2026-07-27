@@ -1,15 +1,15 @@
 ---
 title: 저충실도 와이어플로 제안
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX wireflow proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-visual-brief.md"]
 ---
 
-# 저충실도 와이어플로 제안
+# 저충실도 와이어플로
 
 ## 사용 경계
 
@@ -42,6 +42,10 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 
 ## 2. 입장과 라이브 세션
 
+`P10`은 아래 단계 사이에서 사라지는 독립 규칙 화면이 아니라 영속 라이브
+세션 셸이다. 규칙/소개가 첫 콘텐츠 단계로 표시된 뒤 `P11`–`P18`의 현재
+단계 콘텐츠 또는 보호된 하위 흐름을 같은 셸의 맥락에서 연결한다.
+
 ~~~text
 [P08 기기 성공]
         |
@@ -49,8 +53,8 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 [P09 대기실: 규칙·공개 범위·준비]
    | 여섯 명/자격 통과       | 조건 미충족
    v                        v
-[P10 규칙·소개]          취소·재예약
-   |
+[P10 영속 라이브 셸]      취소·재예약
+   | 첫 콘텐츠: 규칙·소개
    v
 [P11 게임1] -> [P11 게임2] -> [P11 게임3]
    | 패스/텍스트/반복/신고가 각 단계에 존재
@@ -58,16 +62,18 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 [P12 자유 대화]
    |
    v
-[P13 초기 관심]
+[P13 초기 관심과 이후 보호 흐름]
 ~~~
 
-모든 라이브 프레임의 고정 정보 순서는 “현재 단계·청중·남은 시간 → 현재 과업 → 참가자 음성 상태 → 마이크·패스 → 나가기·신고”다.
+`P10`은 현재 단계, 청중/공개 범위, 남은 시간, 연결 상태, 마이크 상태,
+참가자 음성 상태, 현재 주 과업과 나가기·안전 접근을 유지한다. 정확한
+배치와 제어 방식은 UX-OQ-004 이후의 결정이며 여기서 확정하지 않는다.
 
 ## 3. 사적 관심과 공개
 
 ~~~text
 [P13 0~2명 또는 없음]
-   | 제출/마감
+   | 명시 제출/미제출 마감
    v
 상호 초기 관심이 있는가?
    | 없음                     | 있음
@@ -92,6 +98,9 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 ~~~
 
 동의 화면은 정확한 리소스, 명명된 청중, 목적, 만료, 철회 한계와 캡처 가능성을 행동보다 먼저 표시한다.
+승인된 경계는 `P13` 초기 관심, `P14` 동의, `P15` 보기, `P16`
+최종 선택과 `P17` 결과를 서로 다른 보호 검토 단계로 유지한다. 이는
+각 단계를 독립 route나 component로 확정한다는 뜻이 아니다.
 
 ## 4. 결과와 안전한 종료
 
@@ -112,6 +121,9 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 ~~~
 
 노매치 화면은 타인의 선택, 수, 거절 이유 또는 타임아웃 원인을 노출하지 않는다. 쌍 음성도 연락처·텍스트·카메라를 열지 않는다.
+`P19`는 공통 종료이고 `P20`과 합치지 않는다. `P20`은 핵심 흐름의 문맥
+안전 진입과 세션 후 지원·사례 목적지를 함께 나타내며 하나의 페이지를
+뜻하지 않는다.
 
 ## 5. 안전 행동
 
@@ -148,6 +160,15 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 만료 행동은 비활성   취소 시 재예약
 ~~~
 
+브라우저 뒤로가기·앞으로가기·새로고침·기록 이동은 그 자체로 제출,
+철회, 공개 동의 취소 또는 세션 나가기로 처리하지 않는다. 현재 단계와
+권한을 다시 확인하며 만료 권한과 미제출 행동을 복원하지 않는다.
+
+짧은 재연결·제출 확인·운영 일시정지는 현재 맥락의 overlay/panel이고,
+계속할 권한이 없는 취소·만료·미지원은 blocking screen이다. modal
+overlay 안에는 나가기·지원·신고를 포함하고 복귀 후 마이크는 명시적으로
+다시 켠다.
+
 ## 저충실도 검토 질문
 
 - 사용자가 5초 안에 현재 청중과 가능한 행동을 설명할 수 있는가?
@@ -158,4 +179,4 @@ related_documents: ["end-to-end-workflow.md","screen-state-model.md","frontend-v
 
 ## React Mock Prototype 전달
 
-이 흐름을 저해상도 화면으로 옮길 때는 [프론트엔드 시각 브리프](frontend-visual-brief.md)를 사용한다. React Mock Prototype 제작과 최종 시각 디자인은 이 문서 작업에 포함되지 않는다.
+이 흐름을 저해상도 화면으로 옮길 때는 [프론트엔드 시각 브리프](frontend-visual-brief.md)를 사용한다. 프로토타입은 합성 데이터와 로컬 상태만 사용하며 최종 시각 디자인이나 구현 계약이 아니다.

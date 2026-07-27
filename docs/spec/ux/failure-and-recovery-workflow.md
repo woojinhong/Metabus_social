@@ -1,15 +1,15 @@
 ---
 title: 실패 및 복구 워크플로 제안
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX interaction proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["session-wireflow.md","mobile-interaction-rules.md","../web-mobile-experience.md"]
 ---
 
-# 실패 및 복구 워크플로 제안
+# 실패 및 복구 워크플로
 
 ## 원칙
 
@@ -59,6 +59,19 @@ related_documents: ["session-wireflow.md","mobile-interaction-rules.md","../web-
 5. 만료·취소·제거이면 이유의 허용 범위와 다음 행동을 안내한다.
 6. 연결 품질이 회복되면 스크린리더에 한 번만 의미 있는 완료를 알린다.
 
+## 승인된 표현과 복귀 규칙
+
+- 현재 과업을 유지할 수 있는 약한 연결은 inline, 짧은 재연결·제출 확인·
+  운영 일시정지는 overlay/panel로 표시한다.
+- 자격 실패, 취소, 계속할 수 없는 권한 만료와 미지원 기기는 blocking
+  screen으로 표시한다. 안전·지원·유효한 다음 행동은 항상 남긴다.
+- 재연결 overlay가 modal이면 나가기·지원·신고를 overlay 안에 포함하고
+  초점을 그 안에서 관리한다. 아니면 비모달 panel로 두어 아래 제어를 막지 않는다.
+- 새로고침·history·background·lock·수신 전화·오디오 경로 변경은 최신
+  권한을 재확인한다. 미제출을 보내거나 마이크를 자동으로 켜지 않는다.
+- 백그라운드/OS 중단 복귀는 보호 내용을 먼저 가리고 마이크를 꺼진 상태로
+  명시한다. 사용자가 직접 확인한 뒤에만 다시 활성화한다.
+
 ## 한국어 핵심 마이크로카피
 
 - 연결 저하: “연결이 불안정해요. 현재 마이크 상태를 확인하고 있어요.”
@@ -76,6 +89,6 @@ related_documents: ["session-wireflow.md","mobile-interaction-rules.md","../web-
 - 세로형 작은 화면에서 재연결 안내가 단계·마이크·안전 상태를 가리지 않게 요약한다.
 - 데이터 사용과 네트워크 전환은 사용자 동의 없는 카메라·녹음을 요구하지 않는다.
 
-## 검증과 승인 경계
+## 검증과 구현 경계
 
-승인된 Web/PWA 기기 지표는 [웹·모바일 경험](../web-mobile-experience.md)에 있다. 이 문서의 오버레이, 대기 시간, 재시도 횟수, 문구와 화면 전환은 사용성·실기기 검증 후 D-024 승인이 필요하며 실시간 이벤트 계약을 정의하지 않는다.
+승인된 Web/PWA 기기 지표는 [웹·모바일 경험](../web-mobile-experience.md)에 있다. 이 문서의 복구 분류와 사용자 원칙은 D-024에서 승인되었지만, 실제 대기 시간·재시도 횟수·전환 세부는 사용성·실기기 검증 대상이며 실시간 이벤트 계약을 정의하지 않는다.

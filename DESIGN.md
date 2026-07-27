@@ -1,10 +1,10 @@
 ---
 title: UX 설계 기준
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["docs/spec/ux/README.md","docs/spec/mvp-scope.md","docs/discovery/decisions.md"]
 ---
 
@@ -12,7 +12,7 @@ related_documents: ["docs/spec/ux/README.md","docs/spec/mvp-scope.md","docs/disc
 
 ## 문서 권위
 
-- 상태: D-024 소유자 승인 전 제안이며 구현 계약이 아니다.
+- 상태: D-024 승인 UX 기준이며 저충실도 프로토타입 외 구현 계약이 아니다.
 - 대상: 한국어 Web/PWA 참가자 경험과 최소 운영자 안전 경험.
 - 근거: [MVP 범위](docs/spec/mvp-scope.md), [승인 결정](docs/discovery/decisions.md), [UX 승인 전제](docs/spec/ux/README.md), [경쟁 패턴](docs/research/ux/competitive-patterns.md).
 - 금지: 최종 시각 디자인, 라우트, API, DTO, 데이터 필드, 이벤트 이름 또는 구현 작업을 이 문서에서 확정하지 않는다.
@@ -52,21 +52,22 @@ related_documents: ["docs/spec/ux/README.md","docs/spec/mvp-scope.md","docs/disc
 
 자세한 근거와 검토 질문은 [설계 원칙](docs/spec/ux/design-principles.md)에 있다.
 
-## 시각 언어 제안 경계
+## 시각 언어
 
-- 색: 상태를 색만으로 구분하지 않는 차분한 중립 기반. 실제 팔레트는 미승인이다.
+- 상세 권위: [프론트엔드 시각 브리프](docs/spec/ux/frontend-visual-brief.md).
+- 색: 상태를 색만으로 구분하지 않는 차분한 중립 기반. 성별 색상 부호를 피한다.
 - 글자: 한국어 본문 가독성, 200% 확대/리플로우, 숫자 타이머의 명료성을 우선한다.
 - 간격/배치: 한 화면 한 핵심 과업, 라이브에서는 단계·청중·시간·안전 제어가 항상 먼저다.
 - 형태/고도: 중요한 권한 변화만 계층으로 구분하고 장식적 카드 중첩을 피한다.
 - 모션: 단계 전환을 설명하되 감소된 동작 설정에서 제거 가능해야 한다.
 - 이미지/아이콘: 얼굴 공개를 보상처럼 표현하지 않고 아이콘에는 항상 텍스트 이름을 둔다.
 
-## 구성요소 제안
+## 구성요소 경계
 
 - 재사용 후보: 단계 헤더, 청중/공개 범위 배지, 연결 상태, 타이머, 참가자 음성 상태, 행동 시트, 사적 선택 목록, 동의 요약, 안전 메뉴, 복구 안내.
 - 세 게임은 하나의 [재사용 상호작용 패턴](docs/spec/ux/game-interaction-pattern.md)을 공유한다.
 - 상태: 기본, 초점, 선택, 제출 중, 성공, 오류, 만료, 권한 없음, 재연결, 일시정지.
-- 소유권: 구성요소·토큰·변형은 툴 중립 시각 프로토타입 검토와 D-024 승인 전 확정하지 않는다.
+- 소유권: 구성요소·토큰·변형은 후속 생산 설계에서 별도 승인한다.
 
 ## 접근성
 
@@ -102,9 +103,9 @@ related_documents: ["docs/spec/ux/README.md","docs/spec/mvp-scope.md","docs/disc
 - 카메라, 녹음, 공개 URL, 결제, 사전 사적 채팅, 연락처 교환을 추가하지 않는다.
 - 테스트 기대는 [UX 수용 기준](docs/spec/ux/ux-acceptance-criteria.md)에 제안하며 API·DB·실시간 계약으로 변환하지 않는다.
 
-## 열린 질문
+## 잔여 검증 위험
 
-- [ ] 정보 구조, 화면, 라이브 제어, 관심·공개, 실패·재연결, 안전, 모바일, 접근성, 시각 언어를 D-024 소유자가 명시적으로 승인했는가?
-- [ ] 한국어 동의·거절·신고 문구가 대상 사용자와 접근성 사용자에게 이해되는가?
-- [ ] 모바일 실기기에서 음성·백그라운드·네트워크 전환 복구가 승인 기준을 만족하는가?
-- [ ] 공개 동의가 사진을 보상이나 의무로 오해시키지 않는가?
+- 한국어 동의·거절·신고 문구의 대상 사용자 이해는 아직 검증되지 않았다.
+- 모바일 실기기 음성·백그라운드·네트워크 복구는 승인 수치 게이트가 남는다.
+- 자동 전사를 추가하지 않은 음성 세션의 청각 접근성 한계가 남는다.
+- 공개 동의가 보상이나 의무로 읽히지 않는지 실제 사용자 검증이 필요하다.

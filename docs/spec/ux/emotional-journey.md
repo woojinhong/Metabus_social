@@ -1,15 +1,15 @@
 ---
-title: MVP 감정 여정 제안
-classification: proposal
-status: draft pending UX approval
+title: MVP 감정 여정
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX specification proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["design-principles.md","end-to-end-workflow.md","no-match-and-safe-closing.md"]
 ---
 
-# MVP 감정 여정 제안
+# MVP 감정 여정
 
 ## 목적
 
@@ -27,7 +27,7 @@ related_documents: ["design-principles.md","end-to-end-workflow.md","no-match-an
 | 대기 | “다른 사람이 왔는지, 시작할지?” | 현재 운영 상태와 다음 판단 시각을 앎 | 개인 출석 비공개, 준비 상태, 규칙, 나가기/지원 | 빈자리를 특정 참가자 탓으로 추정 |
 | 규칙·게임 | “재치 없거나 말이 느리면 어쩌지?” | 패스와 대안이 자연스러움 | 짧은 예시, 생각 시간, 반복, 텍스트, 점수 없음 | 공개 정답·순위·조롱 |
 | 자유 대화 | “침묵하거나 말이 겹치면?” | 말할 권리와 쉬어갈 권리가 균형 | 안전 주제, 차례 지원, 음소거·신고 | 공개적으로 조용함/지배성을 평가 |
-| 초기 관심 | “선택하지 않아도 되나?” | 0–2명 규칙과 비공개를 확신 | 없음 기본 가능, 마감 전 편집, 제출 확인 | 선택 수·상대 반응 암시 |
+| 초기 관심 | “선택하지 않아도 되나?” | 0–2명 규칙과 비공개를 확신 | 없음, 제출 전 편집, 제출 뒤 전체 철회 | 선택 수·상대 반응 암시 |
 | 제한 공개 | “사진을 보여줘야 공정한가?” | 공개가 독립적이고 거절 가능한 동의임을 앎 | 리소스·청중·목적·만료·캡처 한계, 거절 이유 비공개 | 상호 관심을 공개 의무로 표현 |
 | 최종 선택 | “상대가 나를 선택했을까?” | 0–1명 또는 없음이 정상 | 선택 효과와 비공개 결과 설명 | 기대를 부풀리는 카운트다운 |
 | 결과·종료 | “거절당한 건가?” | 내 다음 권한만 알고 존중받으며 종료 | 공통 종료 문구, 차단·신고·피드백, 안전한 홈 | 상대 선택·수·이유 추론 |
@@ -61,6 +61,8 @@ related_documents: ["design-principles.md","end-to-end-workflow.md","no-match-an
 - 패스·텍스트·반복을 눈치 보지 않고 찾고 사용하는 과업 성공.
 - 재연결·취소·안전 종료 후 다음 행동과 데이터/권한 상태 이해.
 
-## 승인 경계
+## 검증 경계
 
-이 여정은 [종단 워크플로](end-to-end-workflow.md)와 [사용성 시험 계획](usability-test-plan.md)의 가설이다. 대상 참가자와 접근성 사용자의 검증 및 D-024 소유자 승인 전 확정 경험이 아니다.
+이 여정은 [종단 워크플로](end-to-end-workflow.md)와
+[사용성 시험 계획](usability-test-plan.md)의 승인된 검증 기준이다.
+대상 참가자와 접근성 사용자의 실제 반응은 아직 증명되지 않았다.

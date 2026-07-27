@@ -1,19 +1,19 @@
 ---
 title: Draft Safety and Reporting Wireflow
 document_type: UX prerequisite
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../trust-safety-moderation.md","../../discovery/decisions.md"]
 decision_authority: D-024
 ---
 
-# Draft Safety and Reporting Wireflow
+# Approved Safety and Reporting Wireflow
 
 ## Participant contexts
 
-| Context | Safety need | Candidate actions | Required states/questions |
+| Context | Safety need | Approved actions | Required states |
 | --- | --- | --- | --- |
 | Profile/media | reject unsafe/soliciting upload without exposing reviewers | edit/delete/appeal/help | held, reason detail, accessibility |
 | Waiting/live | immediate containment without confrontation | mute self, leave, block, report, emergency help | whether block precedes leave, discreet entry point |
@@ -27,9 +27,34 @@ decision_authority: D-024
 
 Session control needs room/stage/connection and mute/remove/pause/cancel, not private choices. Case review needs minimum evidence and audited grants. Sanction and appeal review need separation of duties. Break-glass needs reason, expiry, alert and retrospective review.
 
-## Decisions requiring approval
+## Approved participant behavior
 
-Global versus contextual safety entry; one-tap block semantics; emergency wording; whether leaving automatically blocks; evidence capture prompts; report subject selection; anonymous/hidden reporter language; status visibility; sanction notice detail; appeal form length; moderator queue/filter hierarchy; confirmation for removal/cancel; and accessibility alternatives remain unresolved.
+- Text-labelled safety access remains discoverable throughout core flows.
+- Immediate leave, block, report, emergency help and support are independent.
+  Immediate leave is not delayed by repeated confirmation; none requires a report.
+- Block uses a short consequence confirmation, then ends reveal/progression access.
+  It does not identify the blocker and leaving never automatically blocks.
+- Initial reporting asks only subject/context and optional short description.
+  Later evidence is optional and does not promise a production upload.
+- Participant case status is limited to receipt, review and closure-level wording.
+  Reporter identity, evidence detail and another person’s sanction stay private.
+- Sanction notice explains rule category, effect, duration and independent appeal
+  without reporter identity. Emergency help is distinct from product support.
 
-Automation may hold and signal, but the UI must not imply an LLM made an irreversible decision. Exact case states, endpoints and moderator console remain pending.
+## Approved operator behavior
+
+`O01`–`O07` are role-filtered work areas, not separate applications. `O03` may
+cover held media and versioned content review; `O01` may cover approved schedule
+notices; `O07` may cover separated operational metrics, only within existing
+approved capabilities. This mapping creates no new authority.
+
+Mute, remove, pause and cancel are the only live controls. Remove/cancel and
+other destructive live actions confirm target, scope and effect. Neutral turn
+assistance is verbal guidance, not a new stage command. Case review, sanction,
+appeal and audit remain least-privilege separated; private interest, consent
+refusal and unrelated sensitive evidence are unavailable.
+
+Automation may hold and signal, but the UI never implies an LLM made an
+irreversible decision. Exact forms, filters, bulk actions, routes, endpoints and
+case states remain future contract work.
 

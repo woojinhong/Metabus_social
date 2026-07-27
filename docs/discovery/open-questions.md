@@ -2,8 +2,8 @@
 title: Open Questions and Remaining Gates
 document_type: discovery register
 classification: open question
-status: Mixed: product baseline resolved; UX/legal/procurement gates open
-last_verified: 2026-07-27
+status: Mixed: product and UX baselines resolved; legal/procurement gates open
+last_verified: 2026-07-28
 related_documents: ["decisions.md","../spec/ux/open-ux-decisions.md","../spec/traceability-implementation.md"]
 decision_authority: decisions.md only
 ---
@@ -19,18 +19,21 @@ decision_authority: decisions.md only
 | OQ-ID-004..007 | D-006 excludes raw documents, liveness, face comparison, biometrics, CI/DI and manual document bypass; provider/accessibility details remain gates |
 | OQ-SES-001..002 | D-003 fixes 90 minutes and three approved games plus free conversation |
 | OQ-SES-003 | D-007 defers temporary subgroups |
-| OQ-SES-004..007 | Product-level stage, pass/text alternatives and operator authority are fixed; exact interaction remains pending D-024 |
+| OQ-SES-004..007 | Product-level stage, pass/text alternatives and operator authority are fixed; UX interaction approved under D-024 |
 | OQ-PRG-001..006 | D-004 fixes zero-to-two initial interest, mutual-consent reveal, zero-to-one final choice, private no-match and ten-minute mutual voice |
-| OQ-SAF-001..006 | D-006/D-019/D-023 fix core safety, identity, capture warning, sanctions and appeal principles; legal/UX details remain gates |
+| OQ-SAF-001..006 | D-006/D-019/D-023 fix core safety, identity, capture warning, sanctions and appeal principles; UX approved, legal review remains |
 | OQ-OPS-001..004 | D-005 excludes payment/deposit; D-015 fixes notification strategy; D-018/D-019 fix retention and moderation principles |
 | OQ-OPS-005..006 | Live facilitator and offline coordination are deferred by D-007 |
 | OQ-TECH-001..005 | D-008..017 accept PWA, modular Spring, NCP Korea, PostgreSQL, conditional Redis, LiveKit, Object Storage and observability boundaries |
 
 Decision does not validate the related assumptions. Evidence collection remains necessary.
 
-## Required UX approval questions
+## Resolved UX approval questions
 
-The authoritative list is [open-ux-decisions.md](../spec/ux/open-ux-decisions.md). D-024 keeps information architecture, screens, navigation, waiting/session/game controls, disclosure/interest/no-match, reconnect/late join, report/block/moderator, responsive/mobile, design system and accessibility interaction unresolved.
+The authoritative [UX decision register](../spec/ux/open-ux-decisions.md)
+records all thirteen items as approved. D-024 is satisfied for the isolated
+low-fidelity prototype; real-device, assistive-technology, legal and
+operational evidence remains open.
 
 ## Legal and privacy gates
 
@@ -51,5 +54,8 @@ The authoritative list is [open-ux-decisions.md](../spec/ux/open-ux-decisions.md
 
 ## Implementation gate
 
-No endpoint-level OpenAPI, database schema, real-time payload/state machine, frontend component contract or source-code implementation may become authoritative until D-024 is explicitly closed. See [traceability gate](../spec/traceability-implementation.md).
+D-024 is closed, but no endpoint-level OpenAPI, database schema, real-time
+payload/state machine, production frontend component contract or production
+source-code implementation is authorized without a new explicit phase. See
+[traceability gate](../spec/traceability-implementation.md).
 

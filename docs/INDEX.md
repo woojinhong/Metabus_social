@@ -12,7 +12,7 @@ decision_authority: discovery/decisions.md
 
 ## Current phase
 
-The product/MVP and bounded Pilot platform baseline are approved. ADR-001 through ADR-010 are Accepted. Detailed UX and implementation-level contracts remain pending D-024; source-code creation, provisioning, procurement and live operation are not authorized.
+The product/MVP and bounded Pilot platform baseline are approved. ADR-001 through ADR-010 are Accepted. The D-024 UX gate was satisfied on 2026-07-28 and authorizes only the isolated low-fidelity UX prototype; production source code, implementation contracts, provisioning, procurement and live operation are not authorized.
 
 ## Required read order
 
@@ -35,7 +35,7 @@ The product/MVP and bounded Pilot platform baseline are approved. ADR-001 throug
 6. Assumptions, proposals and open questions.
 7. Wiki, reviews and summaries.
 
-D-024 prevents draft UX, API capability, conceptual data and real-time capability documents from becoming implementation contracts. Only later explicit approval may promote them.
+D-024 keeps the approved UX baseline separate from API capability, conceptual data and real-time capability documents. Only a later explicit phase may promote implementation contracts.
 
 ## Directory purposes
 

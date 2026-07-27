@@ -1,15 +1,15 @@
 ---
 title: MVP 종단 사용자 워크플로 제안
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX specification proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["user-flow-decisions.md","session-wireflow.md","screen-state-model.md"]
 ---
 
-# MVP 종단 사용자 워크플로 제안
+# MVP 종단 사용자 워크플로
 
 ## 범위
 
@@ -31,7 +31,7 @@ related_documents: ["user-flow-decisions.md","session-wireflow.md","screen-state
 | 10 | 여섯 명 입장 | 5분 규칙/소개; 단계·청중·시간·허용 행동을 지속 표시 | 게임 1 또는 재연결/안전 종료 |
 | 11 | 게임 단계 | 세 게임 각각 지시·예시·차례·패스·반복·생각 시간·텍스트 제공 | 다음 게임, 일시정지, 나가기/신고 |
 | 12 | 게임 완료 | 20분 그룹 자유 대화; 안전한 이전 주제와 중립적 차례 지원 | 초기 관심 또는 일시정지/종료 |
-| 13 | 초기 관심 5분 | 0–2명, 비공개, 없음 정상, 마감 전 편집, 제출 효과 설명 | 제출/없음/타임아웃/차단 |
+| 13 | 초기 관심 5분 | 0–2명, 비공개, 없음 정상, 제출 전 편집, 제출 뒤 전체 철회만 설명 | 제출/없음/미제출 만료/차단 |
 | 14 | 상호 초기 관심 있음 | 공개가 자동이 아님을 먼저 알리고 리소스·명명된 청중·목적·만료·캡처 한계 확인 | 동의/거절/만료/미디어 불가 |
 | 15 | 공개 권한 유효 | 허용된 사진·정확한 나이·직업 범주만 제한 시간 표시 | 닫기/철회/신고; 이미 본 정보 회수 불가 설명 |
 | 16 | 공개 또는 비공개 경로 완료 | 최종 0–1명 또는 없음, 비공개, 자동 연락 없음 설명 | 제출/없음/타임아웃/차단 |
@@ -72,4 +72,6 @@ related_documents: ["user-flow-decisions.md","session-wireflow.md","screen-state
 
 ## 승인 체크
 
-이 흐름의 순서, 결합/분리 화면, 확인 방식, 타임아웃 처리, 문구와 안전 경로는 모두 제안이다. [열린 UX 결정](open-ux-decisions.md)과 [수용 기준](ux-acceptance-criteria.md)을 소유자가 함께 승인하기 전 구현 계약이 아니다.
+이 흐름은 [승인 UX 결정](open-ux-decisions.md)을 따른다. 화면 키와
+상태 표현은 검토 기준이며 최종 라우트, API, DTO, 데이터 상태나 실시간
+이벤트 계약이 아니다.

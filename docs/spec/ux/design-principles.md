@@ -1,19 +1,21 @@
 ---
-title: UX 설계 원칙 제안
-classification: proposal
-status: draft pending UX approval
+title: UX 설계 원칙
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX specification proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["README.md","../../../DESIGN.md","../../research/ux/competitive-patterns.md"]
 ---
 
-# UX 설계 원칙 제안
+# UX 설계 원칙
 
 ## 목적과 경계
 
-이 원칙은 승인된 [MVP 범위](../mvp-scope.md)를 화면·상호작용 제안으로 번역한다. 제품 범위, 세션 시간, 공개 정책, 안전 정책, ADR, 공급자 또는 기술 기준을 변경하지 않으며 D-024 승인 전 구현 기준이 아니다.
+이 원칙은 승인된 [MVP 범위](../mvp-scope.md)를 화면·상호작용 기준으로
+번역한다. 제품 범위, 세션 시간, 공개·안전 정책, ADR, 공급자 또는 기술
+기준을 변경하지 않으며 생산 구현 계약이 아니다.
 
 ## 원칙
 
@@ -52,6 +54,8 @@ related_documents: ["README.md","../../../DESIGN.md","../../research/ux/competit
 - 타인의 행동을 추정하지 않는다. “상대가 거절했습니다” 대신 “이번에는 다음 음성 대화가 열리지 않았어요”처럼 내 결과만 설명한다.
 - 안전 문구는 신고를 강요하지 않고 즉시 나가기와 긴급 도움을 분리한다.
 
-## 승인 전 확인
+## 검증 경계
 
-이 원칙과 [감정 여정](emotional-journey.md), [수용 기준](ux-acceptance-criteria.md)은 함께 검토한다. 일부 원칙의 프로토타입 성공만으로 D-024, API, 데이터, 실시간 또는 구현 계획이 승인되지 않는다.
+이 원칙과 [감정 여정](emotional-journey.md), [수용 기준](ux-acceptance-criteria.md)은
+함께 검증한다. 프로토타입 성공은 API, 데이터, 실시간 또는 생산 구현
+계약을 승인하지 않는다.

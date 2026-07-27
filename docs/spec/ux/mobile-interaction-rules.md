@@ -1,19 +1,19 @@
 ---
 title: 모바일 상호작용 규칙 제안
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX interaction proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../web-mobile-experience.md","screen-state-model.md","failure-and-recovery-workflow.md"]
 ---
 
-# 모바일 상호작용 규칙 제안
+# 모바일 상호작용 규칙
 
 ## 범위
 
-현재 iOS Safari와 Android Chrome의 세로형 Web/PWA를 우선한다. 동일한 여정을 강제된 동일 레이아웃으로 만들지 않으며, 네이티브 앱·카메라·백그라운드 통화 기능을 추가하지 않는다. 실제 배치와 치수는 D-024 승인 전 최종 디자인이 아니다.
+현재 iOS Safari와 Android Chrome의 세로형 Web/PWA를 우선한다. 동일한 여정을 강제된 동일 레이아웃으로 만들지 않으며, 네이티브 앱·카메라·백그라운드 통화 기능을 추가하지 않는다. 승인된 우선순위와 검토 기준은 최종 배치·중단점·CSS 계약을 확정하지 않는다.
 
 ## 라이브 세션 셸 정보 우선순위
 
@@ -25,7 +25,7 @@ related_documents: ["../web-mobile-experience.md","screen-state-model.md","failu
 
 이 다섯 영역은 핵심 단계에서 스크롤 깊이, 호버 또는 숨은 제스처에만 의존하지 않는다.
 
-## 세로형 구조 제안
+## 승인된 세로형 구조
 
 | 영역 | 고정/스크롤 | 포함 정보 | 규칙 |
 | --- | --- | --- | --- |
@@ -88,10 +88,14 @@ related_documents: ["../web-mobile-experience.md","screen-state-model.md","failu
 - 감소 동작에서는 자동 전환 애니메이션을 제거하고 내용 변화에 초점을 이동하지 않는다.
 - 텍스트 확대 뒤 고정 바가 본문이나 오류 메시지를 가리지 않는다.
 
-## 실기기 검증 제안
+## 실기기 검증
 
 현재/구형 iPhone, 최근 Samsung Galaxy, Bluetooth 이어버드, 스피커, 유선 헤드셋, Wi-Fi·LTE/5G 전환에서 핵심 과업을 검증한다. 승인된 수치 게이트는 [웹·모바일 경험](../web-mobile-experience.md)을 그대로 적용하며 이 문서에서 변경하지 않는다.
 
-## 승인 경계
+## 구현 경계
 
-고정 영역, 44×44 제안, 제어 위치, 뒤로가기, 키보드, 앱 전환기 처리와 세로/가로 적응은 프로토타입·실기기 검증 및 D-024 승인 전 미확정이다.
+세로형 우선순위, 44×44 CSS 픽셀 검토 기준, hover 비의존, 320 CSS
+픽셀 상당과 200% 리플로우, 키보드·safe-area·browser chrome·회전,
+앱 복귀 시 보호와 명시적 오디오 재활성화는 승인되었다. 고정 막대는
+확대 시 본문을 가리지 않도록 압축 또는 sticky 처리한다. 최종 breakpoint,
+CSS 값과 실기기 성능 증거는 후속 작업이다.

@@ -7,3 +7,7 @@
 .codex/skills/.system/**
 !.codex/prompts/
 !.codex/prompts/**
+prototype/ux-mock/node_modules/
+prototype/ux-mock/dist/
+prototype/ux-mock/test-results/
+prototype/ux-mock/playwright-report/

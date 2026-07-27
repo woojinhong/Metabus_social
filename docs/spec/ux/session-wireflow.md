@@ -1,22 +1,22 @@
 ---
 title: Draft Session Wireflow
 document_type: UX prerequisite
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../session-experience.md","../../discovery/decisions.md"]
 decision_authority: D-024
 ---
 
-# Draft Session Wireflow
+# Approved Session Wireflow
 
-## Candidate sequence and decision checklist
+## Approved sequence
 
-| Phase | Entry/exit | Required information | Candidate actions | Failure/recovery to decide |
+| Phase | Entry/exit | Required information | Approved participant actions | Failure/recovery |
 | --- | --- | --- | --- | --- |
 | Device check | confirmed reservation -> ready/support | browser/device, microphone/route/network, privacy note | allow/test/retry/help | permission denied, no input, Bluetooth, unsupported browser |
-| Waiting room | ready and within window -> admitted/cancelled | countdown, current eligibility/attendance, rules, visible-data summary | mark ready, leave, support | six not present, late arrival, provider outage, refresh |
+| Waiting room | device-ready and within window → admitted/cancelled | countdown, own readiness, neutral cohort status, rules, visibility | ready/help/leave | too early, late, underfill, outage, refresh |
 | Rules/intro | six admitted -> Game 1 | stage/timer, voice visibility, pass/report | acknowledge, speak/pass, mute/leave/report | acknowledgement incomplete, reconnect |
 | Three games | assigned content -> next stage | instruction, turn, answer modes, current audience | answer/pass/repeat/text/reaction | held clue, participant loss, timer disagreement |
 | Free conversation | games complete -> interest | remaining time, safe topics, group state | speak/pass/reaction/report | silence, dominance, harassment, connection loss |
@@ -25,9 +25,22 @@ decision_authority: D-024
 | Final selection | reveal/no-reveal -> result | zero-or-one rule and no automatic contact | choose/none/submit | retry, timeout, block |
 | Result/pair voice | final close -> no-match/voice/end | only own outcome and capability | join pair/leave/report/feedback | peer absent, expiry, reconnect |
 
-## Open interaction questions
+## Readiness, late entry and participant loss
 
-Visual participant representation; stage transition treatment; timer urgency; turn-taking controls; text alternative behavior; no-match message; pause/cancel ownership; late join before intro close; five-person continuation consent; reconnect overlay versus route; and mobile/background behavior remain unresolved.
+- `P08` completion requires supported-device, microphone/input/output and network
+  checks. `P09` readiness additionally requires an explicit participant action.
+- The exact-six test is backend/operator-only. Participants see only their own
+  readiness and neutral “checking,” “delayed,” “ready” or “cancelled” status.
+- Too-early entry shows the eligible window. Late entry is rechecked and allowed
+  only before rules/introduction closes; later entry uses a blocking explanation.
+- Underfill never starts. Cancellation offers penalty-free rebooking without
+  peer count, identity, readiness, eligibility, sanction or absence reason.
+- A permanent departure pauses the session. The remaining five privately choose
+  continue or stop; timeout or any refusal cancels without naming a cause.
 
-The approved backend-authority principle constrains all variants, but no state machine or real-time payload is final until this wireflow is explicitly approved.
+## Interaction boundary
+
+Participant order is stable and neutral. `P10` distinguishes operator pause from
+local reconnect. Exact routes, commands, event payloads, timers and presence
+contracts remain undefined.
 

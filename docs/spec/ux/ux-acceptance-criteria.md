@@ -1,19 +1,21 @@
 ---
-title: MVP UX 수용 기준 제안
-classification: proposal
-status: draft pending UX approval
+title: MVP UX 수용 기준
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX acceptance proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["usability-test-plan.md","README.md","../../discovery/decisions.md"]
 ---
 
-# MVP UX 수용 기준 제안
+# MVP UX 수용 기준
 
 ## 사용 규칙
 
-아래 기준은 D-024 소유자 검토와 프로토타입 증거를 위한 제안이다. 구현 티켓, 테스트 코드, API, 데이터, 실시간 계약 또는 자동 승인 규칙이 아니다. 각 ID는 이 문서에서만 선언한다.
+아래 기준은 승인된 UX와 프로토타입 증거를 검토한다. 구현 티켓, 생산
+테스트 계약, API, 데이터, 실시간 계약 또는 자동 승인 규칙이 아니다.
+각 ID는 이 문서에서만 선언한다.
 
 ## 범위·준비
 
@@ -38,7 +40,7 @@ related_documents: ["usability-test-plan.md","README.md","../../discovery/decisi
 
 | ID | 수용 제안 | 최소 증거 |
 | --- | --- | --- |
-| UX-ACC-010 | 초기 관심 0–2명, 없음, 마감 전 편집, 제출 후 효과와 완전한 비공개를 이해한다 | 선택/편집/없음 과업 |
+| UX-ACC-010 | 초기 관심 0–2명, 없음, 제출 전 편집, 제출 뒤 전체 철회만 가능함과 완전한 비공개를 이해한다 | 선택/편집/없음 과업 |
 | UX-ACC-011 | 상호 초기 관심과 사진·정확 나이·직업 범주 공개 동의가 별개임을 설명한다 | 동의 전 회상 |
 | UX-ACC-012 | 공개 전에 정확한 리소스, 명명된 청중, 목적, 만료, 철회 한계, 캡처 가능성을 확인한다 | 동의/거절 과업 |
 | UX-ACC-013 | 공개 거절·만료·대상 없음이 이유나 상대 선택을 노출하지 않는 정상 경로임을 이해한다 | 공개 없음 시나리오 |
@@ -68,14 +70,17 @@ related_documents: ["usability-test-plan.md","README.md","../../discovery/decisi
 | UX-ACC-027 | 한국어 핵심 문구가 존댓말·평이한 문장으로 현재 상태, 영향, 다음 행동, 지원을 전달하고 인기·탈락·운명·보상 표현을 피한다 | 한국어 이해 인터뷰 |
 | UX-ACC-028 | 실제 참가자 신원·사진·관심·사례·음성 내용이 알림, 앱 전환기, 일반 로그, 분석 또는 프로토타입 자료에 노출되지 않는다 | 프라이버시 리뷰와 테스트 데이터 검사 |
 
-## 승인 판정 제안
+## 프로토타입 판정
 
 - P0/P1 사용성·안전·접근성 결함은 0이어야 한다.
 - 핵심 이해 기준은 대상 사용자와 관련 접근성 사용자에서 도움 없이 재현되어야 한다.
 - 자동 접근성 검사만으로 통과를 선언하지 않는다.
 - 실기기 성능·복구 수치는 [웹·모바일 경험](../web-mobile-experience.md)의 승인 게이트를 변경 없이 따른다.
-- 일부 기준 통과는 부분 연구 증거일 뿐 D-024, OpenAPI, DB, 실시간 또는 구현 계획을 승인하지 않는다.
+- 프로토타입 통과는 D-024 UX를 시연할 뿐 OpenAPI, DB, 실시간 또는
+  프로덕션 구현 계획을 승인하지 않는다.
 
-## 소유자 승인 필요
+## 승인 상태
 
-정보 구조, 화면 인벤토리, 종단/세션/공개/노매치/실패/안전 흐름, 모바일, 접근성, 프론트엔드 시각 브리프와 카피를 소유자가 명시적으로 승인하고 [결정 로그](../../discovery/decisions.md)에 기록해야만 D-024 상태 변경을 검토할 수 있다.
+정보 구조, 화면, 종단/세션/공개/노매치/실패/안전, 모바일, 접근성,
+시각 브리프와 카피는 [결정 로그](../../discovery/decisions.md)에 승인되었다.
+실사용자·실기기 증거와 생산 계약은 후속 게이트다.

@@ -1,15 +1,15 @@
 ---
 title: 노매치와 안전한 종료 흐름 제안
-classification: proposal
-status: draft pending UX approval
+classification: user decision
+status: approved UX baseline
 implementation_ready: false
 decision_authority: D-024
 document_type: UX interaction proposal
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["progressive-disclosure-wireflow.md","emotional-journey.md","safety-and-reporting-wireflow.md"]
 ---
 
-# 노매치와 안전한 종료 흐름 제안
+# 노매치와 안전한 종료 흐름
 
 ## 목표
 
@@ -23,7 +23,7 @@ related_documents: ["progressive-disclosure-wireflow.md","emotional-journey.md",
 | 공개 동의 없음 | 이번 공개는 진행되지 않음 | 누가 거절·만료·오류였는지 | 최종 선택/없음, 차단·신고 |
 | 최종 상호 없음 | 다음 10분 음성은 열리지 않음 | 상대 선택, 거절 이유, 타임아웃 원인 | 공통 종료, 피드백, 안전 행동 |
 | 내가 없음 선택 | 내 선택이 없음으로 제출됨 | 상대 관심 여부 | 공통 종료 |
-| 제출 타임아웃 | 이번 단계의 내 선택이 없음으로 닫혔는지 명료하게 안내 | 상대 제출 상태 | 공통 종료/지원 |
+| 제출 타임아웃 | 이번 단계가 미제출로 닫혔고 다음 권한만 안내 | 상대 제출 상태 | 공통 종료/지원 |
 | 차단 | 공개와 진행이 중단되고 이후 접근이 제한됨 | 차단 사실의 상대 통지·상대 제재 상세 | 나가기, 신고 선택, 지원 |
 | 상대 미입장 | 쌍 음성에 현재 연결되지 않았고 권한 만료 시각 | 이유·상대 기기 상태 | 기다리기 범위, 종료, 신고/지원 |
 | 운영 취소 | 세션이 안전/운영 조건으로 종료됨 | 신고자·개인 책임·민감 이유 | 무벌 재예약, 지원 |
@@ -35,6 +35,17 @@ related_documents: ["progressive-disclosure-wireflow.md","emotional-journey.md",
 3. 내 데이터·권한의 다음 상태를 알려 준다.
 4. 안전하게 나가기, 차단, 신고, 지원을 제공한다.
 5. 선택적 피드백과 다음 예약을 분리한다.
+
+## 최종 선택과 쌍 음성
+
+- `P16`은 0–1명 또는 명시적 없음을 받는다. 제출 전에는 편집 가능하고,
+  제출 뒤에는 명명 대상을 바꾸지 않으며 전체 철회해 없음으로만 바꿀 수 있다.
+- 미제출 타임아웃은 선택을 추정하지 않는다. `P17`은 공통 마감 뒤 같은
+  구조와 타이밍으로 오직 내 다음 권한만 보여 준다.
+- 상호 최종 선택은 최대 10분 `P18` 음성 권한만 연다. 마이크가 꺼진
+  준비 상태에서 명시적으로 입장하며 텍스트·연락처·카메라는 열리지 않는다.
+- 상대 미입장, 재연결, 철회와 만료는 원인을 설명하지 않는 권한 상태다.
+  모든 분기는 나가기·차단·신고를 유지하고 `P19` 공통 종료로 이어진다.
 
 ## 한국어 핵심 마이크로카피
 
@@ -94,6 +105,7 @@ related_documents: ["progressive-disclosure-wireflow.md","emotional-journey.md",
 - 10초 안에 나가기·차단·신고를 구분하고 선택할 수 있는가?
 - 스크린리더와 200% 확대에서 결과·안전 행동 순서가 유지되는가?
 
-## 승인 경계
+## 구현 경계
 
-문구, 결과 화면 통합 여부, 알림 시점, 차단·신고 확인 방식과 쌍 음성 대기 시간은 제안이다. D-024 승인과 한국어 사용자 검증 전 확정하지 않는다.
+이 흐름과 문구 원칙은 승인되었다. 실제 알림 전달, 쌍 음성 입장 대기값,
+라우트·상태·이벤트와 프로덕션 카피는 후속 검증·계약 작업에 남는다.
