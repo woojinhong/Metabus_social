@@ -1,0 +1,51 @@
+name: "Feature"
+description: "승인된 product behavior의 구현 작업을 제안합니다."
+title: "[Feature] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "Feature implementation must not begin unless the product scope, specification, ADRs, and source-code creation are approved."
+  - type: textarea
+    id: approved-behavior
+    attributes:
+      label: "Approved behavior"
+      description: "matching decision ID와 승인된 specification ID를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: accepted-adrs
+    attributes:
+      label: "Accepted ADRs"
+      description: "필요한 Accepted ADR과 matching approval을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: user-outcome
+    attributes:
+      label: "User outcome"
+      description: "구현 세부가 아니라 승인된 사용자 결과를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope and exclusions"
+      description: "한 Issue의 구현 범위와 제외를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: "Validation criteria"
+      description: "test, safety, accessibility, observability 기준을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: authorization
+    attributes:
+      label: "Source-code authorization"
+      description: "application source-code creation 승인 근거를 적습니다."
+    validations:
+      required: true

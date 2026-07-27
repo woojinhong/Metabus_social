@@ -1,53 +1,62 @@
+---
+title: Documentation Index
+document_type: navigation
+classification: confirmed fact
+status: Active
+last_verified: 2026-07-27
+related_documents: ["discovery/decisions.md","spec/ux/README.md","wiki/README.md"]
+decision_authority: discovery/decisions.md
+---
+
 # Documentation Index
 
 ## Current phase
 
-**Confirmed fact:** The project is in product discovery. Product scope, MVP, architecture, technology stack, database, APIs, and implementation are not approved.
+The product/MVP and bounded Pilot platform baseline are approved. ADR-001 through ADR-010 are Accepted. Detailed UX and implementation-level contracts remain pending D-024; source-code creation, provisioning, procurement and live operation are not authorized.
 
-## Read order
+## Required read order
 
-1. This index.
-2. [discovery/decisions.md](discovery/decisions.md) for approved decisions.
-3. [discovery/product-concept.md](discovery/product-concept.md) for unresolved product exploration.
-4. [discovery/product-brief.md](discovery/product-brief.md), [discovery/assumptions.md](discovery/assumptions.md), and [discovery/open-questions.md](discovery/open-questions.md).
-5. Relevant material in [research/](research/README.md), [spec/](spec/README.md), [architecture/](architecture/README.md), and [adr/](adr/README.md).
-6. [operations/ai-runtime.md](operations/ai-runtime.md) for the verified AI tooling setup.
+1. Root [AGENTS.md](../AGENTS.md) and this index.
+2. [Decision log](discovery/decisions.md).
+3. [Approved product brief](discovery/product-brief.md) and [MVP scope](spec/mvp-scope.md).
+4. [UX approval prerequisites](spec/ux/README.md) and [open UX decisions](spec/ux/open-ux-decisions.md).
+5. Relevant approved specifications and [implementation traceability gate](spec/traceability-implementation.md).
+6. [Accepted ADRs](adr/README.md), [architecture](architecture/README.md) and [operations](operations/README.md).
+7. [Research](research/README.md), including [Korean MVP vendor verification](research/technology/korean-mvp-vendor-verification.md).
+8. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
 
-## Discovery documents
+## Authority and promotion
 
-- [Product concept](discovery/product-concept.md): exploratory working document; nothing is automatically approved.
-- [Product brief](discovery/product-brief.md): destination for sufficiently validated, approved product conclusions.
-- [Assumptions](discovery/assumptions.md): detailed assumption tracking.
-- [Open questions](discovery/open-questions.md): unresolved questions by domain.
-- [Decisions](discovery/decisions.md): the only record of approved decisions.
+1. User decisions in decisions.md.
+2. Approved specification SOT.
+3. Accepted ADRs.
+4. Architecture and operations SOT.
+5. Research findings.
+6. Assumptions, proposals and open questions.
+7. Wiki, reviews and summaries.
 
-## Authority hierarchy
+D-024 prevents draft UX, API capability, conceptual data and real-time capability documents from becoming implementation contracts. Only later explicit approval may promote them.
 
-1. Exp
-3. Research findings with cited sources and verification dates.
-4. Assumptions, proposals, and open questiolicit user approvals recorded as approved entries in docs/discovery/decisions.md.
-2. Confirmed facts supported by direct evidence.ns.
+## Directory purposes
 
-Only approved entries in docs/discovery/decisions.md are decisions. Unapproved proposals are non-authoritative.
+| Directory | Responsibility |
+| --- | --- |
+| docs/discovery | Approved decisions plus assumptions, questions and exploration |
+| docs/spec | Approved product/security/NFR rules; UX/API/data drafts with explicit status |
+| docs/spec/ux | Required UX approval package; no visual designs yet |
+| docs/spec/api | High-level capability inventory only; no OpenAPI yet |
+| docs/spec/data | Concepts/classification/retention; no schema or migrations |
+| docs/adr | Accepted architecture decisions and their gates |
+| docs/architecture | Selected deployment/vendor boundaries and broader analysis |
+| docs/research | External evidence and limitations |
+| docs/operations | Approved operational policy and procedural drafts |
+| docs/wiki | Non-authoritative human/LLM navigation |
 
-## Classification
+## Stable IDs and document rules
 
-- **Confirmed fact:** Directly verified project or external reality.
-- **User decision:** An explicit user approval recorded in the decision log.
-- **Assumption:** An unverified belief that needs evidence.
-- **Research finding:** Source-backed information that informs, but does not make, a decision.
-- **Proposal:** A candidate approach awaiting approval.
-- **Open question:** An unresolved matter that may affect scope or design.
+Functional FR-DOMAIN-###, UX UX-DOMAIN-###, safety SR-DOMAIN-###, non-functional NFR-DOMAIN-###, assumptions A-###, questions OQ-DOMAIN-### or UX-OQ-###, decisions D-### and ADRs ADR-###. Declare each once. Durable Markdown under root/docs is at most 200 lines, uses relative links and preserves classification/status. OMX/Codex runtime/cache files are excluded.
 
-Research does not become a requirement automatically. A proposal or model inference never becomes a decision without explicit user approval.
+## Decision gates
 
-## Documentation update rules
+UX approval, implementation contracts, code, cloud/procurement, live operation, biometric/payment changes, ADR changes and destructive Git actions all require explicit authority as described in AGENTS.md.
 
-- Label new statements with one of the classifications above.
-- Record approvals only in docs/discovery/decisions.md using its decision format.
-- Keep assumptions and open questions current when evidence or approvals change.
-- Include sources, source dates, verification dates, and uncertainty in research.
-- Keep proposals separate from accepted decisions.
-- Update links when documents move.
-
-When code eventually exists, it is evidence of current behavior, not automatic authority over approved product decisions.

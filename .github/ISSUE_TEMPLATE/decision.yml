@@ -1,0 +1,65 @@
+name: "Decision"
+description: "명시적 사용자 승인이 필요한 하나의 결정을 검토합니다."
+title: "[Decision] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "Issue의 결론만으로는 승인되지 않습니다. 승인·반려는 docs/discovery/decisions.md와 필요한 ADR에 반영해야 합니다."
+  - type: textarea
+    id: decision-needed
+    attributes:
+      label: "Decision needed"
+      description: "무엇을 승인·반려해야 하는지 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives"
+      description: "현실적인 대안과 유지 옵션을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: research
+    attributes:
+      label: "Relevant research"
+      description: "근거 문서와 stable ID를 연결합니다."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: "Impact"
+      description: "제품, UX, 안전, 비용, architecture에 미치는 영향을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: reversibility
+    attributes:
+      label: "Reversibility"
+      description: "되돌리는 비용과 migration 또는 exit를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: approval-owner
+    attributes:
+      label: "Approval owner"
+      description: "명시적 승인자를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: target-documents
+    attributes:
+      label: "Target documents"
+      description: "decision log, specification, ADR 등 갱신할 문서를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: completion
+    attributes:
+      label: "Completion condition"
+      description: "승인·반려와 durable 기록이 완료되는 조건을 적습니다."
+    validations:
+      required: true

@@ -1,0 +1,58 @@
+name: "Experiment"
+description: "하나의 등록된 가정을 안전하게 검증합니다."
+title: "[Experiment] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "실험은 제품 승인이 아니며 참여자 안전·동의와 무효화 기준을 사전에 정의해야 합니다."
+  - type: textarea
+    id: assumption-id
+    attributes:
+      label: "Assumption ID"
+      description: "검증할 A-### ID를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: "Hypothesis"
+      description: "검증 가능한 가설을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: participants
+    attributes:
+      label: "Target participants"
+      description: "대상, 모집 기준, 제외 기준을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: "Method"
+      description: "절차, 비교 조건, 측정 방법을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: "Success and invalidation criteria"
+      description: "성공과 무효화 조건을 모두 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: safety-consent
+    attributes:
+      label: "Safety and consent"
+      description: "동의, 중단, 개인정보, 피해 복구 방식을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: output-document
+    attributes:
+      label: "Output document"
+      description: "결과와 한계를 반영할 문서를 적습니다."
+    validations:
+      required: true

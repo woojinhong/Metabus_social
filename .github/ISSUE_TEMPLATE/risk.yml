@@ -1,0 +1,58 @@
+name: "Risk"
+description: "material product, safety, privacy, architecture 또는 vendor risk를 추적합니다."
+title: "[Risk] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "위험의 존재가 특정 통제나 vendor를 자동 승인하지 않습니다."
+  - type: textarea
+    id: risk
+    attributes:
+      label: "Risk"
+      description: "위험 사건과 원인을 구체적으로 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: "Affected users or systems"
+      description: "영향받는 사용자·데이터·시스템을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: likelihood
+    attributes:
+      label: "Likelihood"
+      description: "현재 근거와 함께 가능성을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: "Impact"
+      description: "피해의 종류와 심각도를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: controls
+    attributes:
+      label: "Existing controls"
+      description: "현재 문서화된 통제와 한계를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence needed"
+      description: "판단 또는 완화에 필요한 근거를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: owner
+    attributes:
+      label: "Mitigation owner"
+      description: "후속 작업의 책임자를 적습니다."
+    validations:
+      required: true

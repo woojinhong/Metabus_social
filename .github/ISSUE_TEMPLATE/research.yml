@@ -1,0 +1,58 @@
+name: "Research"
+description: "공식 근거를 수집해 하나의 결정 또는 문서를 지원합니다."
+title: "[Research] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "최종 근거와 한계는 Issue comment가 아니라 docs/research/ 또는 관련 owner 문서에 남깁니다."
+  - type: textarea
+    id: research-question
+    attributes:
+      label: "Research question"
+      description: "검증할 질문을 한 문장으로 작성합니다."
+    validations:
+      required: true
+  - type: textarea
+    id: supported-decision
+    attributes:
+      label: "Decision supported"
+      description: "이 연구가 지원하거나 차단을 해제할 결정을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope"
+      description: "포함·제외 범위와 비교 대상을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: primary-sources
+    attributes:
+      label: "Preferred primary sources"
+      description: "우선 확인할 공식 문서·규제·vendor source를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: output-document
+    attributes:
+      label: "Output document"
+      description: "결과를 반영할 repository-relative Markdown 경로를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: completion
+    attributes:
+      label: "Completion criteria"
+      description: "Issue를 닫을 수 있는 검증 가능한 조건을 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: "Evidence limitations"
+      description: "예상되는 source·가격·대표성 한계를 적습니다."
+    validations:
+      required: true

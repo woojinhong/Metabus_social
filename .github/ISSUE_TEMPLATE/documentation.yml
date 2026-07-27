@@ -1,0 +1,51 @@
+name: "Documentation"
+description: "하나의 문서 family 또는 source-of-truth 문제를 해결합니다."
+title: "[Docs] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "문서 구조와 authority를 보존하고 제안을 승인으로 바꾸지 않습니다."
+  - type: textarea
+    id: family
+    attributes:
+      label: "Document family"
+      description: "discovery, research, spec, architecture, ADR, wiki, operations 중 하나를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: source-of-truth
+    attributes:
+      label: "Source-of-truth file"
+      description: "주요 owner 문서 경로를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem"
+      description: "중복, 충돌, 누락, stale, link 또는 classification 문제를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: "Desired result"
+      description: "완료 후 문서 상태를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: links-ids
+    attributes:
+      label: "Links and IDs to validate"
+      description: "검증할 local links와 stable IDs를 적습니다."
+    validations:
+      required: true
+  - type: textarea
+    id: completion
+    attributes:
+      label: "Completion criteria"
+      description: "line, link, ID, authority 검증을 포함한 종료 조건을 적습니다."
+    validations:
+      required: true

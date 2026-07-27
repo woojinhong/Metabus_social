@@ -1,3 +1,15 @@
+---
+title: AI Runtime
+document_type: operations
+classification: confirmed fact
+status: Verified
+last_verified: 2026-07-27
+related_documents:
+  - ../../AGENTS.md
+  - ../INDEX.md
+decision_authority: repository guidance and explicit user approvals
+---
+
 # AI Runtime
 
 ## Verified setup
