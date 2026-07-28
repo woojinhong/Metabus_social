@@ -3,7 +3,7 @@ title: Selected External Services for the Korean Pilot
 document_type: architecture SOT
 classification: user decision
 status: Approved platform boundary
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../research/technology/korean-mvp-vendor-verification.md","deployment-ncp-korea.md"]
 decision_authority: D-010, D-013 through D-017
 ---
@@ -51,5 +51,9 @@ Each vendor adapter must define purpose, timeout, bounded exponential retry with
 
 ## Production gates
 
-No service is provisioned by this decision. Before live Pilot: contract/DPA/subprocessor/data-location review, business account and quote, quota tests, webhook security, export/deletion test, incident escalation, support/SLA review and privacy notices. UI-dependent request/response and error presentation remain pending D-024.
+No service is provisioned by this decision. Before live Pilot:
+contract/DPA/subprocessor/data-location review, business account and quote,
+quota tests, webhook security, export/deletion test, incident escalation,
+support/SLA review and privacy notices. D-024 is satisfied; UI-dependent
+request/response and error contracts remain pending separate promotion.
 

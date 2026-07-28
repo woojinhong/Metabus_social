@@ -3,7 +3,7 @@ title: External Services Architecture Analysis
 document_type: architecture analysis
 classification: research finding and proposal
 status: Superseded for Pilot selection
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["external-services-selected.md","../discovery/decisions.md"]
 decision_authority: D-010 and D-013 through D-017
 ---
@@ -43,4 +43,7 @@ Use provider-neutral domain identifiers, focused adapters, pseudonymous vendor r
 
 ## Gates
 
-No account, contract, credential, cloud resource, spend or production compliance is approved by this analysis. UI-dependent requests, errors and recovery presentation remain pending D-024.
+No account, contract, credential, cloud resource, spend or production
+compliance is approved by this superseded analysis. D-024 later approved the UX
+presentation baseline; UI-dependent implementation contracts remain pending
+separate promotion.

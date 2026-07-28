@@ -3,7 +3,7 @@ title: ADR-001: Java and Spring Modular Monolith with Managed RTC
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-009 and D-013
 ---
@@ -37,7 +37,10 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Pin patches and dependencies during implementation planning. D-024 must close before endpoint, event and page-specific adapter contracts become authoritative. Extract a service only after measured scaling, failure isolation or ownership need.
+Pin patches and dependencies during implementation planning. D-024 is
+satisfied; endpoint, event and page-specific adapter contracts remain blocked
+pending separate promotion. Extract a service only after measured scaling,
+failure isolation or ownership need.
 
 ## Evidence and SOT
 

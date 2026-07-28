@@ -2,9 +2,9 @@
 title: API Capability Inventory
 document_type: API specification
 classification: proposal
-status: draft pending UX approval
+status: capability boundary retained; contract promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../ux/README.md","../security/identity-admission-and-invitations.md","../data/README.md"]
 decision_authority: D-020, D-023 and D-024
 ---
@@ -13,7 +13,10 @@ decision_authority: D-020, D-023 and D-024
 
 ## Boundary
 
-This is not OpenAPI and defines no endpoint path, DTO, final status, page authorization or implementation contract. It identifies backend capabilities that the approved product and security boundaries will need after UX approval.
+This is not OpenAPI and defines no endpoint path, DTO, final status, page
+authorization or implementation contract. D-024 is satisfied; this inventory
+only identifies capabilities that a separately approved Implementation Contract
+phase may map.
 
 ## Capability groups
 
@@ -36,7 +39,11 @@ This is not OpenAPI and defines no endpoint path, DTO, final status, page author
 
 Future contract must define role/security scheme, CSRF, idempotency, optimistic versioning, pagination, rate limits, RFC 9457 Problem Details, Retry-After, stable error codes, privacy classification, audit requirement, retry safety, webhook signature/replay and explicit authorization. Provider tokens may reach clients only when short-lived, scoped and intended for that client.
 
-## UX approval gate
+## Contract promotion gate
 
-Endpoint grouping, path names, request/response fields, error presentation, async progress, page-specific authorization and acceptance tests are blocked until all ten D-024 UX areas are explicitly approved. No openapi.yaml is created by this task.
+All D-024 UX areas are approved. Endpoint grouping, path names,
+request/response fields, error presentation, async progress, page-specific
+authorization and implementation acceptance contracts remain blocked pending
+the separate Implementation Contract phase and security review. No
+`openapi.yaml` is authorized.
 

@@ -3,7 +3,7 @@ title: Scheduled Session Model Proposal
 document_type: discovery
 classification: proposal
 status: Exploration around approved session boundary
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents:
   - product-concept.md
   - product-risks-and-boundaries.md
@@ -13,7 +13,9 @@ decision_authority: decisions.md only
 
 # Core Experience and Session-Flow Hypotheses
 
-The bounded nine-stage product flow is approved at product level by D-003 and D-004. Expected effects, future alternatives and all detailed UX behavior remain assumptions or proposals pending D-024.
+The bounded nine-stage product flow is approved at product level by D-003 and
+D-004. D-024 later approved the UX baseline. Expected effects, future
+alternatives and implementation contracts remain assumptions or proposals.
 
 ## Stage 1: Reservation and compatibility filtering
 
@@ -59,7 +61,7 @@ Compatible mutual participants may enter optional short one-to-one voice. Messag
 
 ## Candidate Information-Disclosure Model
 
-**User decision at product level; presentation pending UX approval:**
+**Historical product-level decision; presentation was later approved by D-024:**
 
 | Stage | Candidate information |
 | --- | --- |

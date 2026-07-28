@@ -2,9 +2,9 @@
 title: Conceptual Domain Data Model
 document_type: data model
 classification: proposal
-status: draft pending UX approval
+status: conceptual model retained; contract promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["README.md","retention-matrix.md","../ux/README.md"]
 decision_authority: D-022 and D-024
 ---
@@ -36,7 +36,11 @@ Reservation/cohort assignment, admission eligibility, stage transition, interest
 
 An account owns one profile and many devices/reservations. A scheduled session may create one cohort and one session instance. A session participant links an eligible reservation to an instance. Content versions create response references. A disclosure grant links subject/viewer/media and session context. Interest submissions may create one mutual progression and pair grant. Safety cases reference minimum evidence and may create sanctions/appeals.
 
-## Pending UX decisions
+## Contract promotion boundary
 
-Final states and multiplicities depend on cancellation, waiting room, reveal, no-match, reconnect, report and moderator wireflows. Therefore no table/column/status enum/index/DBML is authoritative yet. Encryption layout, partial unique indexes and transition constraints are specified only after D-024.
+D-024 approved the cancellation, waiting-room, reveal, no-match, reconnect,
+report and moderator behavior baseline. Final states, multiplicities,
+table/column/status enum/index/DBML, encryption layout, partial unique indexes
+and transition constraints remain non-authoritative pending separate
+Implementation Contract promotion.
 

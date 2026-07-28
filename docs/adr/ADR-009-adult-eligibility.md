@@ -3,7 +3,7 @@ title: ADR-009: NICE Mobile Identity for Adult Eligibility
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-006 and D-014
 ---
@@ -37,7 +37,10 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Block live participation until lawful basis/notices, contract/DPA, callback security, exact requested fields, accessibility/recovery and deletion are verified. Page/endpoint flow remains pending D-024.
+Block live participation until lawful basis/notices, contract/DPA, callback
+security, exact requested fields, accessibility/recovery and deletion are
+verified. D-024 is satisfied; exact page/endpoint contracts remain pending
+separate promotion and security review.
 
 ## Evidence and SOT
 

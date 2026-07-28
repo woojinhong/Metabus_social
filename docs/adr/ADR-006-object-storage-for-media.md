@@ -3,7 +3,7 @@ title: ADR-006: Private NCP Object Storage for Participant Media
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-016
 ---
@@ -37,7 +37,9 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Test AWS SDK v2 operations, presign, listing, multipart, checksum, lifecycle, cache/variant deletion, inventory, access logs and export. UI upload/reveal DTOs await D-024.
+Test AWS SDK v2 operations, presign, listing, multipart, checksum, lifecycle,
+cache/variant deletion, inventory, access logs and export. D-024 is satisfied;
+upload/reveal DTO contracts await separate promotion.
 
 ## Evidence and SOT
 

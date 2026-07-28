@@ -2,8 +2,8 @@
 title: Specification Index
 document_type: navigation
 classification: confirmed fact
-status: Mixed approved and UX-gated drafts
-last_verified: 2026-07-27
+status: Mixed approved baseline and contract-gated proposals
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md"]
 decision_authority: decisions.md
 ---
@@ -27,16 +27,20 @@ decision_authority: decisions.md
 
 Approved rules do not imply approved screen behavior or implementation.
 
-## Draft pending UX approval
+## Post-D-024 contract-gated proposals
 
-- [UX prerequisites](ux/README.md)
+- [Approved UX baseline](ux/README.md)
 - [API capability inventory](api/README.md)
 - [Real-time capability boundary](api/realtime-capabilities.md)
 - [Conceptual data preparation](data/README.md)
 - [Conceptual domain data model](data/domain-data-model.md)
 - [Implementation traceability gate](traceability-implementation.md)
+- [Implementation Contract phase proposal](../discovery/implementation-contract-promotion-proposal.md)
 
-These drafts have implementation_ready: false. No endpoint-level OpenAPI, AsyncAPI, DBML, migration, final state enum, page authorization or component contract is authoritative.
+D-024 is satisfied and the prototype validation is complete. Contract-facing
+proposals remain `implementation_ready: false` pending separate owner approval.
+No endpoint-level OpenAPI, AsyncAPI, DBML, migration, final state enum, page
+authorization or component contract is authoritative.
 
 ## Historical journey and traceability drafts
 

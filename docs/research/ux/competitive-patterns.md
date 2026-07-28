@@ -1,11 +1,11 @@
 ---
 title: 경쟁 UX 패턴 채택 제안
 classification: proposal
-status: draft pending UX approval
+status: historical D-024 proposal; disposition recorded
 implementation_ready: false
 decision_authority: D-024
 document_type: UX research synthesis
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["competitor-friction-and-antipatterns.md","../../spec/ux/design-principles.md","../../discovery/decisions.md"]
 ---
 
@@ -65,4 +65,6 @@ related_documents: ["competitor-friction-and-antipatterns.md","../../spec/ux/des
 
 ## 승인 경계
 
-채택·거부 항목은 모두 제안이다. [마찰과 안티패턴](competitor-friction-and-antipatterns.md), [설계 원칙](../../spec/ux/design-principles.md), 대상 참가자 사용성 시험을 함께 검토한 뒤에도 D-024 소유자의 명시적 승인 없이는 UI나 구현 기준이 되지 않는다.
+이 채택·거부 항목은 D-024 검토 당시의 제안이다. 승인된 처분은
+[UX 기준선](../../spec/ux/README.md)에 기록되어 있다. 연구 자체는 승인,
+구현 권한 또는 사용성·시장 성과의 증거가 아니다.

@@ -1,11 +1,11 @@
 ---
 title: 경쟁 제품 마찰과 안티패턴 제안
 classification: proposal
-status: draft pending UX approval
+status: historical D-024 proposal; disposition recorded
 implementation_ready: false
 decision_authority: D-024
 document_type: UX research synthesis
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["competitive-patterns.md","../../spec/ux/end-to-end-workflow.md","../../spec/ux/no-match-and-safe-closing.md"]
 ---
 
@@ -61,4 +61,6 @@ related_documents: ["competitive-patterns.md","../../spec/ux/end-to-end-workflow
 
 ## 승인 경계
 
-완화안은 [종단 흐름](../../spec/ux/end-to-end-workflow.md)과 [안전한 종료](../../spec/ux/no-match-and-safe-closing.md)에 반영된 제안일 뿐이다. 경쟁사와의 차별화 주장, 시장 성과, 법적 적합성 또는 D-024 승인을 의미하지 않는다.
+이 완화안은 D-024 검토 당시의 제안이며 승인된 처분은
+[UX 기준선](../../spec/ux/README.md)에 기록되어 있다. 경쟁사와의 차별화,
+시장 성과, 법적 적합성 또는 구현 권한을 의미하지 않는다.

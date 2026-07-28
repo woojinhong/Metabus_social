@@ -2,9 +2,9 @@
 title: Administration and Operations Capabilities
 document_type: specification
 classification: user decision
-status: Approved capabilities; console UX pending approval
+status: Approved capabilities and console UX baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["trust-safety-moderation.md","../operations/moderation-sanctions-and-appeals.md","ux/safety-and-reporting-wireflow.md"]
 decision_authority: D-019 and D-024
 ---
@@ -33,5 +33,7 @@ decision_authority: D-019 and D-024
 
 Underfill follows the approved cancellation rule. RTC degradation freezes risky transitions and cancels/rebooks; there is no live provider migration. Unauthorized reveal revokes delivery, preserves minimum audit and starts incident review. Payment/refund, biometric/manual identity review, venue booking and automatic live trend publishing are excluded.
 
-Exact moderator console screens, navigation, filters, bulk actions, confirmations, failure states and accessibility interactions remain Draft pending D-024.
+D-024 approved the moderator-console UX boundaries. Exact routes,
+authorization, filters, bulk-action contracts, confirmations, failure
+contracts and implementation remain pending Implementation Contract promotion.
 

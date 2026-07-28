@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-28
-related_documents: ["discovery/decisions.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md and explicit repository-owner workflow delegation
 ---
 
@@ -37,6 +37,9 @@ The product/MVP and bounded Pilot platform baseline are approved. ADR-001 throug
 7. Wiki, reviews and summaries.
 
 D-024 keeps the approved UX baseline separate from API capability, conceptual data and real-time capability documents. Only a later explicit phase may promote implementation contracts.
+
+The [Implementation Contract phase proposal](discovery/implementation-contract-promotion-proposal.md)
+is pending owner approval and does not authorize its proposed artifacts.
 
 ## Directory purposes
 

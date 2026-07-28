@@ -3,7 +3,7 @@ title: ADR-003: LiveKit Cloud for the Controlled Pilot
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-013
 ---
@@ -37,7 +37,11 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Block live participants until Korea device latency/reconnect tests, cross-border transfer/DPA/subprocessor/retention review and quota alarms pass. Warn at 3,500 projected minutes and block new reservations above 4,000. Real-time payload/state-machine details await D-024.
+Block live participants until Korea device latency/reconnect tests,
+cross-border transfer/DPA/subprocessor/retention review and quota alarms pass.
+Warn at 3,500 projected minutes and block new reservations above 4,000. D-024
+is satisfied; real-time payload/state-machine contracts await separate
+promotion.
 
 ## Evidence and SOT
 

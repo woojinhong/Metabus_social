@@ -2,8 +2,8 @@
 title: Frontend and Mobile Strategy
 document_type: architecture analysis
 classification: user decision and proposal
-status: Approved delivery boundary; UX layouts pending
-last_verified: 2026-07-27
+status: Approved delivery and UX baseline; contract promotion pending
+last_verified: 2026-07-28
 related: [../discovery/product-concept.md, ../discovery/decisions.md]
 decision_authority: Only explicit approvals in ../discovery/decisions.md
 ---
@@ -12,7 +12,11 @@ decision_authority: Only explicit approvals in ../discovery/decisions.md
 
 ## Recommendation proposal
 
-**User decision:** use responsive React + Vite Web/PWA first. Evaluate Expo/React Native only when the approved numeric device gates fail. **Proposal — pending D-024:** later approved contracts, vocabulary, design tokens and analytics taxonomy should remain portable; maximum UI sharing is not a goal.
+**User decision:** use responsive React + Vite Web/PWA first. Evaluate
+Expo/React Native only when the approved numeric device gates fail. D-024 later
+approved the UX baseline. **Unapproved contract proposal:** vocabulary, design
+tokens and analytics taxonomy should remain portable; maximum UI sharing is not
+a goal.
 
 ## Decision matrix
 
@@ -51,7 +55,8 @@ Client-local state may hold drafts, device preferences, view state, and optimist
 
 ## Migration path
 
-1. Approve D-024 UX behavior, then define contracts and event names.
+1. D-024 UX behavior is approved; separately approve contract documentation
+   before defining candidate contracts or event names.
 2. Complete PWA device gates.
 3. If gates fail, reuse contracts, state-machine tests, tokens, and logic in Expo.
 4. Add native modules only for measured media, identity, notification, or accessibility gaps.

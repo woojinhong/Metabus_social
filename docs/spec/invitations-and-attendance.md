@@ -2,9 +2,9 @@
 title: Approved Invitations and Attendance
 document_type: specification
 classification: user decision
-status: Approved product rules; interaction pending UX approval
+status: Approved product and UX interaction baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["mvp-scope.md","security/identity-admission-and-invitations.md"]
 decision_authority: D-001, D-015 and D-023
 ---

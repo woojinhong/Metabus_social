@@ -2,9 +2,9 @@
 title: Approved Progressive Disclosure and Consent
 document_type: specification
 classification: user decision
-status: Approved consent rules; interaction pending UX approval
+status: Approved consent and UX interaction baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["mvp-scope.md","matching-and-progression.md","data/retention-matrix.md"]
 decision_authority: D-004
 ---

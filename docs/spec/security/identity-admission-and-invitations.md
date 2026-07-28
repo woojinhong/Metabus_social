@@ -2,9 +2,9 @@
 title: Identity, Admission, and Invitation Principles
 document_type: security specification
 classification: user decision
-status: Approved principles; interaction flow pending UX approval
+status: Approved principles and UX flow; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../../discovery/decisions.md","../invitations-and-attendance.md","../../adr/ADR-009-adult-eligibility.md","../ux/README.md"]
 decision_authority: D-014, D-023 and D-024
 ---
@@ -43,7 +43,9 @@ Foreign residents, MVNO users, people without PASS and false-rejection users rec
 5. Reconnect obtains fresh authority and never restores expired reveal, chat or media rights.
 6. Cancellation, removal, block, sanction, logout or expiry revokes future refresh and removes RTC access.
 
-Exact TTL values, cookie names, endpoint paths, DTOs, page transitions and reconnect UI remain Draft pending D-024.
+D-024 approved the page-transition and reconnect UX baseline. Exact TTL values,
+cookie names, endpoint paths, DTOs and authorization contracts remain pending
+Implementation Contract promotion and security review.
 
 ## Audit and gates
 

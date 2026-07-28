@@ -3,7 +3,7 @@ title: Product Concept Hub
 document_type: discovery
 classification: proposal
 status: Exploration around approved Pilot
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents:
   - decisions.md
   - assumptions.md
@@ -86,7 +86,9 @@ Detailed conditional behavior belongs in [specifications](../spec/README.md), no
 
 ## 10. Decision boundary
 
-**Confirmed fact:** [decisions.md](decisions.md) approves the bounded product/MVP and platform baseline. D-024 keeps detailed UX and implementation contracts pending; application code and live operation remain unauthorized.
+**Confirmed fact:** [decisions.md](decisions.md) approves the bounded
+product/MVP, platform and D-024 UX baseline. Implementation Contract promotion,
+application code and live operation remain unauthorized.
 
 ## 11. Change log
 

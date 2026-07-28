@@ -3,7 +3,7 @@ title: ADR-008: NAVER Cloud Platform Korea VPC Hosting
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-010
 ---
@@ -37,7 +37,10 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-No provisioning until business account, VAT-inclusive quote, quotas, ACG/subnet review, secret rotation, backup/restore, legal/DPA and cost alarms pass. UI/API deployment artifacts await D-024 and source-code authorization.
+No provisioning until business account, VAT-inclusive quote, quotas, ACG/subnet
+review, secret rotation, backup/restore, legal/DPA and cost alarms pass. D-024
+is satisfied; UI/API deployment artifacts still require contract and
+source-code authorization.
 
 ## Evidence and SOT
 
