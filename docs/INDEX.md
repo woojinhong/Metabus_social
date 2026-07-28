@@ -3,9 +3,9 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-27
-related_documents: ["discovery/decisions.md","spec/ux/README.md","wiki/README.md"]
-decision_authority: discovery/decisions.md
+last_verified: 2026-07-28
+related_documents: ["discovery/decisions.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+decision_authority: discovery/decisions.md and explicit repository-owner workflow delegation
 ---
 
 # Documentation Index
@@ -27,7 +27,8 @@ The product/MVP and bounded Pilot platform baseline are approved. ADR-001 throug
 
 ## Authority and promotion
 
-1. User decisions in decisions.md.
+1. User product/gate decisions in decisions.md and repository workflow
+   delegation in the approved operations policy.
 2. Approved specification SOT.
 3. Accepted ADRs.
 4. Architecture and operations SOT.
@@ -58,5 +59,5 @@ Functional FR-DOMAIN-###, UX UX-DOMAIN-###, safety SR-DOMAIN-###, non-functional
 
 ## Decision gates
 
-UX approval, implementation contracts, code, cloud/procurement, live operation, biometric/payment changes, ADR changes and destructive Git actions all require explicit authority as described in AGENTS.md.
+The owner-approved documentation Git workflow is defined in [GitHub workflow](operations/github-workflow.md). Implementation contracts, code, cloud/procurement, live operation, biometric/payment changes, ADR changes, merge and destructive Git actions retain their separate explicit gates in AGENTS.md.
 
