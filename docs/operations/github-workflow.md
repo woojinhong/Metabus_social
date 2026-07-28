@@ -1,142 +1,148 @@
 ---
-title: GitHub Discovery and UX-Gate Workflow
+title: GitHub Documentation Workflow
 document_type: operations
-classification: proposal
-status: Unapproved
-last_verified: 2026-07-27
+classification: user decision
+status: Approved operating policy
+last_verified: 2026-07-28
 related_documents:
-  - ../../korea.md
+  - ../../AGENTS.md
   - ../INDEX.md
   - ../discovery/decisions.md
-  - ../spec/ux/README.md
   - github-initial-backlog.md
-decision_authority: decisions.md and repository owner approval
+decision_authority: explicit repository-owner delegation on 2026-07-28
 ---
 
-# GitHub Discovery and UX-Gate Workflow
+# GitHub Documentation Workflow
 
-## 1. 목적과 권위
+## 1. Purpose and authority
 
-**제안 — 미승인:** GitHub는 작업과 검토를 조정합니다. durable knowledge는 repository Markdown에 남깁니다.
+GitHub coordinates reviewable work. Durable knowledge remains in repository
+Markdown under the authority hierarchy in [AGENTS.md](../../AGENTS.md).
+Issue and PR content does not override decisions, approved specifications or
+Accepted ADRs.
 
-> Markdown files store durable project knowledge. Issues track the work required to produce, validate, approve, or change that knowledge.
-
-- 제품 결정: `docs/discovery/decisions.md`
-- 외부 근거: `docs/research/`
-- 제품·행동 사양: `docs/spec/`
-- 아키텍처 결정: `docs/adr/`
-- 운영 정책: `docs/operations/`
-- `korea.md`, `docs/wiki/`, `docs/reviews/`, Issue·PR·GitHub Wiki: 비권위
-
-## 2. 현재 단계
-
-제품·MVP·Pilot 플랫폼 기준선과 ADR-001~ADR-010은 승인되었다. 그러나 D-024 때문에 상세 UX, OpenAPI, DB schema, real-time protocol, frontend contract와 source-code implementation은 승인되지 않았다.
-
-Issues는 지금 사용하되 UX 승인 패키지, vendor/legal 검증, 실기기 시험, 문서 무결성처럼 결과와 완료 조건이 명확한 작업만 만든다.
-
-현재 Issue 예시:
-
-- `[UX] Approve the information architecture and screen inventory`
-- `[UX] Approve session, disclosure, no-match, and recovery wireflows`
-- `[Accessibility] Approve responsive and assistive interaction behavior`
-- `[Vendor] Validate LiveKit Korean-device quality and data-transfer terms`
-- `[Vendor] Close NICE contract, field, MVNO, and foreign-resident gates`
-- `[Privacy] Complete qualified retention and cross-border review`
-- `[Harness] Maintain documentation validation`
-
-지나가는 아이디어, 작은 wording 질문, 실행 단계 없는 생각, 이미 Markdown에 충분한 질문, 완료 조건 없는 광범위한 작업, 승인 전 endpoint/table/screen/component 구현 Issue는 만들지 않는다.
-
-## 3. Markdown과 Issue의 관계
+The official documentation flow is:
 
 ```text
-Open question or gate in Markdown
-  -> Research, UX, Risk, or Decision Issue
-  -> Evidence and review
-  -> Source-of-truth document update
-  -> Explicit approval when required
-  -> decisions.md and, when relevant, ADR/spec update
-  -> Issue closed
+Issue
+  -> working branch
+  -> document changes
+  -> documentation validation
+  -> commit
+  -> push
+  -> Draft PR
 ```
 
-최종 결론을 Issue comment에만 남기지 않는다. durable knowledge를 바꾸는 완료 Issue는 해당 Markdown SOT를 갱신해야 한다.
+Owner review and merge are outside this delegated automation.
 
-## 4. Issue 크기
+## 2. Current permitted scope
 
-한 Issue는 한 번에 검토 가능한 결과 하나를 가진다.
+The flow may be used for:
 
-- 좋은 단위: IA 승인, 화면 inventory 승인, wireflow 하나 결정, LiveKit device matrix 검증, NICE data-field gate 종료, retention legal review 하나
-- 나쁜 단위: 전체 UX 완성, 모든 vendor 계약, 전체 앱 구축, 모든 API·DB·frontend 구현
+- Markdown documentation, research and discovery;
+- UX documentation and decision proposals;
+- traceability, review and operations documents;
+- documentation validation, Harness and Workflow documents.
 
-큰 승인 영역만 parent Issue를 쓰고 독립 결과를 child Issue로 나눈다. 작은 작업에는 hierarchy를 만들지 않는다.
+It may not generate or promote:
 
-예: `[UX Gate] Close D-024` 아래에 IA/screens, session flow, disclosure/matching, recovery, safety/moderator, responsive/accessibility를 둔다.
+- production frontend/backend code;
+- authoritative OpenAPI/AsyncAPI, endpoints or DTOs;
+- DBML, schema, migrations, final real-time states/events/payloads;
+- vendor integration, cloud resources, credentials, spend or deployment;
+- Pilot or production operation.
 
-## 5. GitHub Project
+Implementation Contract work remains blocked until separately approved. D-024
+closure and the Accepted ADRs do not bypass that gate.
 
-actionable Issue가 약 5개 이상이면 UX 승인과 Pilot 준비용 Project 하나를 만든다.
+## 3. When a new Issue and Draft PR are required
 
-- Status: Inbox, Research, Needs Decision, Ready, In Progress, Review, Blocked, Done
-- Type: Research, Decision, Documentation, Experiment, Risk, Feature, Bug, Harness
-- Domain: Product, UX, Game, Safety, Privacy, Architecture, Vendor, Repository
-- Priority: P0, P1, P2, P3
-- Phase: Discovery, UX Approval, Implementation Planning, Pilot, Production
-- Approval: Not Required, User Required, Approved, Rejected
+Create a new Issue when any condition applies:
 
-sprint, story point, 복잡한 capacity field는 아직 쓰지 않는다. milestone은 `UX Approval`, `Procurement/Legal Gates`, `Implementation Authorization`처럼 실제 gate에만 둔다.
+- there is an independently reviewable outcome;
+- multiple documents or sources of truth change;
+- Decision, Spec, Traceability, ADR, Architecture, Operations or Harness changes
+  materially;
+- approval or gate status changes or is proposed;
+- durable knowledge will govern later work;
+- separate acceptance criteria and a completion judgment are needed.
 
-## 6. Label과 branch
+One Issue owns one primary reviewable outcome. Split broad work into child
+Issues only when the results can be reviewed independently.
 
-- Labels: `type: research`, `type: decision`, `type: docs`, `type: experiment`, `type: risk`, `type: harness`
-- Domains: `domain: ux`, `domain: safety`, `domain: privacy`, `domain: architecture`, `domain: vendor`
-- Controls: `priority: p0..p3`, `approval: required`, `blocked`
-- Branches: `research/<issue>-<slug>`, `decision/<issue>-<slug>`, `docs/<issue>-<slug>`, `experiment/<issue>-<slug>`
+## 4. Existing-Issue and no-new-Issue rules
 
-승인 후 구현만 `feature/<issue>-<slug>` 또는 `fix/<issue>-<slug>`를 쓴다. 한 branch는 한 primary Issue와 한 reviewable outcome을 가진다.
+Use an existing open Issue when the change directly satisfies its scope and
+acceptance criteria. Small follow-ups needed to complete its Draft PR stay in
+that Issue.
 
-## 7. Pull Request 정책
+Do not create a new Issue for:
 
-큰 `AGENTS.md` 변경, 문서 구조 재편, MVP/UX 사양의 실질 변경, 큰 연구 추가, ADR 신설·상태 변경, 승인 결정 기록, architecture·harness 변경, agent 생성 대형 문서는 PR을 사용한다.
+- read-only analysis or research that changes no file;
+- ideas or questions without an execution plan;
+- typo, link, date, small wording or metadata fixes within an existing Issue;
+- small follow-ups required by an open Issue's acceptance criteria;
+- temporary generated output or local validation logs.
 
-owner가 명시적으로 허용한 경우에만 typo, broken link, source date, 작은 wording·metadata를 direct-to-main으로 처리할 수 있다.
+A small change is promoted to a new Issue when it needs independent approval,
+risk review, an SOT change or its own completion decision. “No new Issue” never
+authorizes direct push to the default or protected branch. File-changing work
+that needs no new Issue must belong to an existing Issue and its working
+branch/Draft PR. Read-only work and temporary untracked validation output need
+neither a branch nor a PR. Any other persisted standalone change is evaluated
+against the new-Issue criteria before editing.
 
-기본 흐름은 `Issue -> working branch -> Draft PR -> automated validation -> owner review -> merge`다. PR은 목적, 관련 Issue, 변경 영역, 승인 영향, 만든 결정과 만들지 않은 결정, 검증, 위험, owner approval을 간결하게 기록한다.
+## 5. Branch, commit and Draft PR rules
 
-## 8. 구현 Issue gate
+- Search open and closed Issues before creating a duplicate.
+- Branch from the current default branch after confirming a clean worktree.
+- Prefer `<type>/<issue>-<slug>`; types include `docs`, `research`, `decision`,
+  `experiment` and `harness`.
+- Stage only files belonging to the Issue.
+- A commit references the primary Issue when practical.
+- Push only the working branch and open a Draft PR against the default branch.
+- The Draft PR records purpose, Issue, scope, approval impact, decisions made
+  and not made, validation, risks and remaining owner review.
+- Draft proposals may edit protected SOT documents only within the Issue scope.
+  They must remain explicitly proposed and must not change approved status or
+  classification without recorded owner approval.
 
-상세 구현 Issue는 다음 조건을 모두 만족한 뒤 만든다.
+Automation must not merge, mark ready for review, close an Issue, close an owner
+decision, accept an ADR, write an owner decision into `decisions.md`, or push
+directly to the default/protected branch. Reset, clean, force push and history
+rewrite are also prohibited.
 
-- D-024의 IA, 화면 목록, 핵심 journey, session/disclosure/interest/recovery/safety wireflow, responsive/mobile, accessibility가 명시적으로 승인됨
-- 그 UX에 종속된 API·DB·real-time 사양이 승인 가능한 수준으로 작성됨
-- vendor legal/procurement boundary가 필요한 범위에서 종료됨
-- source-code creation이 별도로 명시 승인됨
+## 6. Validation gate
 
-그 전에는 controller, endpoint, table, enum, screen, component 구현 Issue를 만들지 않는다. 현재 Accepted ADR은 이 gate를 우회하지 않는다.
+Before commit:
 
-## 9. GitHub Wiki
+1. run `node scripts/docs/validate-docs.mjs`;
+2. confirm local links, front matter and the 200-line durable-Markdown limit;
+3. run `git diff --check`;
+4. reread changed files and inspect the scoped diff;
+5. inspect `git status`.
 
-`docs/`가 single source of truth이고 `docs/wiki/`는 repository 내부 navigation이다. GitHub Wiki는 선택적 비권위 portal이다. 활성화하더라도 Home, Product Overview, Documentation Guide, Session Overview, Safety Principles, Development Overview에서 repository 문서로 연결하고 권위가 없음을 표시한다. 자동 동기화하지 않는다.
+Before final reporting, rerun the applicable local checks and confirm the pushed
+remote branch and Draft PR.
 
-## 10. Automation
+When approval or gate status changes, search every reference to its stable ID
+and update it or record why the existing wording intentionally remains.
 
-지금 안전한 automation:
+The existing [documentation validation workflow](../../.github/workflows/docs-validation.yml)
+continues to run for relevant pull requests and default-branch pushes. This
+policy does not add hooks or alter that workflow.
 
-- PR과 default-branch push의 documentation validation
-- 향후 Issue·PR의 Project 자동 추가와 Inbox 기본값
-- Issue template label
-- linked PR은 Review, linked Issue close는 Done
-- `decisions.md`, ADR status, `AGENTS.md` owner review
-- high-impact 문서 변경 시 generated snapshot stale 경고
+## 7. Durable knowledge and closure
 
-연기: autonomous merge, ADR 자동 Accepted, `decisions.md` 자동 수정, 제품·vendor 자동 승인, 승인 전 구현 Issue 생성, production deployment, GitHub Wiki 동기화.
+Final conclusions must update the appropriate Markdown SOT rather than exist
+only in an Issue comment. Issue closure remains an owner or separately
+authorized post-review action after acceptance criteria and required approval
+are satisfied. Draft PR creation is not approval or closure.
 
-현재 repository에서 허용되는 것은 무료 local documentation validation뿐이다. Project·label·review rule은 remote 설정 승인이 필요하다.
+## 8. Validated precedent
 
-## 11. 완료 규칙
-
-- Research/Experiment: 결과·한계·assumption 상태를 durable document에 기록
-- UX/Decision: 승인·반려를 결정 문서와 해당 spec에 기록
-- ADR: status와 matching decision 일치
-- Documentation: links, lines, IDs, classification 검증 통과
-- Vendor/Legal: 증거, 계약 또는 검토 gate 상태와 미해결 제한 기록
-
-초기 제안 작업은 [GitHub Initial Backlog](github-initial-backlog.md)를 따른다.
+[Issue #1](https://github.com/woojinhong/Metabus_social/issues/1) and
+[PR #2](https://github.com/woojinhong/Metabus_social/pull/2) exercised the
+Issue, branch, validation, commit, push and Draft PR path. The PR validation
+check passed; its later ready-for-review transition and merge were separate
+owner actions and are not delegated by this policy.

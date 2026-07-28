@@ -3,9 +3,9 @@ title: Repository Operating Contract
 document_type: guidance
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-27
-related_documents: ["docs/INDEX.md","docs/discovery/decisions.md"]
-decision_authority: explicit user approvals recorded in decisions.md
+last_verified: 2026-07-28
+related_documents: ["docs/INDEX.md","docs/discovery/decisions.md","docs/operations/github-workflow.md"]
+decision_authority: explicit user approvals recorded in decisions.md and repository-owner workflow delegation
 ---
 
 # Repository Operating Contract
@@ -15,8 +15,8 @@ decision_authority: explicit user approvals recorded in decisions.md
 - The bounded Korean MVP product/platform baseline is approved in [decisions.md](docs/discovery/decisions.md).
 - ADR-001 through ADR-010 are Accepted for the bounded Pilot.
 - Live participant operation is not approved until legal, procurement, vendor, real-device, moderation and privacy gates pass.
-- Detailed UI/UX, OpenAPI endpoints/DTOs, database schema/enums, real-time state/payloads, frontend contracts and source-code implementation are not approved. D-024 is the controlling UX gate.
-- No application source code, infrastructure, migrations, cloud resources, vendor accounts, credentials, charges or Git writes are authorized by the current documentation baseline.
+- D-024 is satisfied only for the approved UX baseline and isolated low-fidelity prototype. Implementation contracts and production source code remain unapproved.
+- No application source code, infrastructure, migrations, cloud resources, vendor accounts, credentials or charges are authorized. Repository Git writes are limited to the owner-delegated documentation workflow below.
 
 ## Required read order
 
@@ -31,7 +31,8 @@ decision_authority: explicit user approvals recorded in decisions.md
 
 ## Authority hierarchy
 
-1. Explicit decisions in decisions.md.
+1. Explicit product/gate decisions in decisions.md and repository workflow
+   delegation in the approved operations policy.
 2. Approved specifications.
 3. Accepted ADRs.
 4. Architecture and operations SOT.
@@ -46,18 +47,19 @@ Canonical classifications: confirmed fact, user decision, assumption, research f
 Explicit user approval is required before:
 
 - changing approved product/MVP scope, cohort, session, disclosure or safety policy;
-- closing D-024 or approving UI, information architecture, screens, wireflows, responsive/mobile or accessibility interactions;
+- reopening or changing the D-024-approved UX baseline, screens, wireflows, responsive/mobile or accessibility interactions;
 - making OpenAPI, database schema, real-time payload/state machine or page authorization authoritative;
 - accepting/superseding an ADR or changing selected stack/vendor/database/region;
 - adding biometric/manual document review, payment/deposit or broader sensitive processing;
 - creating application/infrastructure/migration/UI code or provisioning resources;
-- committing, pushing, merging, resetting, cleaning, deleting or rewriting history.
+- Git writes outside the approved documentation workflow, including merge, ready-for-review transition, direct protected-branch push, reset, clean, force push, deletion or history rewrite.
 
 ## Documentation routing
 
 | Material | Canonical location |
 | --- | --- |
 | Decisions | docs/discovery/decisions.md |
+| Repository workflow policy | docs/operations/github-workflow.md |
 | External evidence | docs/research/ |
 | Assumptions/questions/exploration | docs/discovery/ |
 | Approved product rules and draft UX/API/data | docs/spec/ |
@@ -66,7 +68,7 @@ Explicit user approval is required before:
 | Operational policies | docs/operations/ |
 | Non-authoritative navigation | docs/wiki/ and korea.md |
 
-Do not repeat research in specifications. Do not infer UI from architecture. Draft API/data/realtime artifacts must include status: draft pending UX approval and implementation_ready: false.
+Do not repeat research in specifications. Do not infer UI from architecture. Draft API/data/realtime artifacts must preserve `implementation_ready: false` and accurately name their current promotion gate.
 
 ## LLM working rules
 
@@ -84,5 +86,19 @@ Use best-practice-research for official evidence, analyze for repository synthes
 
 ## Git safety
 
-Do not commit, push, merge, reset, clean, delete or rewrite history without explicit approval.
+The owner-approved documentation workflow is:
+
+`Issue -> working branch -> document changes -> document validation -> commit -> push -> Draft PR`
+
+Within an explicitly delegated Markdown, research, discovery, UX, decision-draft,
+traceability, review, operations, documentation-validation or harness scope, an
+agent may create the Issue and branch, edit allowed files, validate, commit,
+push the working branch and open a Draft PR. Follow the Issue criteria and
+validation requirements in [GitHub workflow](docs/operations/github-workflow.md).
+
+This delegation does not authorize automatic merge, automatic ready-for-review,
+automatic Issue closure, owner decisions, ADR acceptance, direct push to `main`
+or another protected branch, reset, clean, force push, history rewrite,
+implementation artifacts, deployment, provisioning, vendor integration or
+spend.
 
