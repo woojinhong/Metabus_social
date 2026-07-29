@@ -19,7 +19,7 @@ decision_authority: decisions.md and Accepted ADRs
 - LiveKit Cloud Build Pilot, Daily then Agora fallback, self-hosted LiveKit exit; no mid-session failover.
 - NICE minimal-result adult eligibility, NCP notifications/Object Storage, OTel with NCP/Grafana backends.
 
-See [domain capability map](domain-capability-map.md), [Accepted ADRs](../adr/README.md), [selected external services](external-services-selected.md) and [NCP deployment](deployment-ncp-korea.md).
+See [domain capability map](domain-capability-map.md), [Accepted ADRs](../adr/README.md), [selected external services](external-services-selected.md), the proposal-only [integration processing contract](integration-processing-contracts.md) and [NCP deployment](deployment-ncp-korea.md).
 
 ## Authority boundary
 

@@ -5,8 +5,8 @@ classification: proposal
 status: Proposal-only contract documentation approved; production promotion blocked
 implementation_ready: false
 last_verified: 2026-07-29
-related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
-decision_authority: D-024 and explicit owner approval in GitHub Issue #7
+related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","api/realtime-capabilities.md","data/domain-data-model.md","../architecture/domain-boundaries.md","../architecture/integration-processing-contracts.md"]
+decision_authority: D-024 and explicit owner approval in GitHub Issue #7; Issue #25 scopes the current proposal
 ---
 
 # Implementation Traceability Gate
@@ -59,7 +59,74 @@ Its realtime follow-up is the [realtime contract](realtime-contract.md).
 Its API follow-up is the [API contract](api-contract.md).
 Its Data follow-up is the [Data contract](data-contract.md).
 
+The implementation-facing follow-up refines the existing
+[logical API contract](api/README.md), [realtime delivery contract](api/realtime-capabilities.md),
+[logical data model](data/domain-data-model.md), [module execution contract](../architecture/domain-boundaries.md),
+and [integration processing contract](../architecture/integration-processing-contracts.md).
+
 The [promotion proposal](../discovery/implementation-contract-promotion-proposal.md)
 defines the approved documentation boundary. Machine-readable contracts,
 schema proposals, final real-time payloads and production source code remain
 blocked pending later explicit approval.
+
+## Vertical Slice implementation sequence
+
+The sequence validates the highest-risk authority boundaries before breadth. It
+is a proposal for a later approved implementation plan, not source-code authorization.
+
+| Slice | Purpose and included responsibility | Excluded responsibility | Logical API/data contract | Core tests | Completion and next-entry condition |
+| --- | --- | --- | --- | --- | --- |
+| 1 Account, session, basic authorization | Server session, authentication, coarse role, current authorization, forced logout, audit | IdP/MFA vendor, business workflows | login/logout/revoke/current authorization; Account, Auth Session, Grant, Audit | rotation, CSRF, suspension, revocation, scope denial, audit atomicity | Old session denied after revoke; enter Slice 2 after authorization path is repeatable |
+| 2 Reservation and official session | Reservation, admission check, official start/end, conflicts, idempotency | RTC delivery and participant media | reserve/cancel/start/end/Snapshot; Reservation, Official Session, Idempotency | duplicate/retry, capacity race, stale version, disconnect-not-end | Commit alone reconstructs status; enter Slice 3 after lifecycle conflicts are deterministic |
+| 3 SSE and LiveKit boundary | Post-commit hint, Snapshot reload, media token, connection observation, reconnect | WebSocket/gateway, provider failover | SSE connection, session Snapshot, token request; observation separate from Official Session | lost/duplicate/reordered hint, revoked token, reconnect, webhook replay | UI recovers only by Snapshot; enter Slice 4 after no media event changes official state |
+| 4 Report, Case, Assignment | Report receipt, Case link, assignment conflict, Work Record | Sanction decision and Appeal | report/create-link/assign/release/search; Report, Case, Assignment, Work Record | reporter protection, duplicate report, concurrent assignment, row scope | Assignment end denies access without deleting work; enter Slice 5 after scoped queries pass |
+| 5 Sanction and Appeal | Human sanction, current permission effect, independent Appeal and correction, audit | Automated irreversible decision, unproved notices | decide/reverse/appeal/review/status; Sanction, Appeal, authorization history | concurrence, reviewer conflict, stale Case, duplicate decision, correction ordering | Independent review and current authorization effects proven; enter Slice 6 after failure recovery passes |
+| 6 Privacy deletion Workflow | Request, access/session end, Deletion Job, provider/object follow-up, retry, retention exception | Legal-period invention, backup/provider completion promise | request/status/retry; Privacy Request, Job, provider result, deletion audit | duplicate request, lease crash, provider outage, hold, partial deletion, manual retry | No false completion; live Pilot still waits for legal/vendor/restore evidence |
+
+## Test strategy by risk
+
+| Risk | Initial evidence | Conditional later evidence |
+| --- | --- | --- |
+| State and authorization | Domain transition unit tests; Spring Security session/CSRF/coarse-role tests; Application Service assignment/resource tests | External policy/IdP contract tests only if selected |
+| PostgreSQL integrity | Real PostgreSQL integration tests with Testcontainers; unique/conditional update, optimistic conflict, idempotency and concurrent-request tests | Sustained load and multi-instance tests after numeric SLO/load exists |
+| API and privacy | REST error-category tests; participant/workforce projection scope; no sensitive error/log/SSE payload | Broad compatibility suite after final executable contract |
+| Provider and webhook | Adapter contract doubles; timeout/unknown-result; signature, replay, duplicate, reorder and reconciliation tests | Real vendor sandbox/account tests after B Evidence |
+| Realtime/media | SSE loss/duplicate/reorder and Snapshot recovery; token-scope tests | iOS Safari/Android Chrome device matrix, network/audio-route interruption, RTC load |
+| Recovery | Job lease/crash/retry/manual tests; deletion partial-failure test | Backup/restore, vendor-outage and fault-injection drills before live Pilot |
+
+## Implementation readiness Gate
+
+Statuses measure contract/evidence readiness only. `READY` does not authorize
+code, schema, vendor use, deployment, Ready-for-review transition, or live operation.
+
+| Gate | Status | Required evidence | Effect if missing | Next action |
+| --- | --- | --- | --- | --- |
+| API responsibility | READY | Resource/Command/Query ownership and authority | Operations could mix receipt and completion | Owner review logical operation catalog |
+| DTO responsibility | PARTIALLY_READY | Input/output/provider/UI separation | Persistence or protected data could leak | Fix final categories with executable API review |
+| Error model | PARTIALLY_READY | HTTP/category/retry/requery/privacy behavior | Unsafe retry or enumeration | Select final Problem Details/code vocabulary later |
+| Data ownership | READY | Aggregate owner, relationships, privacy and transaction links | Cross-module mutation ambiguity | Owner review logical catalog |
+| State transitions | PARTIALLY_READY | Candidate states, commands, preconditions and rejection | Stale/disconnect/provider events could become authority | Refine final state vocabulary without enum/schema |
+| Transaction boundaries | READY | Local ACID boundary per consequential workflow | Partial commit and false completion | Verify against each Vertical Slice |
+| Concurrency | READY | Expected state/version, uniqueness, conditional write, rare lock | Lost updates and duplicate active facts | Prove with PostgreSQL integration tests |
+| Idempotency | PARTIALLY_READY | Operation scope, owner, conflict/result reuse | Network retry duplicates work | Decide validity and final normalization later |
+| Authentication | PARTIALLY_READY | Server session/revoke/CSRF/rotation boundary | Stale or stolen sessions | Approve exact account/MFA/session-store configuration |
+| Authorization | READY | Spring coarse role + Application scope + Query row scope | Role-only access or post-filter leak | Trace every operation to current scope |
+| Audit | PARTIALLY_READY | Governed actions and minimum reference categories | No reliable accountability | Approve retention/tamper/access controls |
+| Async Job/Outbox | PARTIALLY_READY | Claim/lease/attempt/retry/dedupe/reconciliation | Lost or duplicate follow-up | Select physical model in schema phase |
+| External Adapter | PARTIALLY_READY | Port, timeout, retry, error, minimization, replacement | Vendor semantics leak into Domain | Produce provider-specific contract after B Evidence |
+| Webhook | EXTERNAL_EVIDENCE_REQUIRED | Signature, event ID, ordering/replay and actual fields | Cannot safely apply provider callback | Verify executed provider documentation/account |
+| SSE | PARTIALLY_READY | Minimal hint, auth, reconnect, Snapshot recovery | UI may infer completion or stay stale | Finalize envelope/retention after implementation measurement |
+| Privacy/deletion | PARTIALLY_READY | Access-end/deletion/retention/backup/provider separation | False completion or unlawful retention | Legal/privacy review plus processor deletion proof |
+| Backup/recovery | EXTERNAL_EVIDENCE_REQUIRED | NCP backup/PITR/failover and non-NCP restore drill | Unproved recovery and deletion propagation | Execute approved restore drill |
+| Real devices | EXTERNAL_EVIDENCE_REQUIRED | iOS Safari/Android Chrome audio/network/accessibility matrix | Live voice/reconnect risk unknown | Run approved device tests |
+| Vendor contracts/Evidence | EXTERNAL_EVIDENCE_REQUIRED | Quote, quota, SLA, DPA, subprocessor, location, support | No live provider or reliable promise | Close B-session procurement/evidence Gates |
+| Testing strategy | PARTIALLY_READY | Risk-based suites above and acceptance mapping | Implementation may pass happy paths only | Convert Slice contracts to executable test plan after approval |
+| Deployment basis | PARTIALLY_READY | Accepted NCP boundary plus health/rollback/secrets plan | No safe deployable environment | Implementation plan; provisioning remains separate |
+| Source-code authorization | BLOCKED | Explicit owner approval after proposal review | No Controller/Entity/Migration/code may be created | Owner decides later implementation promotion |
+
+## Overall judgment and open boundary
+
+- [RECOMMENDED] The document set is ready for owner review as a proposal-only design package. Internal authority, ownership, execution, and test responsibilities can inform a later implementation plan.
+- [OPEN] Exact Endpoint/DTO/error strings, state enums, tables/columns/keys, JPA mapping, migrations, SSE names, retry/lease values, Java/Spring patch compatibility, and actual code remain unapproved.
+- [OPEN] Provider behavior, contracts, pricing, quota, SLA, DPA/subprocessors, data location, device results, staffing, legal retention, backup/restore, RPO/RTO, deployment, and live Pilot require independent evidence.
+- [NOT-RECOMMENDED] Redis, Kafka, RabbitMQ, search engine, Kubernetes, microservices, distributed locks/transactions, Saga, event sourcing, full CQRS, separate policy engine, and realtime gateway remain outside the default until their measured entry condition exists.
