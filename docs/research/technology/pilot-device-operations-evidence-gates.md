@@ -68,6 +68,7 @@ attempt ID and pseudonymous metrics; do not record voice or raw identifiers.
 | Screen lock | Every device | Lock/unlock, preview, route and RTC state | At least 90% recover within 20 seconds; no automatic publish |
 | Incoming call/audio focus | Real SIM/eSIM primary devices | Ring/answer/end/decline, route and track events | At least 90% recover within 20 seconds; explicit mic reactivation |
 | Refresh/history | Every device | one-time admission, current stage, expired rights | No replay, auto-submit, auto-consent or expired reveal |
+| Notification/deep link | Every supported OS/browser with synthetic users | Delivery where observable, authenticated landing, tampered/expired link | Meets WM-GATE-10 without link-authorized admission |
 | Provider interruption | One controlled non-production drill per primary OS | pause, bounded retry, cancellation/rebook copy | No mid-session provider switch; socially neutral safe cancellation |
 | Removal/sanction while offline | Primary devices | reconnect after permission revoked | Rejoin/publish denied without participant metadata leak |
 
@@ -84,6 +85,8 @@ attempt ID and pseudonymous metrics; do not record voice or raw identifiers.
 - Run enough attempts to support the SOT's native-evaluation trigger: two
   consecutive rounds of at least 30 device-runs per OS where that trigger is
   evaluated. Do not average away an OS/device-specific failure.
+- Evaluate notification and authenticated deep links against WM-GATE-10
+  without copying or changing its approved thresholds.
 - Preserve sanitized timestamps, outcome codes and aggregate RTC quality only.
   Screenshots must use synthetic users and exclude tokens, interests, identity,
   report evidence and protected media.

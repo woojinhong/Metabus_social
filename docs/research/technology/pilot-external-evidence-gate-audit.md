@@ -27,10 +27,11 @@ provisioning or spend occurred.
 [D-010, D-013, D-014 and D-017](../../discovery/decisions.md), but every live
 Pilot gate below still lacks required evidence.
 
-Allowed item states are `confirmed`, `partially confirmed`,
-`vendor confirmation required`, `legal/privacy review required`,
-`procurement required`, `real-device test required`,
-`operations rehearsal required` and `blocked`.
+Allowed item states are `confirmed`, `vendor confirmation required`,
+`legal/privacy review required`, `procurement required`,
+`account evidence required`, `real-device test required`,
+`operations rehearsal required` and `blocked`. Exit criteria below are
+prospective evidence requirements, not current completion results.
 
 ## Evidence gate summary
 
@@ -47,7 +48,7 @@ Allowed item states are `confirmed`, `partially confirmed`,
 
 | Check | Evidence and classification | Open gate / exit evidence |
 | --- | --- | --- |
-| Product and adult result | [NICE mobile identity](https://www.niceid.co.kr/prod_mobile.nc) confirms subscriber-plus-device verification and markets adult verification. `partially confirmed`: the exact integration SKU and a boolean adult-only result are not public. | Contracted specification must show how the 19th-birthday rule is derived transiently and which minimum result is returned. |
+| Product and adult result | [NICE mobile identity](https://www.niceid.co.kr/prod_mobile.nc) confirms subscriber-plus-device verification and markets adult verification. That public capability is `confirmed`; the integration Gate remains `vendor confirmation required` because the exact SKU and a boolean adult-only result are not public. | Contracted specification must show how the 19th-birthday rule is derived transiently and which minimum result is returned. |
 | Public result fields | NICE lists name, sex, DOB, domestic/foreign flag, carrier, phone, CI and DI as selectable categories. | D-006 prohibits CI/DI storage and D-014 permits only a minimized outcome. Contract and test must prove CI/DI are not requested, logged or retained by the application. |
 | CI/DI boundary | NICE describes CI as a unique encrypted identity value and DI as service-specific; that public description is not a lawful-use determination. | Privacy/security review must document purpose, roles and masking even if the project requests neither value; no analytics or duplicate signal may silently add them. |
 | PASS/SMS | Public flow documents PASS/QR, PASS app push and six-digit SMS/LMS. | Vendor spec must confirm chosen routes, timeout, resend/retry/rate limit, cancellation, error codes, idempotent callback and supported browser/device behavior. |
