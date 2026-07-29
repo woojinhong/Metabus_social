@@ -2,9 +2,9 @@
 title: Approved Game and Content System
 document_type: specification
 classification: user decision
-status: Approved content rules; interaction pending UX approval
+status: Approved content and UX interaction baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["session-experience.md","../operations/content-operations.md"]
 decision_authority: D-003
 ---

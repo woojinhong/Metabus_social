@@ -3,7 +3,7 @@ title: ADR-002: React and Vite Web/PWA First with Native Gate
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-008
 ---
@@ -37,7 +37,9 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Run at least 30 device-runs per OS on the approved matrix. UX information architecture, wireflows, mobile layouts and accessibility interactions remain pending D-024.
+D-024 approved the information architecture, wireflows, mobile and
+accessibility baseline. Run at least 30 device-runs per OS on the approved
+matrix; implementation contracts and real-device evidence remain pending.
 
 ## Evidence and SOT
 

@@ -3,7 +3,7 @@ title: Architecture Index
 document_type: navigation
 classification: confirmed fact
 status: Approved Pilot boundary with analysis references
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../adr/README.md","../spec/ux/README.md"]
 decision_authority: decisions.md and Accepted ADRs
 ---
@@ -23,7 +23,11 @@ See [domain capability map](domain-capability-map.md), [Accepted ADRs](../adr/RE
 
 ## Authority boundary
 
-Architecture approves platform and security boundaries, not UI behavior. Endpoint paths/DTOs, database schema/enums, session state machine, real-time event payloads, page authorization and component contracts remain Draft pending [D-024](../discovery/decisions.md#d-024-required-ux-approval-gate).
+Architecture approves platform and security boundaries, not implementation
+contracts. [D-024](../discovery/decisions.md#d-024-required-ux-approval-gate)
+is satisfied for the UX baseline. Endpoint paths/DTOs, database schema/enums,
+session state machine, real-time event payloads, page authorization and
+component contracts remain blocked pending separate promotion.
 
 ## Supporting analysis
 
@@ -31,5 +35,9 @@ Existing application, domain, data, frontend, RTC, scalability, security, cost a
 
 ## Live and production gates
 
-No provisioning or production claim is made. Legal/privacy, vendor contracts/DPAs, quotes/quotas, NCP account, NICE coverage, LiveKit Korea tests, Grafana processing, restore/failover, moderator readiness and D-024 UX approval remain required.
+No provisioning or production claim is made. Legal/privacy, vendor
+contracts/DPAs, quotes/quotas, NCP account, NICE coverage, LiveKit Korea tests,
+Grafana processing, restore/failover and moderator readiness remain required
+before live operation; Implementation Contract and source-code approvals remain
+separate gates.
 

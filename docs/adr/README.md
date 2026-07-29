@@ -3,7 +3,7 @@ title: Architecture Decision Records
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: decisions.md
 ---
@@ -27,5 +27,9 @@ Allowed statuses: Proposed, Accepted, Rejected, Superseded. Every Accepted ADR b
 
 ## UX-dependent implementation gate
 
-D-024 keeps endpoint-level OpenAPI, database tables/columns/enums, real-time state/event payloads, page authorization and frontend contracts Draft pending UX approval. Accepted ADRs define platform and security boundaries only.
+D-024 is satisfied for the approved UX baseline. Endpoint-level OpenAPI,
+database tables/columns/enums, real-time state/event payloads, page
+authorization and frontend contracts remain blocked pending separate
+Implementation Contract promotion. Accepted ADRs define platform and security
+boundaries only.
 

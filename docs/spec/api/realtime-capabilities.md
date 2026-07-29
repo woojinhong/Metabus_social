@@ -2,9 +2,9 @@
 title: Real-Time Capability Boundary
 document_type: real-time specification
 classification: proposal
-status: draft pending UX approval
+status: capability boundary retained; contract promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../ux/session-wireflow.md","../../architecture/realtime-media.md","README.md"]
 decision_authority: D-021 and D-024
 ---
@@ -29,7 +29,11 @@ Connection/readiness; participant presence observations; microphone/route state;
 
 The exact WebSocket/SSE transport, handshake, event names, payloads, sequence/ack protocol, replay window and retry behavior remain Draft. Consequential facts will persist in PostgreSQL; presence, local mic state, active speaker and timer projections are ephemeral and expire within the retention policy. Redis is not a Pilot dependency.
 
-## UX approval gate
+## Contract promotion gate
 
-Waiting room, stage presentation, controls, late join, reconnect, no-match, reveal, report and moderator wireflows must be approved before a state machine or event contract is authoritative. No AsyncAPI or final payload schema is created by this task.
+The D-024 waiting room, stage, controls, late-join, reconnect, no-match, reveal,
+report and moderator wireflows are approved. A state machine, transport,
+event/command contract and payload remain blocked pending separate
+Implementation Contract promotion. No AsyncAPI or final payload schema is
+authorized.
 

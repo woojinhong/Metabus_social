@@ -4,7 +4,7 @@ type: owner-overview
 language: ko
 status: maintained-summary
 authority: non-authoritative
-last_updated: 2026-07-27
+last_updated: 2026-07-28
 ---
 
 # 프로젝트 현재 상태
@@ -16,10 +16,12 @@ last_updated: 2026-07-27
 - 제품 경계와 초기 한국 Pilot MVP: **승인됨**.
 - 플랫폼·인프라·Pilot 공급자 기준선: **승인됨**.
 - ADR-001~ADR-010: **Accepted**.
-- 상세 UI/UX, 화면·wireflow: **승인 대기**.
-- endpoint OpenAPI, DB schema, real-time payload/state machine: **Draft pending UX approval**.
+- 상세 UI/UX, 화면·wireflow와 격리된 저충실도 prototype 검증: **D-024 범위에서 완료**.
+- Implementation Contract 문서 단계와 endpoint OpenAPI, DB schema,
+  real-time payload/state machine: **소유자 승인 대기**.
 - 애플리케이션·인프라 코드 작성, cloud provisioning, vendor 가입/계약/결제, 실제 사용자 Pilot: **미승인**.
-- 즉시 목표: D-024의 UX 승인 패키지를 완성하고 명시적으로 승인받는 것.
+- 즉시 목표: [Implementation Contract 단계 제안](docs/discovery/implementation-contract-promotion-proposal.md)을
+  검토하고 문서 단계 진입 여부를 소유자가 명시적으로 결정하는 것.
 
 ## 2. 승인된 제품
 
@@ -43,17 +45,17 @@ last_updated: 2026-07-27
 
 ## 4. 주요 제품·안전 위험
 
-지연 사진 공개 뒤의 더 큰 실망, 음성 수행 압박, 3:3 cohort 유동성·공정성, no-show, 외부 연락처·홍보, 괴롭힘·성적 비행·보복, 성인 확인 오류, screenshot/local recording, 접근성, 과도한 구조화, 민감 데이터 보존이 핵심 위험이다. 화면과 상호작용이 아직 승인되지 않았으므로 안전 진입점과 회복 UX도 미완성이다.
+지연 사진 공개 뒤의 더 큰 실망, 음성 수행 압박, 3:3 cohort 유동성·공정성, no-show, 외부 연락처·홍보, 괴롭힘·성적 비행·보복, 성인 확인 오류, screenshot/local recording, 접근성, 과도한 구조화, 민감 데이터 보존이 핵심 위험이다. D-024 UX 기준과 격리된 prototype 검증은 완료됐지만 실기기·보조기술·법률·운영 증거와 구현 계약은 아직 없다.
 
 ## 5. 승인된 기술 기준선
 
 | 영역 | 승인 기준선 | 남은 게이트 |
 | --- | --- | --- |
 | Backend | OpenJDK 25 LTS + Spring Boot 4.1 modular monolith | patch pinning, source-code 승인 |
-| Web | React + Vite responsive PWA first | 실제 기기 수치 gate, UX 승인 |
+| Web | React + Vite responsive PWA first | 실제 기기·보조기술 수치 gate, 구현 승인 |
 | Mobile | gate 실패 시 Expo/React Native 평가 | 구현 미승인 |
 | Hosting | NCP Korea VPC | account, 견적, DPA, provisioning 승인 |
-| Database | NCP Cloud DB for PostgreSQL | version/extension/restore/failover; schema는 UX 대기 |
+| Database | NCP Cloud DB for PostgreSQL | version/extension/restore/failover; schema 승격 미승인 |
 | Redis | Pilot 미도입; 측정 후 조건부 TTL store | 실제 필요 증거 |
 | RTC | LiveKit Cloud Build Pilot | 한국 기기·국외처리·DPA; Daily fallback |
 | Identity | NICE PASS + 지원되는 SMS fallback, 최소 결과 저장 | 계약·필드·외국인/MVNO·법률 검토 |
@@ -71,25 +73,29 @@ last_updated: 2026-07-27
 
 제재는 deterministic hold → 설명/수정 → human review → 경고/제거 → 7일·30일 정지 → senior-reviewed 영구 금지 순이다. 위협, 성적 비행, hate, stalking, doxxing, impersonation, 녹음 위협, 보복은 즉시 제거 대상이다. 이의제기는 14일 내, 2영업일 접수, 7영업일 목표이며 독립 reviewer가 본다. LLM은 단독 영구 제재 권한이 없다.
 
-## 8. UX 승인 대기
+## 8. D-024 이후 남은 게이트
 
-정보 구조, 화면 목록, navigation, 대기실, session/game controls, microphone/pass, progressive reveal, interest/no-match, reconnect/late join, report/block/moderator, responsive/mobile, design system과 접근성 상호작용은 미승인이다. [UX gate](docs/spec/ux/README.md)가 모두 승인되기 전 OpenAPI·DBML·AsyncAPI·frontend contract는 authoritative가 될 수 없다.
+정보 구조, 화면 목록, navigation, 대기실, session/game controls,
+microphone/pass, progressive reveal, interest/no-match, reconnect/late join,
+report/block/moderator, responsive/mobile, design system과 접근성 상호작용은
+[D-024 UX 기준](docs/spec/ux/README.md)으로 승인됐다. 그러나 이 승인은
+OpenAPI·DBML·AsyncAPI·frontend contract나 production code를 authoritative하게
+만들지 않는다. 제안된 Implementation Contract 문서 단계도 소유자 승인 전에는
+시작할 수 없으며 `implementation_ready: false`가 유지된다.
 
 ## 9. 문서 읽기
 
 - 권위: [decisions](docs/discovery/decisions.md), [MVP](docs/spec/mvp-scope.md), [ADRs](docs/adr/README.md)
-- 다음 승인: [UX prerequisites](docs/spec/ux/README.md), [open UX decisions](docs/spec/ux/open-ux-decisions.md)
+- UX 기준: [approved UX baseline](docs/spec/ux/README.md), [UX decisions](docs/spec/ux/open-ux-decisions.md)
+- 다음 승인 제안: [Implementation Contract promotion](docs/discovery/implementation-contract-promotion-proposal.md)
 - 플랫폼: [external services](docs/architecture/external-services-selected.md), [deployment](docs/architecture/deployment-ncp-korea.md)
 - 정책: [retention](docs/spec/data/retention-matrix.md), [moderation](docs/operations/moderation-sanctions-and-appeals.md)
 - 근거: [vendor verification](docs/research/technology/korean-mvp-vendor-verification.md)
 
 ## 10. 다음 작업
 
-1. UX 정보 구조와 화면 inventory 검토.
-2. session/disclosure/no-match/reconnect/safety wireflow 검토.
-3. responsive/mobile 및 접근성 행동 정의.
-4. D-024 UX 패키지 명시 승인.
-5. 그 후에만 OpenAPI, real-time protocol, DB schema 초안 작성.
-6. NICE/LiveKit/NCP/Grafana 법률·조달·실기기 gate 검증.
-7. 별도 요청으로 source-code implementation 계획과 권한 결정.
-
+1. Implementation Contract 문서 단계 제안을 소유자가 검토한다.
+2. 승인될 때만 허용된 비권위·문서 전용 contract proposal을 작성한다.
+3. NICE/LiveKit/NCP/Grafana 법률·조달·실기기 gate를 검증한다.
+4. 실제 사용자 Pilot 전 접근성·moderation·privacy·운영 증거를 확보한다.
+5. 별도 요청으로 production contract 승격과 source-code 권한을 결정한다.

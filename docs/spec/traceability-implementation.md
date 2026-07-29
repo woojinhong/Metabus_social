@@ -5,7 +5,7 @@ classification: proposal
 status: D-024 satisfied; implementation promotion pending
 implementation_ready: false
 last_verified: 2026-07-28
-related_documents: ["../discovery/decisions.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
+related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
 decision_authority: D-024
 ---
 
@@ -53,3 +53,7 @@ to requirement IDs, API operations, real-time commands/events, conceptual
 entities/constraints, security controls, operational procedures and acceptance
 tests. Machine-readable contracts, schema proposals and production source code
 remain blocked until that phase is approved.
+
+The [promotion proposal](../discovery/implementation-contract-promotion-proposal.md)
+defines the bounded documentation outputs now awaiting owner review. It is a
+proposal only and does not authorize contract creation.

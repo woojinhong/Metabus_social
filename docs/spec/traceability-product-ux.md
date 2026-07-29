@@ -2,8 +2,8 @@
 title: Product and UX Traceability
 document_type: specification traceability
 classification: user decision and open question
-status: Approved product boundary; UX pending
-last_verified: 2026-07-27
+status: Approved product and UX baseline; implementation promotion pending
+last_verified: 2026-07-28
 related_documents:
   - traceability.md
   - ../discovery/decisions.md
@@ -17,11 +17,11 @@ decision_authority: D-001 through D-007 and D-024
 
 | Need | Approved Pilot mechanism | Assumption | Validation | UX status |
 | --- | --- | --- | --- | --- |
-| blank-page chat | three structured activities plus free conversation | A-001, A-012 | continuation, balance, discomfort | presentation pending |
-| appearance-first evaluation | delayed subject-controlled reveal | A-011, A-014, A-015 | curiosity, fairness, harm, withdrawal | wireflow pending |
-| direct one-to-one pressure | six-person voice group before mutual progression | A-002 | segmented pressure and accessibility | controls pending |
-| attendance uncertainty | reservation, reconfirmation, waiting room, fail-closed cohort | A-004 | fill/show/recovery | journey pending |
-| unsafe rejection | private choices, compatible mutual progression, no public counts | A-010, A-014 | inference and retaliation tests | result/no-match pending |
+| blank-page chat | three structured activities plus free conversation | A-001, A-012 | continuation, balance, discomfort | UX baseline approved; evidence open |
+| appearance-first evaluation | delayed subject-controlled reveal | A-011, A-014, A-015 | curiosity, fairness, harm, withdrawal | UX baseline approved; evidence open |
+| direct one-to-one pressure | six-person voice group before mutual progression | A-002 | segmented pressure and accessibility | UX baseline approved; evidence open |
+| attendance uncertainty | reservation, reconfirmation, waiting room, fail-closed cohort | A-004 | fill/show/recovery | UX baseline approved; evidence open |
+| unsafe rejection | private choices, compatible mutual progression, no public counts | A-010, A-014 | inference and retaliation tests | UX baseline approved; evidence open |
 
 The product mechanisms are approved for the bounded Pilot. Their expected benefits remain unvalidated assumptions.
 
@@ -33,9 +33,9 @@ The product mechanisms are approved for the bounded Pilot. Their expected benefi
 - Initial interest allows zero to two; final romantic interest allows zero or one; only compatible mutual result permits a ten-minute one-to-one voice room.
 - Payment, deposits, webcam, offline booking, recording, temporary subgroups and pre-mutual private text are excluded.
 
-## UX gate
+## Satisfied UX gate
 
-| Required approval | Draft owner |
+| Approved area | UX owner |
 | --- | --- |
 | information architecture and screens | [IA](ux/information-architecture.md), [inventory](ux/screen-inventory.md) |
 | primary journeys | [flow decisions](ux/user-flow-decisions.md) |
@@ -44,4 +44,5 @@ The product mechanisms are approved for the bounded Pilot. Their expected benefi
 | report/block/moderator | [safety wireflow](ux/safety-and-reporting-wireflow.md) |
 | responsive/mobile/accessibility | [accessibility](ux/accessibility-requirements.md) and later layout decisions |
 
-No screen behavior or detailed implementation contract is approved until D-024 is explicitly closed.
+D-024 is explicitly satisfied for these UX areas and the isolated prototype.
+No detailed implementation contract or production source code is approved.

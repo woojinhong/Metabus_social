@@ -3,7 +3,7 @@ title: Product Concept Hub
 document_type: discovery
 classification: proposal
 status: Exploration around approved Pilot
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents:
   - decisions.md
   - assumptions.md
@@ -15,7 +15,11 @@ decision_authority: decisions.md; this file remains exploratory
 
 # Product Concept
 
-> The bounded Pilot is approved in [decisions.md](decisions.md) and summarized in [product-brief.md](product-brief.md). This document retains alternatives, hypotheses and future exploration; it does not override approved scope or close assumptions. UX behavior remains gated by [D-024](decisions.md#d-024-required-ux-approval-gate).
+> The bounded Pilot and [D-024 UX baseline](decisions.md#d-024-required-ux-approval-gate)
+> are approved and summarized in [product-brief.md](product-brief.md). This
+> document retains alternatives, hypotheses and future exploration; it does not
+> override approved scope, close assumptions or authorize Implementation
+> Contract promotion.
 
 ## 1. Purpose and authority
 
@@ -86,7 +90,9 @@ Detailed conditional behavior belongs in [specifications](../spec/README.md), no
 
 ## 10. Decision boundary
 
-**Confirmed fact:** [decisions.md](decisions.md) approves the bounded product/MVP and platform baseline. D-024 keeps detailed UX and implementation contracts pending; application code and live operation remain unauthorized.
+**Confirmed fact:** [decisions.md](decisions.md) approves the bounded
+product/MVP, platform and D-024 UX baseline. Implementation Contract promotion,
+application code and live operation remain unauthorized.
 
 ## 11. Change log
 

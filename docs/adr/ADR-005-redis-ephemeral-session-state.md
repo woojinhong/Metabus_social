@@ -3,7 +3,7 @@ title: ADR-005: Conditional Redis-Compatible Ephemeral State
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-012
 ---
@@ -37,7 +37,9 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Adoption requires load evidence, key/TTL/data-classification design, reconstruction test and fail-closed behavior. UI-specific session state remains pending D-024.
+Adoption requires load evidence, key/TTL/data-classification design,
+reconstruction test and fail-closed behavior. D-024 is satisfied; exact
+session-state contracts remain pending separate promotion.
 
 ## Evidence and SOT
 

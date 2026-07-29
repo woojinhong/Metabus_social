@@ -2,9 +2,9 @@
 title: Korean MVP Domain Capability Map
 document_type: architecture SOT
 classification: user decision
-status: Approved high-level boundaries; detailed contracts pending UX
+status: Approved high-level boundaries; contract promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../spec/data/domain-data-model.md","../spec/ux/README.md"]
 decision_authority: D-001, D-009, D-020 through D-024
 ---
@@ -24,7 +24,7 @@ decision_authority: D-001, D-009, D-020 through D-024
 | Trust, safety and moderation | block/report/case/evidence/sanction/appeal/audit | PostgreSQL + private evidence storage | Core |
 | Notifications | intent, provider delivery and fallback | PostgreSQL intent/delivery | Core transactional only |
 | Feedback and experimentation | voluntary feedback, device quality, privacy-safe experiments | PostgreSQL/analytics with limits | Core minimal |
-| Administration | schedule/session/content/safety operations and access review | audited application authority | Core minimal; console UX pending |
+| Administration | schedule/session/content/safety operations and access review | audited application authority | Core minimal; console contract pending |
 
 ## External boundaries
 
@@ -40,5 +40,8 @@ Implement as modules in one Spring deployable after authorization. A module may 
 
 ## UX gate
 
-These boundaries do not decide screens, routes, page permissions, request/response fields, database schema, state enums or real-time payloads. D-024 must close before implementation contracts are approved.
+These boundaries do not decide routes, page permissions, request/response
+fields, database schema, state enums or real-time payloads. D-024 is satisfied
+for screen behavior; implementation contracts still require separate
+promotion.
 

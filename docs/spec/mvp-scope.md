@@ -2,9 +2,9 @@
 title: Initial Korean MVP Boundary
 document_type: specification
 classification: user decision
-status: Approved product boundary; UX pending
+status: Approved product and UX baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","session-experience.md","security/identity-admission-and-invitations.md"]
 decision_authority: D-001 through D-007
 ---

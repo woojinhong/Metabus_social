@@ -2,9 +2,9 @@
 title: Approved Live Session Experience
 document_type: specification
 classification: user decision
-status: Approved product rules; presentation pending UX approval
+status: Approved product and UX presentation baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["mvp-scope.md","game-content-system.md","progressive-disclosure.md","api/realtime-capabilities.md"]
 decision_authority: D-003 and D-004
 ---

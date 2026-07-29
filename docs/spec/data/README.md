@@ -2,9 +2,9 @@
 title: Conceptual Data Preparation
 document_type: data specification
 classification: proposal
-status: draft pending UX approval
+status: conceptual boundary retained; contract promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../../discovery/decisions.md","domain-data-model.md","retention-matrix.md","../ux/README.md"]
 decision_authority: D-011, D-018, D-022 and D-024
 ---
@@ -13,7 +13,11 @@ decision_authority: D-011, D-018, D-022 and D-024
 
 ## Authority boundary
 
-PostgreSQL is the approved durable authority. This folder defines conceptual information, aggregate boundaries, sensitivity and retention. It does not define final tables, columns, types, enums, migrations or production schema. Those remain pending D-024 UX approval and later API/event review.
+PostgreSQL is the approved durable authority. This folder defines conceptual
+information, aggregate boundaries, sensitivity and retention. D-024 is
+satisfied, but final tables, columns, types, enums, migrations and production
+schema remain blocked pending Implementation Contract promotion and later
+API/event review.
 
 ## Durable capabilities
 
@@ -45,5 +49,8 @@ Presence, timers, active speaker, local microphone level and transient connectiv
 
 ## Approval gate
 
-After UX approval, define state vocabulary, lifecycle ownership, constraints and API/event use cases before any DBML or executable migration. A schema may not infer screens or interactions from architecture alone.
+After separate Implementation Contract approval, proposal documents may define
+candidate state vocabulary, lifecycle ownership, constraints and API/event use
+cases. No DBML or executable migration is authorized, and a schema may not
+infer screens or interactions from architecture alone.
 

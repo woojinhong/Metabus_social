@@ -3,7 +3,7 @@ title: ADR-004: NCP Cloud DB for PostgreSQL as Durable Authority
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-011 and D-022
 ---
@@ -37,7 +37,9 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Confirm engine/minor version, extensions, G3 quote, backup period, PITR/failover and logical restore. Conceptual entities and retention may proceed; tables, columns, enums, DBML and migrations remain pending D-024.
+Confirm engine/minor version, extensions, G3 quote, backup period,
+PITR/failover and logical restore. D-024 is satisfied; tables, columns, enums,
+DBML and migrations remain blocked pending contract/schema promotion.
 
 ## Evidence and SOT
 

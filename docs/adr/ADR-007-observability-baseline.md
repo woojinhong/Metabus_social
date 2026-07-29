@@ -3,7 +3,7 @@ title: ADR-007: Privacy-Safe OpenTelemetry and Managed Backends
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-017
 ---
@@ -37,7 +37,12 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Before live Pilot verify Grafana region/DPA/subprocessors/export/delete, NCP quotas/prices, OTLP TLS, redaction tests and alerts. D-024 must close before UI event names, frontend error context, and UX acceptance telemetry become implementation contracts. Retention: traces/application metrics 14 days in Grafana Free; CLA logs 30 days; no raw identity, interests, voice, photos, tokens or message content.
+Before live Pilot verify Grafana region/DPA/subprocessors/export/delete, NCP
+quotas/prices, OTLP TLS, redaction tests and alerts. D-024 is satisfied; UI
+event names, frontend error context and UX acceptance telemetry remain blocked
+pending Implementation Contract promotion. Retention: traces/application
+metrics 14 days in Grafana Free; CLA logs 30 days; no raw identity, interests,
+voice, photos, tokens or message content.
 
 ## Evidence and SOT
 

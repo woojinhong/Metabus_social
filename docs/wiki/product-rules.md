@@ -17,5 +17,6 @@ decision_authority: none
 - Final compatible mutual choice grants ten-minute pair voice only.
 - No public counts/rejection reasons, group webcam, private text, payment, recording, external contact, biometric/doc review or popularity scoring.
 - Source of truth: [decisions](../discovery/decisions.md) and approved [MVP](../spec/mvp-scope.md).
-- Exact screens and interactions remain pending [D-024 UX approval](../spec/ux/README.md).
+- Exact screens and interactions are approved under
+  [D-024](../spec/ux/README.md); implementation contracts remain pending.
 

@@ -3,7 +3,7 @@ title: ADR-010: NCP Transactional Notification Family
 document_type: architecture decision record
 classification: user decision
 status: Accepted
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../discovery/decisions.md","../architecture/README.md"]
 decision_authority: D-015
 ---
@@ -37,7 +37,10 @@ Provider/domain authority remains application-owned; least privilege, data minim
 
 ## Implementation and production gates
 
-Verify business account, sender, Kakao templates, final rates/quotas, 30-vs-90-day history, SENS Mail API/IAM after 2026-09-17, retry/idempotency and cost caps. Notification screens/DTOs remain pending D-024.
+Verify business account, sender, Kakao templates, final rates/quotas,
+30-vs-90-day history, SENS Mail API/IAM after 2026-09-17, retry/idempotency and
+cost caps. D-024 is satisfied; notification screen/DTO contracts remain pending
+separate promotion.
 
 ## Evidence and SOT
 

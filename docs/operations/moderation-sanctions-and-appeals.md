@@ -2,9 +2,9 @@
 title: Moderation, Sanctions, and Appeals
 document_type: operations policy
 classification: user decision
-status: Approved principles; console interaction pending UX approval
+status: Approved principles and console UX baseline; implementation and readiness pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../spec/trust-safety-moderation.md","../spec/data/retention-matrix.md","../spec/ux/safety-and-reporting-wireflow.md"]
 decision_authority: D-019 and D-024
 ---
@@ -45,5 +45,7 @@ Evidence may include participant submissions, held text/media, stage/audit facts
 
 Reports, evidence, sanctions and appeals are retained one year after case closure unless deletion or documented legal hold applies. S1-only held content not used in a case is deleted within 30 days. Moderator misuse triggers privilege removal and independent investigation.
 
-Exact report entry points, forms, evidence UI, moderator console and appeal screens remain Draft pending D-024.
+D-024 approved the report, evidence, moderator-console and appeal UX baseline.
+Exact authorization and implementation contracts remain pending separate
+promotion; staffing, training and live operations remain separate gates.
 

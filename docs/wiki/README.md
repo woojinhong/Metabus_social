@@ -3,7 +3,7 @@ title: Project Wiki Navigation
 document_type: wiki navigation
 classification: confirmed fact
 status: Non-authoritative summary
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../INDEX.md","../discovery/decisions.md","../spec/ux/README.md"]
 decision_authority: none
 ---
@@ -14,7 +14,10 @@ This wiki helps humans and agents find authoritative documents. It never creates
 
 ## Current state
 
-The bounded product/MVP and platform baseline are approved; ADR-001 through ADR-010 are Accepted. D-024 keeps detailed UX, OpenAPI endpoints/DTOs, database schema/enums, real-time state/payloads, frontend contracts and source-code implementation unapproved.
+The bounded product/MVP, platform and D-024 UX baseline are approved; ADR-001
+through ADR-010 are Accepted. Implementation Contract promotion, OpenAPI
+endpoints/DTOs, database schema/enums, real-time state/payloads, frontend
+contracts and source-code implementation remain unapproved.
 
 ## Routes
 
@@ -25,5 +28,7 @@ The bounded product/MVP and platform baseline are approved; ADR-001 through ADR-
 - [External integrations](external-integrations.md)
 - [UX prerequisites](../spec/ux/README.md)
 
-Do not treat the file name session-state-machine.md as an approved state machine; it is a navigation summary and implementation protocol remains pending UX approval.
+Do not treat the file name session-state-machine.md as an approved state
+machine; it is a navigation summary and the implementation protocol remains
+pending separate contract promotion.
 

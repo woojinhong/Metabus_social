@@ -2,9 +2,9 @@
 title: Trust, Safety, and Moderation Requirements
 document_type: specification
 classification: user decision
-status: Approved principles; interaction details pending UX approval
+status: Approved principles and UX interaction baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["security/identity-admission-and-invitations.md","../operations/moderation-sanctions-and-appeals.md","ux/safety-and-reporting-wireflow.md"]
 decision_authority: D-006, D-019, D-023 and D-024
 ---
@@ -34,5 +34,8 @@ decision_authority: D-006, D-019, D-023 and D-024
 
 Waiting room has no participant chat. Intro/games use voice turns, structured responses and reactions. Free conversation is group voice only in MVP. Interest/reveal has no chat. Mutual pair is voice only. Webcam, private text and external contact exchange are not approved.
 
-Exact screen controls, report entry points, empty/loading/error states and moderator console behavior remain Draft pending D-024. Legal duties and notices require qualified Korean review.
+D-024 approved the screen-control, report-entry, state and moderator-behavior
+baseline. Exact authorization and implementation contracts remain pending
+Implementation Contract promotion. Legal duties and notices require qualified
+Korean review.
 

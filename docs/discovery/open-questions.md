@@ -4,7 +4,7 @@ document_type: discovery register
 classification: open question
 status: Mixed: product and UX baselines resolved; legal/procurement gates open
 last_verified: 2026-07-28
-related_documents: ["decisions.md","../spec/ux/open-ux-decisions.md","../spec/traceability-implementation.md"]
+related_documents: ["decisions.md","implementation-contract-promotion-proposal.md","../spec/ux/open-ux-decisions.md","../spec/traceability-implementation.md"]
 decision_authority: decisions.md only
 ---
 
@@ -57,5 +57,7 @@ operational evidence remains open.
 D-024 is closed, but no endpoint-level OpenAPI, database schema, real-time
 payload/state machine, production frontend component contract or production
 source-code implementation is authorized without a new explicit phase. See
-[traceability gate](../spec/traceability-implementation.md).
+[traceability gate](../spec/traceability-implementation.md). The
+[Implementation Contract phase proposal](implementation-contract-promotion-proposal.md)
+is pending owner approval and creates no contract authority.
 

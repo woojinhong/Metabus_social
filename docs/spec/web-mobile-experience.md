@@ -2,11 +2,11 @@
 title: Approved Web and Mobile Experience
 document_type: specification
 classification: user decision
-status: Approved non-functional boundary; UX layouts pending
+status: Approved non-functional and UX baseline; implementation promotion pending
 implementation_ready: false
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["mvp-scope.md","non-functional-requirements.md","../adr/ADR-002-web-first-delivery.md"]
-decision_authority: D-008
+decision_authority: D-008 and D-024
 ---
 
 # Approved Web and Mobile Experience
@@ -52,4 +52,3 @@ Start Expo/React Native evaluation when any security/authorization/accessibility
 ## Device matrix
 
 Current iOS Safari and Android Chrome; one recent and one older supported iPhone; one recent Samsung Galaxy; Bluetooth earbuds, speaker and wired headset where supported; Wi-Fi, LTE/5G and live network switching. In-app browsers are unsupported until separately tested.
-

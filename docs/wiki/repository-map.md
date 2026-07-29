@@ -3,7 +3,7 @@ title: Repository Map
 document_type: wiki
 classification: confirmed fact
 status: Non-authoritative summary
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["README.md","../INDEX.md"]
 decision_authority: none
 ---
@@ -23,5 +23,7 @@ decision_authority: none
 | Current evidence | [vendor verification](../research/technology/korean-mvp-vendor-verification.md) |
 | Owner summary | [korea.md](../../korea.md) |
 
-Source code and implementation documents do not exist as approved project authority. The next promotion gate is D-024 UX approval.
+Source code and implementation contracts do not exist as approved project
+authority. D-024 is satisfied; the next promotion gate is explicit owner
+approval of the Implementation Contract documentation phase.
 
