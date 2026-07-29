@@ -11,6 +11,7 @@ related_documents:
   - actor-authorization-contract.md
   - lifecycle-contract.md
   - realtime-contract.md
+  - api-contract.md
   - ux/README.md
   - ux/screen-inventory.md
   - data/retention-matrix.md

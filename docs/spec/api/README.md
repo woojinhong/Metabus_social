@@ -5,7 +5,7 @@ classification: proposal
 status: capability boundary retained; contract promotion pending
 implementation_ready: false
 last_verified: 2026-07-28
-related_documents: ["../ux/README.md","../security/identity-admission-and-invitations.md","../data/README.md"]
+related_documents: ["../ux/README.md","../security/identity-admission-and-invitations.md","../data/README.md","../api-contract.md"]
 decision_authority: D-020, D-023 and D-024
 ---
 
@@ -17,6 +17,9 @@ This is not OpenAPI and defines no endpoint path, DTO, final status, page
 authorization or implementation contract. D-024 is satisfied; this inventory
 only identifies capabilities that a separately approved Implementation Contract
 phase may map.
+
+The [API contract proposal](../api-contract.md) performs that mapping at a
+responsibility level while remaining non-authoritative and not implementation-ready.
 
 ## Capability groups
 

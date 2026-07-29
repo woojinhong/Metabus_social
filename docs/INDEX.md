@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-29
-related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -51,7 +51,8 @@ proposal with `implementation_ready: false`. The follow-up
 [Actor/Authorization contract](spec/actor-authorization-contract.md) is also
 non-authoritative and not implementation-ready. The next
 [Lifecycle contract](spec/lifecycle-contract.md) and
-[Realtime contract](spec/realtime-contract.md) preserve the same boundary.
+[Realtime contract](spec/realtime-contract.md), followed by the
+[API contract](spec/api-contract.md), preserve the same boundary.
 
 ## Directory purposes
 
