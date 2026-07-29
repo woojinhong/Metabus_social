@@ -53,17 +53,61 @@ test("rejects implementation_ready true while promotion is unapproved", async ()
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-IMPL-E001"]);
 });
 
-test("rejects unapproved Implementation Contract promotion wording", async () => {
+test("reports both rule IDs for two independent approval claims in one sentence", async () => {
   const findings = await inspectFixture("contract-promoted.md", "docs/operations/current-state.md");
+  // Promotion approval and production implementation authority are separate claims.
   assert.deepEqual(
     findings.map(finding => finding.id),
     ["SGV-CONTRACT-E001", "SGV-CONTRACT-E002"],
   );
 });
 
+test("does not let an unrelated denial hide the following approval claim", async () => {
+  const findings = await inspectFixture("unrelated-denial.md", "docs/operations/current-state.md");
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);
+});
+
+test("does not carry historical context across a Markdown heading boundary", async () => {
+  const findings = await inspectFixture("historical-section-boundary.md", "docs/operations/current-state.md");
+  assert.deepEqual(
+    findings.map(finding => [finding.id, finding.severity]),
+    [["SGV-D024-E001", "error"]],
+  );
+});
+
+test("detects a bounded multiline Implementation Contract approval claim", async () => {
+  const findings = await inspectFixture("multiline-contract-promotion.md", "docs/operations/current-state.md");
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);
+});
+
+test("keeps a denial that wraps immediately before its denied claim", async () => {
+  assert.deepEqual(
+    await inspectFixture("multiline-denial.md", "docs/spec/api/README.md"),
+    [],
+  );
+});
+
 test("rejects authoritative status on an approval-pending proposal", async () => {
   const findings = await inspectFixture("authoritative-proposal.md", "docs/spec/api/proposal.md");
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-FM-E001"]);
+});
+
+test("rejects an approved-for-implementation proposal status", async () => {
+  const findings = await inspectFixture(
+    "proposal-approved-for-implementation.md",
+    "docs/spec/api/proposal.md",
+  );
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-FM-E001"]);
+});
+
+test("allows explicit negative and pending proposal status variants", async () => {
+  for (const fixture of [
+    "proposal-not-approved.md",
+    "proposal-approval-pending.md",
+    "proposal-unapproved.md",
+  ]) {
+    assert.deepEqual(await inspectFixture(fixture, "docs/spec/api/proposal.md"), []);
+  }
 });
 
 test("warns for ambiguous post-UX wording without failing it as a direct contradiction", async () => {

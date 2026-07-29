@@ -78,13 +78,50 @@ function isHistoricalPath(file) {
 }
 
 function hasHistoricalContext(lines, index) {
-  const context = lines.slice(Math.max(0, index - 5), Math.min(lines.length, index + 6)).join(" ");
+  let sectionStart = 0;
+  let sectionEnd = lines.length;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (/^#{1,6}\s+/.test(lines[cursor])) {
+      sectionStart = cursor + 1;
+      break;
+    }
+  }
+  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+    if (/^#{1,6}\s+/.test(lines[cursor])) {
+      sectionEnd = cursor;
+      break;
+    }
+  }
+  const context = lines.slice(
+    Math.max(sectionStart, index - 5),
+    Math.min(sectionEnd, index + 6),
+  ).join(" ");
   return /\b20\d{2}-\d{2}-\d{2}\b|status\/date\/authority|histor(?:y|ical)|previously|at the time|retrospective|archive|과거|당시|이전 상태|역사 기록/i.test(context);
 }
 
-function hasDenialContext(lines, index) {
-  const context = lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join(" ");
-  return /\b(?:no|not|never|unapproved|unauthorized|remain(?:s)? blocked|may not|cannot)\b|(?:미승인|승인되지 않|금지|허가되지 않)/i.test(context);
+function hasDenialContext(statement) {
+  return /\b(?:no|not|never|unapproved|unauthorized|remain(?:s)? blocked|may not|cannot)\b|(?:미승인|승인되지 않|금지|허가되지 않)/i.test(statement);
+}
+
+function boundedStatement(lines, index) {
+  const current = lines[index].trim();
+  if (!current || /^#{1,6}\s+/.test(current) || /[.!?;:]\s*$/.test(current)) return current;
+  const next = lines[index + 1]?.trim() || "";
+  if (!next || /^#{1,6}\s+|^```/.test(next)) return current;
+  return `${current} ${next}`;
+}
+
+function sameSentenceContext(lines, index, statement) {
+  const previous = lines[index - 1]?.trim() || "";
+  if (!previous || /^#{1,6}\s+|^```/.test(previous)) return statement;
+  const boundary = Math.max(
+    previous.lastIndexOf("."),
+    previous.lastIndexOf("!"),
+    previous.lastIndexOf("?"),
+    previous.lastIndexOf(";"),
+    previous.lastIndexOf(":"),
+  );
+  return `${previous.slice(boundary + 1).trim()} ${statement}`.trim();
 }
 
 function matchingPattern(line, patterns) {
@@ -135,25 +172,27 @@ function inspectLines(file, text) {
       ));
     }
 
-    if (matchingPattern(line, CONTRACT_PROMOTION_PATTERNS) && !hasDenialContext(lines, index)) {
+    const statement = boundedStatement(lines, index);
+    const statementContext = sameSentenceContext(lines, index, statement);
+    if (matchingPattern(statement, CONTRACT_PROMOTION_PATTERNS) && !hasDenialContext(statementContext)) {
       findings.push(finding(
         "SGV-CONTRACT-E001",
         "error",
         file,
         index + 1,
-        line,
+        statement,
         AUTHORITATIVE_STATE.implementation,
         "Cite explicit recorded owner approval or restore approval-pending wording.",
       ));
     }
 
-    if (matchingPattern(line, IMPLEMENTATION_AUTHORITY_PATTERNS) && !hasDenialContext(lines, index)) {
+    if (matchingPattern(statement, IMPLEMENTATION_AUTHORITY_PATTERNS) && !hasDenialContext(statementContext)) {
       findings.push(finding(
         "SGV-CONTRACT-E002",
         "error",
         file,
         index + 1,
-        line,
+        statement,
         AUTHORITATIVE_STATE.implementation,
         "Remove the implementation-authority claim or cite the explicit promotion decision.",
       ));
@@ -185,7 +224,10 @@ function inspectFrontMatter(file, text) {
     ));
   }
 
-  if (proposalLike && /^(?:approved|authoritative|implementation-ready)$/i.test(status?.value || "")) {
+  const statusValue = status?.value || "";
+  const approvalDenied = /^(?:not approved(?: for implementation)?|approval pending|unapproved)$/i.test(statusValue);
+  const approvalClaimed = /^(?:approved(?: for implementation)?|authoritative|implementation-ready)$/i.test(statusValue);
+  if (proposalLike && approvalClaimed && !approvalDenied) {
     findings.push(finding(
       "SGV-FM-E001",
       "error",
