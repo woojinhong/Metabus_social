@@ -99,8 +99,21 @@ final class SpikeFixtureRepository {
   }
 
   void suspend(UUID accountId) {
+    suspendHolding(
+        accountId,
+        new java.util.concurrent.CountDownLatch(0),
+        new java.util.concurrent.CountDownLatch(0),
+        new java.util.concurrent.CountDownLatch(0));
+  }
+
+  void suspendHolding(
+      UUID accountId,
+      java.util.concurrent.CountDownLatch updateAttempted,
+      java.util.concurrent.CountDownLatch rowUpdated,
+      java.util.concurrent.CountDownLatch release) {
     transactions.executeWithoutResult(
         ignored -> {
+          updateAttempted.countDown();
           int changed =
               jdbc.update(
                   """
@@ -115,6 +128,8 @@ final class SpikeFixtureRepository {
           if (changed != 1) {
             throw new IllegalStateException("Account suspension fixture updated no row");
           }
+          rowUpdated.countDown();
+          SpikeRaceControl.await(release, java.time.Duration.ofSeconds(10));
         });
   }
 
@@ -147,8 +162,18 @@ final class SpikeFixtureRepository {
       UUID accountId,
       java.util.concurrent.CountDownLatch lockAcquired,
       java.util.concurrent.CountDownLatch release) {
+    guardedBusinessCommand(
+        accountId, new java.util.concurrent.CountDownLatch(0), lockAcquired, release);
+  }
+
+  void guardedBusinessCommand(
+      UUID accountId,
+      java.util.concurrent.CountDownLatch lockAttempted,
+      java.util.concurrent.CountDownLatch lockAcquired,
+      java.util.concurrent.CountDownLatch release) {
     transactions.executeWithoutResult(
         ignored -> {
+          lockAttempted.countDown();
           String state =
               jdbc.queryForObject(
                   """

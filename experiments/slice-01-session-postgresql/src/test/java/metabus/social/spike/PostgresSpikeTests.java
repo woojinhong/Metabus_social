@@ -19,12 +19,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
@@ -238,13 +241,35 @@ class PostgresSpikeTests {
 
   @Test
   void accountGuardSerializesBusinessCommandAndSuspensionWithoutLateCommit() throws Exception {
-    fixtures.suspend(SpikeFixtureRepository.ACTIVE_ACCOUNT);
-    var alreadyReleased = new CountDownLatch(0);
-    assertThatThrownBy(
-            () ->
-                fixtures.guardedBusinessCommand(
-                    SpikeFixtureRepository.ACTIVE_ACCOUNT, new CountDownLatch(1), alreadyReleased))
-        .isInstanceOf(IllegalStateException.class);
+    var suspensionUpdated = new CountDownLatch(1);
+    var releaseSuspension = new CountDownLatch(1);
+    var businessAttempted = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var suspension =
+          executor.submit(
+              () ->
+                  fixtures.suspendHolding(
+                      SpikeFixtureRepository.ACTIVE_ACCOUNT,
+                      new CountDownLatch(0),
+                      suspensionUpdated,
+                      releaseSuspension));
+      SpikeRaceControl.await(suspensionUpdated, Duration.ofSeconds(10));
+      var business =
+          executor.submit(
+              () ->
+                  fixtures.guardedBusinessCommand(
+                      SpikeFixtureRepository.ACTIVE_ACCOUNT,
+                      businessAttempted,
+                      new CountDownLatch(1),
+                      new CountDownLatch(0)));
+      SpikeRaceControl.await(businessAttempted, Duration.ofSeconds(10));
+      assertThat(business.isDone()).isFalse();
+      releaseSuspension.countDown();
+      suspension.get(10, TimeUnit.SECONDS);
+      assertThatThrownBy(() -> business.get(10, TimeUnit.SECONDS))
+          .isInstanceOf(ExecutionException.class)
+          .hasCauseInstanceOf(IllegalStateException.class);
+    }
     assertThat(fixtures.find(SpikeFixtureRepository.ACTIVE_ACCOUNT).businessValue()).isZero();
 
     fixtures.reset();
@@ -298,6 +323,7 @@ class PostgresSpikeTests {
 
     var after = fixtures.find(SpikeFixtureRepository.ACTIVE_ACCOUNT);
     assertThat(after.status()).isEqualTo(before.status());
+    assertThat(after.version()).isEqualTo(before.version());
     assertThat(after.sessionEpoch()).isEqualTo(before.sessionEpoch());
     assertThat(after.authorizationEpoch()).isEqualTo(before.authorizationEpoch());
     assertThat(count("SPIKE_AUDIT_FIXTURE")).isZero();
@@ -345,7 +371,7 @@ class PostgresSpikeTests {
   }
 
   @Test
-  void pendingSessionActionReconcilesAfterDeleteOutcomeFailure() {
+  void pendingSessionActionReconcilesAfterDeleteOutcomeFailure() throws Exception {
     Session session = sessionStore.createSession();
     sessionStore.save(session);
     UUID actionId = UUID.fromString("20000000-0000-0000-0000-000000000001");
@@ -353,12 +379,21 @@ class PostgresSpikeTests {
     jdbc.update(
         """
                 INSERT INTO SPIKE_SESSION_ACTION
-                  (ACTION_ID, IDEMPOTENCY_KEY, SESSION_REF, ACTION_STATE, RESULT_VERSION)
+                  (ACTION_ID, IDEMPOTENCY_KEY, SESSION_REF_HASH, ACTION_STATE, RESULT_VERSION)
                 VALUES (?, ?, ?, 'PENDING', 0)
                 """,
         actionId,
         idempotencyKey,
-        session.getId());
+        sessionReferenceHash(session.getId()));
+    jdbc.update(
+        """
+                INSERT INTO SPIKE_AUDIT_FIXTURE
+                  (AUDIT_ID, ACTION_NAME, TARGET_REF, OUTCOME, CORRELATION_REF)
+                VALUES (?, 'UNRELATED', ?, 'SUCCEEDED', ?)
+                """,
+        UUID.randomUUID(),
+        SpikeFixtureRepository.ACTIVE_ACCOUNT,
+        UUID.randomUUID());
 
     sessionStore.deleteById(session.getId());
     assertThatThrownBy(
@@ -377,11 +412,43 @@ class PostgresSpikeTests {
         .isInstanceOf(DataIntegrityViolationException.class);
     assertThat(actionState(idempotencyKey)).isEqualTo("PENDING");
 
-    reconcileSessionAction(idempotencyKey, session.getId(), actionId);
+    var reconcileStart = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var first =
+          executor.submit(
+              () -> {
+                SpikeRaceControl.await(reconcileStart, Duration.ofSeconds(10));
+                reconcileSessionAction(idempotencyKey, session.getId(), actionId);
+              });
+      var second =
+          executor.submit(
+              () -> {
+                SpikeRaceControl.await(reconcileStart, Duration.ofSeconds(10));
+                reconcileSessionAction(idempotencyKey, session.getId(), actionId);
+              });
+      reconcileStart.countDown();
+      first.get(10, TimeUnit.SECONDS);
+      second.get(10, TimeUnit.SECONDS);
+    }
     reconcileSessionAction(idempotencyKey, session.getId(), actionId);
 
     assertThat(actionState(idempotencyKey)).isEqualTo("SUCCEEDED");
-    assertThat(count("SPIKE_AUDIT_FIXTURE")).isOne();
+    assertThat(
+            jdbc.queryForObject(
+                """
+                        SELECT COUNT(*) FROM SPIKE_AUDIT_FIXTURE
+                        WHERE CORRELATION_REF=? AND ACTION_NAME='REVOKE_SESSION'
+                        """,
+                Integer.class,
+                actionId))
+        .isOne();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT SESSION_REF_HASH FROM SPIKE_SESSION_ACTION WHERE ACTION_ID=?",
+                String.class,
+                actionId))
+        .isEqualTo(sessionReferenceHash(session.getId()))
+        .doesNotContain(session.getId());
     assertThat(sessionStore.findById(session.getId())).isNull();
   }
 
@@ -492,18 +559,28 @@ class PostgresSpikeTests {
                             WHERE IDEMPOTENCY_KEY=? AND ACTION_STATE='PENDING'
                             """,
               key);
-          if (count("SPIKE_AUDIT_FIXTURE") == 0) {
-            jdbc.update(
-                """
-                                INSERT INTO SPIKE_AUDIT_FIXTURE
-                                  (AUDIT_ID, ACTION_NAME, TARGET_REF, OUTCOME, CORRELATION_REF)
-                                VALUES (?, 'REVOKE_SESSION', ?, 'SUCCEEDED', ?)
-                                """,
-                UUID.randomUUID(),
-                SpikeFixtureRepository.ACTIVE_ACCOUNT,
-                actionId);
-          }
+          jdbc.update(
+              """
+                      INSERT INTO SPIKE_AUDIT_FIXTURE
+                        (AUDIT_ID, ACTION_NAME, TARGET_REF, OUTCOME, CORRELATION_REF)
+                      VALUES (?, 'REVOKE_SESSION', ?, 'SUCCEEDED', ?)
+                      ON CONFLICT (CORRELATION_REF, ACTION_NAME, OUTCOME) DO NOTHING
+                      """,
+              UUID.randomUUID(),
+              SpikeFixtureRepository.ACTIVE_ACCOUNT,
+              actionId);
         });
+  }
+
+  private String sessionReferenceHash(String sessionId) {
+    try {
+      return java.util.HexFormat.of()
+          .formatHex(
+              MessageDigest.getInstance("SHA-256")
+                  .digest(sessionId.getBytes(StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("Required SHA-256 unavailable", exception);
+    }
   }
 
   private String actionState(String key) {
