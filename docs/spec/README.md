@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Mixed approved baseline and proposal-only contract documentation
 last_verified: 2026-07-29
-related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md"]
+related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md"]
 decision_authority: decisions.md and Issue #7 proposal-only documentation approval
 ---
 
@@ -40,6 +40,7 @@ Approved rules do not imply approved screen behavior or implementation.
 - [Actor and authorization contract proposal](actor-authorization-contract.md)
 - [Lifecycle contract proposal](lifecycle-contract.md)
 - [Realtime contract proposal](realtime-contract.md)
+- [API contract proposal](api-contract.md)
 
 D-024 is satisfied and the prototype validation is complete. The owner approved
 proposal-only Implementation Contract documentation in Issue #7. Every
