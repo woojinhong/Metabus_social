@@ -12,6 +12,7 @@ related_documents:
   - lifecycle-contract.md
   - realtime-contract.md
   - api-contract.md
+  - data-contract.md
   - ux/README.md
   - ux/screen-inventory.md
   - data/retention-matrix.md

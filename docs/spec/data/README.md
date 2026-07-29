@@ -5,7 +5,7 @@ classification: proposal
 status: conceptual boundary retained; contract promotion pending
 implementation_ready: false
 last_verified: 2026-07-28
-related_documents: ["../../discovery/decisions.md","domain-data-model.md","retention-matrix.md","../ux/README.md"]
+related_documents: ["../../discovery/decisions.md","domain-data-model.md","retention-matrix.md","../data-contract.md","../ux/README.md"]
 decision_authority: D-011, D-018, D-022 and D-024
 ---
 
@@ -18,6 +18,10 @@ information, aggregate boundaries, sensitivity and retention. D-024 is
 satisfied, but final tables, columns, types, enums, migrations and production
 schema remain blocked pending Implementation Contract promotion and later
 API/event review.
+
+The [Data contract proposal](../data-contract.md) maps approved UX units to
+candidate ownership, authority, non-storage, integrity and deletion duties
+without promoting a physical schema.
 
 ## Durable capabilities
 
