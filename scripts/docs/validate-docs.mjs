@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatSemanticFinding, inspectSemanticRepository } from "./semantic-gates.mjs";
 
 const ALLOWED_ADR_STATUS = new Set(["Proposed", "Accepted", "Rejected", "Superseded"]);
 
@@ -167,8 +168,25 @@ export async function validateRepository(root = globalThis.process?.cwd?.() || (
   const yaml = await walk(path.join(root, ".github"), file => /\.ya?ml$/.test(file));
   for (const file of yaml) validateYamlSubset(path.relative(root, file).replaceAll("\\", "/"), await fs.promises.readFile(file, "utf8"), errors);
 
-  const result = { markdownFiles: markdown.length, yamlFiles: yaml.length, declaredIds: declarations.size, adrFiles: adrFiles.length, errors };
-  if (errors.length) throw new Error(`Documentation validation failed:\n${errors.join("\n")}`);
+  const semanticFindings = await inspectSemanticRepository(root, contents);
+  const warnings = semanticFindings.filter(finding => finding.severity === "warning");
+  errors.push(...semanticFindings.filter(finding => finding.severity === "error").map(formatSemanticFinding));
+
+  const result = {
+    markdownFiles: markdown.length,
+    yamlFiles: yaml.length,
+    declaredIds: declarations.size,
+    adrFiles: adrFiles.length,
+    semanticWarnings: warnings.length,
+    errors,
+  };
+  if (errors.length) {
+    const warningReport = warnings.length
+      ? `\nDocumentation semantic warnings:\n${warnings.map(formatSemanticFinding).join("\n")}`
+      : "";
+    throw new Error(`Documentation validation failed:\n${errors.join("\n")}${warningReport}`);
+  }
+  if (warnings.length) console.warn(`Documentation semantic warnings:\n${warnings.map(formatSemanticFinding).join("\n")}`);
   return result;
 }
 
