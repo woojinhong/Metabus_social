@@ -5,7 +5,7 @@ classification: proposal
 status: Unapproved
 implementation_ready: false
 last_verified: 2026-07-29
-related_documents: ["slice-01-account-session-authorization-plan.md","../spec/api/slice-01-account-session-executable-contract.md","../architecture/security-privacy.md","../adr/ADR-001-modular-monolith-managed-rtc.md","../adr/ADR-004-postgresql-primary-store.md"]
+related_documents: ["slice-01-account-session-authorization-plan.md","../spec/api/slice-01-account-session-executable-contract.md","../reviews/slice-01-session-postgresql-spike-results.md","../architecture/security-privacy.md","../adr/ADR-001-modular-monolith-managed-rtc.md","../adr/ADR-004-postgresql-primary-store.md"]
 decision_authority: Issue #29 proposes executable contracts; source code and the Spike require separate owner approval
 ---
 
