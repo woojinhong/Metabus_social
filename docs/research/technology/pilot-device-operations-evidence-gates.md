@@ -16,11 +16,13 @@ decision_authority: none; this plan does not approve live operations
 
 ## Boundary and current status
 
-This plan turns approved UX and operations boundaries into evidence required
-before live participants. No physical-device test, staffing assignment,
-training, incident tabletop, vendor account, production system or Pilot result
-was created. Real-device status is `real-device test required`; operations
-status is `operations rehearsal required`; live Pilot status is `blocked`.
+This plan turns approved UX metrics and specified moderation/separation
+principles, together with unapproved operations proposals, into proposed
+evidence for owner approval before live participants. No physical-device test,
+staffing assignment, training, incident tabletop, vendor account, production
+system or Pilot result was created. Real-device status is
+`real-device test required`; operations status is
+`operations rehearsal required`; live Pilot status is `blocked`.
 
 Official browser references checked on 2026-07-29 establish only API
 constraints: WebKit requires HTTPS and user permission for media capture
@@ -88,7 +90,9 @@ attempt ID and pseudonymous metrics; do not record voice or raw identifiers.
 - Any unauthorized reveal, stale grant, automatic microphone resume, hidden
   safety action or fabricated/missing result is an immediate stop condition.
 
-## O01-O07 staffing gate
+## Proposed O01-O07 staffing gate
+
+Status: proposed exit criteria; owner approval required.
 
 | Work area | Required staffed authority | Separation and training | Exit evidence |
 | --- | --- | --- | --- |
@@ -120,7 +124,10 @@ cases, temporary restrictions, access expiry and next owner without copying
 private choices or raw evidence. Handoff failure, unknown owner or overdue
 urgent case blocks new sessions.
 
-## Required incident tabletops
+## Proposed incident tabletops
+
+These scenarios are proposed exit criteria; owner approval is required before
+they become an operations Gate.
 
 | Tabletop | Participants | Minimum success evidence |
 | --- | --- | --- |
@@ -141,8 +148,9 @@ unresolved critical action remains `blocked`.
 
 The real-device Gate exits only when every supported lane has dated evidence,
 all applicable numeric thresholds pass and no critical authorization,
-privacy, safety or accessibility defect remains. The operations Gate exits
-only when named coverage, least-privilege access, training, handoff,
-independent appeal, break-glass review, audit records and all seven tabletops
-pass. Neither Gate changes D-001 through D-024, ADR status, implementation
-authority or live-Pilot approval.
+privacy, safety or accessibility defect remains. Under this proposal, the
+operations Gate exits only after the owner approves the staffing/tabletop
+package and named coverage, least-privilege access, training, handoff,
+independent appeal, break-glass review, audit records and every approved
+tabletop pass. Neither Gate changes D-001 through D-024, ADR status,
+implementation authority or live-Pilot approval.
