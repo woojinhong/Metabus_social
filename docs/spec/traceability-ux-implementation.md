@@ -8,6 +8,7 @@ last_verified: 2026-07-29
 related_documents:
   - ../discovery/implementation-contract-promotion-proposal.md
   - traceability-implementation.md
+  - actor-authorization-contract.md
   - ux/README.md
   - ux/screen-inventory.md
   - data/retention-matrix.md

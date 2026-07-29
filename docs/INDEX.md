@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-29
-related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -47,7 +47,9 @@ D-024 keeps the approved UX baseline separate from API capability, conceptual da
 The [Implementation Contract phase proposal](discovery/implementation-contract-promotion-proposal.md)
 records the approved documentation-only boundary. Its first
 [UX-to-Implementation matrix](spec/traceability-ux-implementation.md) remains a
-proposal with `implementation_ready: false`.
+proposal with `implementation_ready: false`. The follow-up
+[Actor/Authorization contract](spec/actor-authorization-contract.md) is also
+non-authoritative and not implementation-ready.
 
 ## Directory purposes
 
