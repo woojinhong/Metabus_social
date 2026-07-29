@@ -57,12 +57,10 @@ class SpikeFixtureConfiguration {
   @Bean
   SecurityFilterChain spikeSecurity(
       HttpSecurity http,
-      SpikeSecurityFixtures.FixtureAuthenticationProvider provider,
       SpikeSecurityFixtures.SessionEpochFilter epochFilter,
       SpikeFixtureRepository repository)
       throws Exception {
-    http.authenticationProvider(provider)
-        .authorizeHttpRequests(
+    http.authorizeHttpRequests(
             requests ->
                 requests
                     .requestMatchers(

@@ -41,7 +41,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
@@ -234,7 +233,7 @@ class PostgresSpikeTests {
 
     assertThat(inFlight.get(10, TimeUnit.SECONDS).statusCode()).isEqualTo(204);
     assertThat(sessionStore.findById(cookie)).isNull();
-    assertThat(getWithCookie("/spike/probe", cookie).statusCode()).isEqualTo(401);
+    assertThat(getWithCookie("/spike/secured", cookie).statusCode()).isEqualTo(401);
   }
 
   @Test
@@ -324,12 +323,8 @@ class PostgresSpikeTests {
     assertThat(newCookie).isNotNull();
     assertThat(newCookie.getValue()).isNotEqualTo(oldCookie.getValue());
 
-    mockMvc
-        .perform(get("/spike/secured").cookie(oldCookie))
-        .andExpect(SecurityMockMvcResultMatchers.unauthenticated());
-    mockMvc
-        .perform(get("/spike/secured").cookie(newCookie))
-        .andExpect(SecurityMockMvcResultMatchers.authenticated());
+    assertThat(getWithCookie("/spike/secured", oldCookie.getValue()).statusCode()).isEqualTo(401);
+    assertThat(getWithCookie("/spike/secured", newCookie.getValue()).statusCode()).isEqualTo(200);
     assertThat(sessionStore.findById(oldCookie.getValue())).isNull();
     Session rotated = sessionStore.findById(newCookie.getValue());
     assertThat((Long) rotated.getAttribute(ISSUED_SESSION_EPOCH)).isEqualTo(0L);
