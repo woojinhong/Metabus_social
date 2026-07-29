@@ -275,7 +275,7 @@ class PostgresSpikeTests {
     fixtures.reset();
     var lockAcquired = new CountDownLatch(1);
     var releaseBusiness = new CountDownLatch(1);
-    var suspensionStarted = new CountDownLatch(1);
+    var suspensionAttempted = new CountDownLatch(1);
     try (var executor = Executors.newFixedThreadPool(2)) {
       var business =
           executor.submit(
@@ -285,11 +285,14 @@ class PostgresSpikeTests {
       SpikeRaceControl.await(lockAcquired, Duration.ofSeconds(10));
       var suspension =
           executor.submit(
-              () -> {
-                suspensionStarted.countDown();
-                fixtures.suspend(SpikeFixtureRepository.ACTIVE_ACCOUNT);
-              });
-      SpikeRaceControl.await(suspensionStarted, Duration.ofSeconds(10));
+              () ->
+                  fixtures.suspendHolding(
+                      SpikeFixtureRepository.ACTIVE_ACCOUNT,
+                      suspensionAttempted,
+                      new CountDownLatch(1),
+                      new CountDownLatch(0)));
+      SpikeRaceControl.await(suspensionAttempted, Duration.ofSeconds(10));
+      assertThat(suspension.isDone()).isFalse();
       releaseBusiness.countDown();
       business.get(10, TimeUnit.SECONDS);
       suspension.get(10, TimeUnit.SECONDS);
