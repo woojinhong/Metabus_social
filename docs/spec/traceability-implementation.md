@@ -5,7 +5,7 @@ classification: proposal
 status: Proposal-only contract documentation approved; production promotion blocked
 implementation_ready: false
 last_verified: 2026-07-29
-related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
+related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
 decision_authority: D-024 and explicit owner approval in GitHub Issue #7
 ---
 
@@ -54,6 +54,7 @@ acceptance evidence. The first artifact is the
 [UX-to-Implementation matrix](traceability-ux-implementation.md).
 Its Actor/Authorization follow-up is the
 [actor and authorization contract proposal](actor-authorization-contract.md).
+The next proposal is the [lifecycle contract](lifecycle-contract.md).
 
 The [promotion proposal](../discovery/implementation-contract-promotion-proposal.md)
 defines the approved documentation boundary. Machine-readable contracts,

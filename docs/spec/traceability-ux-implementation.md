@@ -9,6 +9,7 @@ related_documents:
   - ../discovery/implementation-contract-promotion-proposal.md
   - traceability-implementation.md
   - actor-authorization-contract.md
+  - lifecycle-contract.md
   - ux/README.md
   - ux/screen-inventory.md
   - data/retention-matrix.md
