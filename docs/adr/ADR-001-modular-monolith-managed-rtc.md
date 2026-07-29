@@ -20,7 +20,10 @@ Booking, consent, progression, safety and audit require transactions; SFU/TURN d
 
 ## Decision
 
-Use OpenJDK 25 LTS and Spring Boot 4.1 in one modular deployable backend. Isolate managed RTC and other vendors behind focused adapters. Use high-level REST plus authenticated real-time capability; final contracts await UX approval.
+Use OpenJDK 25 LTS and Spring Boot 4.1 in one modular deployable backend.
+Isolate managed RTC and other vendors behind focused adapters. Use high-level
+REST plus authenticated real-time capability. D-024 is satisfied; final
+contracts remain blocked pending separate promotion.
 
 ## Considered and rejected alternatives
 

@@ -14,7 +14,11 @@ decision_authority: decisions.md only
 
 Every entry is an assumption until evidence invalidates it or an explicit user decision resolves it. Competitor use of a mechanism can strengthen the relevance of a question, but it does not validate the assumption for this project.
 
-The bounded Pilot is approved in [decisions.md](decisions.md), but approval does not validate any expected effect. These assumptions remain open until evidence supports or invalidates them. UX behavior is still gated by D-024.
+The bounded Pilot and D-024 UX baseline are approved in
+[decisions.md](decisions.md), but approval does not validate any expected
+effect. These assumptions remain open until evidence supports or invalidates
+them; Implementation Contract promotion and live-operation evidence remain
+pending.
 
 Detailed external evidence: [dating-products research](../research/dating-products/README.md).
 

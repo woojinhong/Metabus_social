@@ -14,7 +14,9 @@ decision_authority: D-014, D-023 and D-024
 ## Approved boundaries
 
 - Account authentication, NICE adult eligibility, reservation ownership and session admission are separate proofs.
-- Account authentication uses verified email and a password hashed with Argon2id. Exact recovery screens and request contracts await UX approval.
+- Account authentication uses verified email and a password hashed with
+  Argon2id. D-024 approved the recovery UX baseline; exact request and
+  authorization contracts remain pending separate promotion.
 - Browser sessions use high-entropy opaque values, server-side hashed storage, rotation, Secure/HttpOnly/SameSite cookies, CSRF defense and revocation.
 - NICE uses PASS with provider-supported SMS fallback. Eligibility means the participant has reached the 19th birthday on participation date.
 - Persist only identity-verified/adult-eligible outcomes, verification time, provider, policy version and minimal opaque transaction reference.

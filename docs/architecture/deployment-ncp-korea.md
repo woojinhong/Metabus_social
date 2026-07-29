@@ -3,7 +3,7 @@ title: NCP Korea Deployment Boundary
 document_type: architecture SOT
 classification: user decision
 status: Approved platform boundary
-last_verified: 2026-07-27
+last_verified: 2026-07-28
 related_documents: ["../adr/ADR-008-ncp-korea-hosting.md","external-services-selected.md"]
 decision_authority: D-010 and D-011
 ---
@@ -51,5 +51,8 @@ Use explicit monthly budgets and alarms for Server, ALB, Cloud DB, backup, Objec
 
 ## Deployment pipeline boundary
 
-This document authorizes no pipeline or resource. A future pipeline must use short-lived deploy identity, reviewed artifacts, environment approvals, secret references, rollback and audit. Infrastructure code, release workflow, DNS, certificate and credentials remain pending a separate implementation task after D-024.
-
+This document authorizes no pipeline or resource. A future pipeline must use
+short-lived deploy identity, reviewed artifacts, environment approvals, secret
+references, rollback and audit. D-024 is satisfied; infrastructure code,
+release workflow, DNS, certificate and credentials remain pending separate
+Implementation Contract promotion and source-code authorization.
