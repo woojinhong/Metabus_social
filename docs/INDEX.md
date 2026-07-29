@@ -3,16 +3,21 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-28
-related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
-decision_authority: discovery/decisions.md and explicit repository-owner workflow delegation
+last_verified: 2026-07-29
+related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
 # Documentation Index
 
 ## Current phase
 
-The product/MVP and bounded Pilot platform baseline are approved. ADR-001 through ADR-010 are Accepted. The D-024 UX gate was satisfied on 2026-07-28 and authorizes only the isolated low-fidelity UX prototype; production source code, implementation contracts, provisioning, procurement and live operation are not authorized.
+The product/MVP and bounded Pilot platform baseline are approved. ADR-001
+through ADR-010 are Accepted. D-024 is satisfied. The owner approved a
+proposal-only Implementation Contract documentation phase in
+[Issue #7](https://github.com/woojinhong/Metabus_social/issues/7); authoritative
+contracts, production source code, provisioning, procurement and live operation
+remain unauthorized.
 
 ## Required read order
 
@@ -27,8 +32,9 @@ The product/MVP and bounded Pilot platform baseline are approved. ADR-001 throug
 
 ## Authority and promotion
 
-1. User product/gate decisions in decisions.md and repository workflow
-   delegation in the approved operations policy.
+1. User product/gate decisions in decisions.md, the Issue #7 documentation
+   approval and repository workflow delegation in the approved operations
+   policy.
 2. Approved specification SOT.
 3. Accepted ADRs.
 4. Architecture and operations SOT.
@@ -39,14 +45,16 @@ The product/MVP and bounded Pilot platform baseline are approved. ADR-001 throug
 D-024 keeps the approved UX baseline separate from API capability, conceptual data and real-time capability documents. Only a later explicit phase may promote implementation contracts.
 
 The [Implementation Contract phase proposal](discovery/implementation-contract-promotion-proposal.md)
-is pending owner approval and does not authorize its proposed artifacts.
+records the approved documentation-only boundary. Its first
+[UX-to-Implementation matrix](spec/traceability-ux-implementation.md) remains a
+proposal with `implementation_ready: false`.
 
 ## Directory purposes
 
 | Directory | Responsibility |
 | --- | --- |
 | docs/discovery | Approved decisions plus assumptions, questions and exploration |
-| docs/spec | Approved product/security/NFR rules; UX/API/data drafts with explicit status |
+| docs/spec | Approved rules plus UX/API/data and Implementation Contract proposals with explicit status |
 | docs/spec/ux | Required UX approval package; no visual designs yet |
 | docs/spec/api | High-level capability inventory only; no OpenAPI yet |
 | docs/spec/data | Concepts/classification/retention; no schema or migrations |

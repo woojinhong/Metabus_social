@@ -2,10 +2,10 @@
 title: Specification Index
 document_type: navigation
 classification: confirmed fact
-status: Mixed approved baseline and contract-gated proposals
-last_verified: 2026-07-28
-related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md"]
-decision_authority: decisions.md
+status: Mixed approved baseline and proposal-only contract documentation
+last_verified: 2026-07-29
+related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md","traceability-ux-implementation.md"]
+decision_authority: decisions.md and Issue #7 proposal-only documentation approval
 ---
 
 # Specification Index
@@ -36,11 +36,14 @@ Approved rules do not imply approved screen behavior or implementation.
 - [Conceptual domain data model](data/domain-data-model.md)
 - [Implementation traceability gate](traceability-implementation.md)
 - [Implementation Contract phase proposal](../discovery/implementation-contract-promotion-proposal.md)
+- [UX-to-Implementation traceability matrix](traceability-ux-implementation.md)
 
-D-024 is satisfied and the prototype validation is complete. Contract-facing
-proposals remain `implementation_ready: false` pending separate owner approval.
-No endpoint-level OpenAPI, AsyncAPI, DBML, migration, final state enum, page
-authorization or component contract is authoritative.
+D-024 is satisfied and the prototype validation is complete. The owner approved
+proposal-only Implementation Contract documentation in Issue #7. Every
+contract-facing artifact remains `classification: proposal` and
+`implementation_ready: false`. No endpoint-level OpenAPI, AsyncAPI, DBML,
+migration, final state enum, page authorization or component contract is
+authoritative.
 
 ## Historical journey and traceability drafts
 

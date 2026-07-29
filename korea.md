@@ -4,7 +4,7 @@ type: owner-overview
 language: ko
 status: maintained-summary
 authority: non-authoritative
-last_updated: 2026-07-28
+last_updated: 2026-07-29
 ---
 
 # 프로젝트 현재 상태
@@ -17,11 +17,13 @@ last_updated: 2026-07-28
 - 플랫폼·인프라·Pilot 공급자 기준선: **승인됨**.
 - ADR-001~ADR-010: **Accepted**.
 - 상세 UI/UX, 화면·wireflow와 격리된 저충실도 prototype 검증: **D-024 범위에서 완료**.
-- Implementation Contract 문서 단계와 endpoint OpenAPI, DB schema,
-  real-time payload/state machine: **소유자 승인 대기**.
+- 제안 전용 Implementation Contract 문서 단계: **Issue #7에서 승인됨**.
+- endpoint OpenAPI, DB schema, real-time payload/state machine과 production
+  contract 승격: **미승인**.
 - 애플리케이션·인프라 코드 작성, cloud provisioning, vendor 가입/계약/결제, 실제 사용자 Pilot: **미승인**.
-- 즉시 목표: [Implementation Contract 단계 제안](docs/discovery/implementation-contract-promotion-proposal.md)을
-  검토하고 문서 단계 진입 여부를 소유자가 명시적으로 결정하는 것.
+- 즉시 목표: 첫 제안 산출물인
+  [UX-to-Implementation 매트릭스](docs/spec/traceability-ux-implementation.md)를
+  작성·검토하는 것.
 
 ## 2. 승인된 제품
 
@@ -80,22 +82,23 @@ microphone/pass, progressive reveal, interest/no-match, reconnect/late join,
 report/block/moderator, responsive/mobile, design system과 접근성 상호작용은
 [D-024 UX 기준](docs/spec/ux/README.md)으로 승인됐다. 그러나 이 승인은
 OpenAPI·DBML·AsyncAPI·frontend contract나 production code를 authoritative하게
-만들지 않는다. 제안된 Implementation Contract 문서 단계도 소유자 승인 전에는
-시작할 수 없으며 `implementation_ready: false`가 유지된다.
+만들지 않는다. Issue #7은 제안 전용 문서 단계만 승인했으며 모든 산출물은
+`classification: proposal`, `implementation_ready: false`를 유지한다.
 
 ## 9. 문서 읽기
 
 - 권위: [decisions](docs/discovery/decisions.md), [MVP](docs/spec/mvp-scope.md), [ADRs](docs/adr/README.md)
 - UX 기준: [approved UX baseline](docs/spec/ux/README.md), [UX decisions](docs/spec/ux/open-ux-decisions.md)
-- 다음 승인 제안: [Implementation Contract promotion](docs/discovery/implementation-contract-promotion-proposal.md)
+- 현재 계약 제안: [Implementation Contract boundary](docs/discovery/implementation-contract-promotion-proposal.md),
+  [UX-to-Implementation matrix](docs/spec/traceability-ux-implementation.md)
 - 플랫폼: [external services](docs/architecture/external-services-selected.md), [deployment](docs/architecture/deployment-ncp-korea.md)
 - 정책: [retention](docs/spec/data/retention-matrix.md), [moderation](docs/operations/moderation-sanctions-and-appeals.md)
 - 근거: [vendor verification](docs/research/technology/korean-mvp-vendor-verification.md)
 
 ## 10. 다음 작업
 
-1. Implementation Contract 문서 단계 제안을 소유자가 검토한다.
-2. 승인될 때만 허용된 비권위·문서 전용 contract proposal을 작성한다.
+1. UX-to-Implementation 매트릭스를 소유자가 검토한다.
+2. 승인된 순서로 후속 비권위·문서 전용 contract proposal을 작성한다.
 3. NICE/LiveKit/NCP/Grafana 법률·조달·실기기 gate를 검증한다.
 4. 실제 사용자 Pilot 전 접근성·moderation·privacy·운영 증거를 확보한다.
 5. 별도 요청으로 production contract 승격과 source-code 권한을 결정한다.
