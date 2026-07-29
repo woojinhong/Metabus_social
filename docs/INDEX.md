@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-29
-related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -53,6 +53,8 @@ non-authoritative and not implementation-ready. The next
 [Lifecycle contract](spec/lifecycle-contract.md),
 [Realtime contract](spec/realtime-contract.md), [API contract](spec/api-contract.md)
 and [Data contract](spec/data-contract.md) preserve the same boundary.
+The [Slice 01 implementation plan](discovery/slice-01-account-session-authorization-plan.md)
+is an unapproved proposal; it does not authorize source code or migrations.
 
 ## Directory purposes
 
