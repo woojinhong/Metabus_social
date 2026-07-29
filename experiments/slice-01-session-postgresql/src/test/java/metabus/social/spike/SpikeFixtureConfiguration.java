@@ -104,12 +104,6 @@ class SpikeFixtureConfiguration {
     return http.build();
   }
 
-  @Bean
-  SpikeFixtureController spikeFixtureController(
-      SpikeFixtureRepository repository, SpikeRaceControl raceControl) {
-    return new SpikeFixtureController(repository, raceControl);
-  }
-
   @RestController
   static final class SpikeFixtureController {
 
