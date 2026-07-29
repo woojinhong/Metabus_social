@@ -61,8 +61,8 @@ and [Data contract](spec/data-contract.md) preserve the same boundary.
 | docs/discovery | Approved decisions plus assumptions, questions and exploration |
 | docs/spec | Approved rules plus UX/API/data and Implementation Contract proposals with explicit status |
 | docs/spec/ux | Required UX approval package; no visual designs yet |
-| docs/spec/api | High-level capability inventory only; no OpenAPI yet |
-| docs/spec/data | Concepts/classification/retention; no schema or migrations |
+| docs/spec/api | Proposal-only logical API, error, idempotency and realtime-delivery contracts; no OpenAPI |
+| docs/spec/data | Proposal-only logical data ownership, lifecycle/classification/retention; no schema or migrations |
 | docs/adr | Accepted architecture decisions and their gates |
 | docs/architecture | Selected deployment/vendor boundaries and broader analysis |
 | docs/research | External evidence and limitations |
