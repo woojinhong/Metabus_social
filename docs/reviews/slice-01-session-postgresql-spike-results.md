@@ -21,7 +21,7 @@ Controller, 최종 Entity/API/Migration, Credential, 배포 설정은 만들지 
 | Runtime | Temurin Java 25.0.3, Spring Boot 4.1.0, Spring Session 4.1.0 |
 | Build/DB | Gradle 9.1.0, PostgreSQL `18-alpine`, Testcontainers 2.0.5 |
 | Schema | Spring Session 4.1.0 공식 PostgreSQL SQL + 실험 Fixture, Flyway 적용 |
-| 반복 증거 | GitHub Actions [run 30455085636](https://github.com/woojinhong/Metabus_social/actions/runs/30455085636), matrix 1·2 성공 |
+| 반복 증거 | Draft PR [#32 checks](https://github.com/woojinhong/Metabus_social/pull/32/checks), PostgreSQL matrix 1·2와 문서 CI 성공 |
 | 경계 | 테스트 전용, 실제 데이터·외부 호출·Secret·배포 없음 |
 
 초기 원격 실행은 컨테이너 시작 순서, 테스트 Controller 중복 등록, Boot 4의
