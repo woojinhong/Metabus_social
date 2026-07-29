@@ -43,7 +43,7 @@ const D024_AMBIGUOUS_PATTERNS = [
 ];
 
 const CONTRACT_PROMOTION_PATTERNS = [
-  /\bImplementation Contract(?: documentation)? (?:phase|promotion)\s+(?:is|was|has been)\s+(?:approved|authorized)\b/i,
+  /\bImplementation Contract(?: documentation)? (?:phase|promotion)\s*:?\s+(?:is|was|has been)\s+(?:approved|authorized)\b/i,
   /\bImplementation Contract artifacts?\s+(?:are|is)\s+(?:approved|authorized|implementation-ready)\b/i,
   /Implementation Contract.{0,40}(?:단계|승격).{0,30}(?:승인됨|승인되었|허가됨)/i,
 ];
@@ -58,13 +58,45 @@ function normalizePath(file) {
   return file.replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+function yamlScalar(value) {
+  let quote = "";
+  let escaped = false;
+  let comment = value.length;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote && char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === quote) {
+      quote = "";
+      continue;
+    }
+    if (!quote && (char === '"' || char === "'")) {
+      quote = char;
+      continue;
+    }
+    if (!quote && char === "#" && (index === 0 || /\s/.test(value[index - 1]))) {
+      comment = index;
+      break;
+    }
+  }
+  const scalar = value.slice(0, comment).trim();
+  const quoted = scalar.match(/^(["'])([\s\S]*)\1$/);
+  return quoted ? quoted[2] : scalar;
+}
+
 function frontMatter(text) {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return new Map();
   const values = new Map();
   match[1].split(/\r?\n/).forEach((line, index) => {
     const field = line.match(/^([A-Za-z0-9_-]+):\s*(.*?)\s*$/);
-    if (field) values.set(field[1].toLowerCase(), { value: field[2].replace(/^["']|["']$/g, ""), line: index + 2 });
+    if (field) values.set(field[1].toLowerCase(), { value: yamlScalar(field[2]), line: index + 2 });
   });
   return values;
 }
@@ -77,26 +109,49 @@ function isHistoricalPath(file) {
   return HISTORICAL_PATHS.some(pattern => pattern.test(file));
 }
 
+const HISTORICAL_CONTEXT_PATTERN =
+  /\b20\d{2}-\d{2}-\d{2}\b|status\/date\/authority|reversibility\/gate|histor(?:y|ical)|previously|at the time|retrospective|archive|과거|당시|이전 상태|역사 기록/i;
+const LIST_ITEM_PATTERN = /^(\s*)(?:[-+*]|\d+\.)\s+/;
+const BLOCK_BOUNDARY_PATTERN = /^\s*(?:#{1,6}\s+|```|>|\|)/;
+
+function isBlockBoundary(line) {
+  return BLOCK_BOUNDARY_PATTERN.test(line) || line.includes("|");
+}
+
+function listItemRange(lines, index) {
+  let start = index;
+  while (start >= 0) {
+    const line = lines[start];
+    if (!line.trim() || isBlockBoundary(line)) return null;
+    const item = line.match(LIST_ITEM_PATTERN);
+    if (item) {
+      if (start === index || (lines[index].match(/^\s*/)?.[0].length || 0) >= item[1].length + 2) {
+        let end = start + 1;
+        while (end < lines.length
+          && lines[end].trim()
+          && !isBlockBoundary(lines[end])
+          && !LIST_ITEM_PATTERN.test(lines[end])) end += 1;
+        return [start, end];
+      }
+      return null;
+    }
+    start -= 1;
+  }
+  return null;
+}
+
 function hasHistoricalContext(lines, index) {
-  let sectionStart = 0;
-  let sectionEnd = lines.length;
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (/^#{1,6}\s+/.test(lines[cursor])) {
-      sectionStart = cursor + 1;
-      break;
+  if (HISTORICAL_CONTEXT_PATTERN.test(lines[index])) return true;
+  const itemRange = listItemRange(lines, index);
+  if (itemRange && HISTORICAL_CONTEXT_PATTERN.test(lines.slice(...itemRange).join(" "))) return true;
+  for (const direction of [-1, 1]) {
+    for (let distance = 1; distance <= 2; distance += 1) {
+      const line = lines[index + direction * distance];
+      if (line === undefined || !line.trim() || isBlockBoundary(line)) break;
+      if (HISTORICAL_CONTEXT_PATTERN.test(line)) return true;
     }
   }
-  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-    if (/^#{1,6}\s+/.test(lines[cursor])) {
-      sectionEnd = cursor;
-      break;
-    }
-  }
-  const context = lines.slice(
-    Math.max(sectionStart, index - 5),
-    Math.min(sectionEnd, index + 6),
-  ).join(" ");
-  return /\b20\d{2}-\d{2}-\d{2}\b|status\/date\/authority|histor(?:y|ical)|previously|at the time|retrospective|archive|과거|당시|이전 상태|역사 기록/i.test(context);
+  return false;
 }
 
 function hasDenialContext(statement) {
@@ -104,16 +159,26 @@ function hasDenialContext(statement) {
 }
 
 function boundedStatement(lines, index) {
-  const current = lines[index].trim();
-  if (!current || /^#{1,6}\s+/.test(current) || /[.!?;:]\s*$/.test(current)) return current;
-  const next = lines[index + 1]?.trim() || "";
-  if (!next || /^#{1,6}\s+|^```/.test(next)) return current;
+  const currentLine = lines[index];
+  const current = currentLine.trim();
+  if (!current || isBlockBoundary(currentLine) || /[.!?;]\s*$/.test(current)) return current;
+  const nextLine = lines[index + 1] || "";
+  const next = nextLine.trim();
+  if (!next || isBlockBoundary(nextLine) || LIST_ITEM_PATTERN.test(nextLine)) return current;
+  const currentItem = currentLine.match(LIST_ITEM_PATTERN);
+  const nextIndent = nextLine.match(/^\s*/)?.[0].length || 0;
+  if (currentItem && nextIndent < currentItem[1].length + 2) return current;
   return `${current} ${next}`;
 }
 
 function sameSentenceContext(lines, index, statement) {
+  const current = lines[index] || "";
   const previous = lines[index - 1]?.trim() || "";
-  if (!previous || /^#{1,6}\s+|^```/.test(previous)) return statement;
+  if (!previous
+      || isBlockBoundary(current)
+      || LIST_ITEM_PATTERN.test(current)
+      || isBlockBoundary(previous)
+      || LIST_ITEM_PATTERN.test(previous)) return statement;
   const boundary = Math.max(
     previous.lastIndexOf("."),
     previous.lastIndexOf("!"),

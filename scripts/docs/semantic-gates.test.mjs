@@ -53,6 +53,21 @@ test("rejects implementation_ready true while promotion is unapproved", async ()
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-IMPL-E001"]);
 });
 
+test("strips an unquoted front matter comment from implementation_ready true", async () => {
+  const findings = await inspectFixture("implementation-ready-comment-true.md", "docs/spec/api/contract.md");
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-IMPL-E001"]);
+});
+
+test("keeps commented false and quoted hash front matter values non-promoted", async () => {
+  for (const fixture of [
+    "implementation-ready-comment-false.md",
+    "quoted-hash-status.md",
+    "quoted-hash-approved-status.md",
+  ]) {
+    assert.deepEqual(await inspectFixture(fixture, "docs/spec/api/contract.md"), []);
+  }
+});
+
 test("reports both rule IDs for two independent approval claims in one sentence", async () => {
   const findings = await inspectFixture("contract-promoted.md", "docs/operations/current-state.md");
   // Promotion approval and production implementation authority are separate claims.
@@ -75,9 +90,55 @@ test("does not carry historical context across a Markdown heading boundary", asy
   );
 });
 
+test("does not carry distant historical context within the same section", async () => {
+  const findings = await inspectFixture("historical-distance.md", "docs/operations/current-state.md");
+  assert.deepEqual(
+    findings.map(finding => [finding.id, finding.severity]),
+    [["SGV-D024-E001", "error"]],
+  );
+});
+
 test("detects a bounded multiline Implementation Contract approval claim", async () => {
   const findings = await inspectFixture("multiline-contract-promotion.md", "docs/operations/current-state.md");
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);
+});
+
+test("does not join separate Markdown list items", async () => {
+  assert.deepEqual(
+    await inspectFixture("separate-list-items.md", "docs/operations/current-state.md"),
+    [],
+  );
+});
+
+test("detects approval in an indented continuation of the same list item", async () => {
+  const findings = await inspectFixture("list-continuation-approved.md", "docs/operations/current-state.md");
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);
+});
+
+test("does not join separate numbered list items", async () => {
+  assert.deepEqual(
+    await inspectFixture("numbered-list-boundary.md", "docs/operations/current-state.md"),
+    [],
+  );
+});
+
+test("does not join a prose line to a new blockquote", async () => {
+  assert.deepEqual(
+    await inspectFixture("blockquote-boundary.md", "docs/operations/current-state.md"),
+    [],
+  );
+});
+
+test("detects a bounded approval continuation after a colon", async () => {
+  const findings = await inspectFixture("colon-continuation-approved.md", "docs/operations/current-state.md");
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);
+});
+
+test("does not carry a colon continuation across blank, list, or table boundaries", async () => {
+  assert.deepEqual(
+    await inspectFixture("colon-structural-boundaries.md", "docs/operations/current-state.md"),
+    [],
+  );
 });
 
 test("keeps a denial that wraps immediately before its denied claim", async () => {
