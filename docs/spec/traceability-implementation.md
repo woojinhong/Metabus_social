@@ -2,11 +2,11 @@
 title: Implementation Traceability Gate
 document_type: traceability
 classification: proposal
-status: D-024 satisfied; implementation promotion pending
+status: Proposal-only contract documentation approved; production promotion blocked
 implementation_ready: false
-last_verified: 2026-07-28
-related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
-decision_authority: D-024
+last_verified: 2026-07-29
+related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","data/README.md"]
+decision_authority: D-024 and explicit owner approval in GitHub Issue #7
 ---
 
 # Implementation Traceability Gate
@@ -23,7 +23,7 @@ decision_authority: D-024
 | D-015..017 | FR-INV, NFR-OBS | ADR-006/007/010 | external-service register | Approved providers; procurement pending |
 | D-018 | NFR-SEC-005 | retention matrix | approved privacy policy | Legal review pending |
 | D-019 | SR-TSM, FR-ADM | moderation operations | approved policy and UX baseline | Operational readiness pending |
-| D-020..022 | future operation/event/schema IDs | capability drafts | no OpenAPI/AsyncAPI/DBML | D-024 satisfied; contract promotion not approved |
+| D-020..022 | future operation/event/schema IDs | capability drafts | no OpenAPI/AsyncAPI/DBML | proposal-only traceability work authorized; production authority absent |
 
 ## Satisfied D-024 evidence
 
@@ -46,14 +46,14 @@ endpoint or DTO definitions, DBML, schema or migrations, final real-time
 state/command/event/payload contracts, production React/backend code, vendor
 integration, provisioning or live participant operation.
 
-## Separately approved next phase
+## Approved documentation-only phase
 
-A future explicit implementation-contract phase may map each approved behavior
-to requirement IDs, API operations, real-time commands/events, conceptual
-entities/constraints, security controls, operational procedures and acceptance
-tests. Machine-readable contracts, schema proposals and production source code
-remain blocked until that phase is approved.
+Issue #7 authorizes proposal-only mapping of each approved behavior to actors,
+preconditions, candidate responsibilities, data concerns, failure/recovery and
+acceptance evidence. The first artifact is the
+[UX-to-Implementation matrix](traceability-ux-implementation.md).
 
 The [promotion proposal](../discovery/implementation-contract-promotion-proposal.md)
-defines the bounded documentation outputs now awaiting owner review. It is a
-proposal only and does not authorize contract creation.
+defines the approved documentation boundary. Machine-readable contracts,
+schema proposals, final real-time payloads and production source code remain
+blocked pending later explicit approval.

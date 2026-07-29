@@ -2,15 +2,16 @@
 title: Implementation Contract Phase Promotion Proposal
 document_type: decision proposal
 classification: proposal
-status: Pending owner approval
+status: Approved documentation-only phase; outputs remain proposals
 implementation_ready: false
-last_verified: 2026-07-28
+last_verified: 2026-07-29
 related_documents:
   - decisions.md
   - open-questions.md
   - ../spec/traceability-implementation.md
+  - ../spec/traceability-ux-implementation.md
   - ../spec/ux/README.md
-decision_authority: D-024 and explicit owner approval required
+decision_authority: explicit owner approval in GitHub Issue #7; UX authority remains D-024
 ---
 
 # Implementation Contract Phase Promotion Proposal
@@ -22,15 +23,16 @@ synthetic-data, local-state, low-fidelity prototype. Local prototype validation
 is complete. It is not production, real-device, assistive-technology, legal,
 vendor or operational evidence.
 
-Implementation Contract promotion is not approved. This proposal does not
-assign a decision ID, change D-001 through D-024, change an ADR, or authorize
-implementation.
+The owner approved the bounded documentation-only phase on 2026-07-29 in
+[Issue #7](https://github.com/woojinhong/Metabus_social/issues/7). This approval
+does not assign a decision ID, change D-001 through D-024, change an ADR, or
+authorize implementation or production contract authority.
 
-## Proposed approval effect
+## Approved documentation effect
 
-If the owner approves this phase, documentation work may map approved behavior
-to implementation-facing proposals while keeping every artifact explicitly
-non-authoritative and `implementation_ready: false`.
+Documentation work may map approved behavior to implementation-facing proposals
+while keeping every artifact explicitly non-authoritative and
+`implementation_ready: false`.
 
 Allowed proposal outputs:
 
@@ -77,14 +79,15 @@ Each future artifact must:
 - stop when an exact contract would require an unresolved owner, legal,
   procurement, vendor or security decision.
 
-## Owner approval requested
+## Owner approval record
 
-The owner must explicitly decide whether to:
+The owner explicitly approved:
 
-1. open the bounded documentation-only phase above;
-2. accept or narrow the ten allowed output families;
-3. preserve the exclusions and independent live-operation gates;
-4. record any approval in the authoritative decision log.
+1. the bounded documentation-only phase above;
+2. the ten allowed proposal output families;
+3. the exclusions and independent live-operation gates.
 
-Until that decision is recorded, no Implementation Contract artifact may be
-created under this proposal.
+Per the same instruction, this work does not create D-025 or modify the
+authoritative decision log. Issue #7 is the task approval record. Every artifact
+remains a proposal; later promotion to authoritative contracts still requires
+separate explicit owner approval.
