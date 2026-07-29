@@ -77,6 +77,13 @@ test("reports both rule IDs for two independent approval claims in one sentence"
   );
 });
 
+test("allows explicitly proposal-only Implementation Contract documentation approval", async () => {
+  assert.deepEqual(
+    await inspectFixture("documentation-only-phase-approved.md", "korea.md"),
+    [],
+  );
+});
+
 test("does not let an unrelated denial hide the following approval claim", async () => {
   const findings = await inspectFixture("unrelated-denial.md", "docs/operations/current-state.md");
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-CONTRACT-E001"]);

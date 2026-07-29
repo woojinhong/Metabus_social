@@ -5,7 +5,7 @@ const AUTHORITATIVE_STATE = {
   d024:
     "D-024 is satisfied only for the approved UX baseline and isolated low-fidelity prototype (docs/discovery/decisions.md).",
   implementation:
-    "Implementation Contract promotion and production implementation remain unapproved; implementation_ready must remain false (docs/discovery/implementation-contract-promotion-proposal.md).",
+    "Proposal-only Implementation Contract documentation is approved; authoritative contracts and production implementation remain unapproved, and implementation_ready must remain false (docs/discovery/implementation-contract-promotion-proposal.md).",
 };
 
 const HISTORICAL_PATHS = [
@@ -158,6 +158,12 @@ function hasDenialContext(statement) {
   return /\b(?:no|not|never|unapproved|unauthorized|remain(?:s)? blocked|may not|cannot)\b|(?:미승인|승인되지 않|금지|허가되지 않)/i.test(statement);
 }
 
+function isDocumentationOnlyApproval(statement) {
+  return /(?:proposal-only|documentation-only|제안 전용|문서 전용)/i.test(statement)
+    && /Implementation Contract/i.test(statement)
+    && /(?:documentation|문서)/i.test(statement);
+}
+
 function boundedStatement(lines, index) {
   const currentLine = lines[index];
   const current = currentLine.trim();
@@ -239,7 +245,9 @@ function inspectLines(file, text) {
 
     const statement = boundedStatement(lines, index);
     const statementContext = sameSentenceContext(lines, index, statement);
-    if (matchingPattern(statement, CONTRACT_PROMOTION_PATTERNS) && !hasDenialContext(statementContext)) {
+    if (matchingPattern(statement, CONTRACT_PROMOTION_PATTERNS)
+        && !hasDenialContext(statementContext)
+        && !isDocumentationOnlyApproval(statement)) {
       findings.push(finding(
         "SGV-CONTRACT-E001",
         "error",
