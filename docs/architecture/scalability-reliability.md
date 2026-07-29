@@ -3,79 +3,91 @@ title: Scalability and Reliability
 document_type: architecture analysis
 classification: proposal
 status: Unapproved
-last_verified: 2026-07-27
-related: [../discovery/product-concept.md, ../discovery/decisions.md]
-decision_authority: Only explicit approvals in ../discovery/decisions.md
+last_verified: 2026-07-29
+related: [../discovery/decisions.md, application-architecture.md, data-architecture.md, realtime-media.md, deployment-ncp-korea.md, capacity-and-cost-model.md, ../adr/ADR-001-modular-monolith-managed-rtc.md, ../adr/ADR-004-postgresql-primary-store.md, ../adr/ADR-005-redis-ephemeral-session-state.md, ../adr/ADR-008-ncp-korea-hosting.md]
+decision_authority: Only explicit approvals in ../discovery/decisions.md and Accepted ADRs
 ---
 
 # Scalability and Reliability
 
-## Capacity basis
+## Initial bounded topology
 
-**Proposal — unapproved.** Capacity is session-based. One initial room has six participants; temporary subgroups are excluded. Concurrent rooms equal ceiling(concurrent participants / 6).
-
-| Tier | Participants | Main rooms | Illustrative application posture |
-| --- | ---: | ---: | --- |
-| Prototype | 6-30 | 1-5 | Single region, small app/database, managed media |
-| Early | 100 | 17 | Horizontal app readiness; cache optional |
-| Growth | 1,000 | 167 | Multiple app instances; Redis likely; burst controls |
-| Large | 10,000 | 1,667 | Regional/cell evaluation; vendor quota and operations program |
-
-## Workload formulas
-
-- Participant-minutes = concurrent participants × session minutes.
-- Room-minutes = concurrent rooms × session minutes.
-- Audio egress depends on SFU subscription topology, codec bitrate, silence behavior, and TURN rate; measure provider reports.
-- TURN traffic = participant-minutes × measured relay proportion × measured bitrate.
-- Stage writes = rooms × stage transitions plus participant commands and recovery events.
-- Notification burst = seats in sessions starting within reminder window × channel attempts.
-- Moderation load = sessions × observed incident/report rate × handling time.
-- Human operations = failed cohorts + late/no-show interventions + safety cases + vendor incidents.
-
-## Component scaling
-
-| Component | Primary load | Proposed scale/recovery |
+| Component | Initial posture | Authority or failure boundary |
 | --- | --- | --- |
-| Application API | Auth, commands, reads | Stateless horizontal scale; idempotent commands |
-| Session orchestrator | Timers/stages/reconnect | Partition by session; durable checkpoints; lease ownership |
-| WebSocket/control channel | Presence/state updates | Reconnect jitter; snapshot then ordered deltas |
-| PostgreSQL | Bookings, grants, selections, audit | Index/connection discipline; replicas for noncritical reads later |
-| Optional Redis | Presence/timers/rate limits | TTL, bounded keys, rebuild from durable state |
-| Object storage/CDN | Media submit/reveal | Private origin, short signed access, resize limits |
-| Media provider | SFU rooms/TURN | Quota reservation, regional tests, outage policy |
-| Notifications | Reminder bursts | Queue, rate limit, channel fallback, deduplication |
-| Analytics | High-volume derived events | Async batch/queue; drop/degrade safely |
+| Business application | [RECOMMENDED] One modular-monolith deployable | Shared application failure boundary; current permission checked per request |
+| PostgreSQL | [CONFIRMED] One managed authoritative database | Committed business state is authoritative; unavailable means fail closed |
+| Redis/cache cluster | [NOT-RECOMMENDED] None | No cached authorization or session dependency initially |
+| Message broker | [NOT-RECOMMENDED] None | DB jobs/Outbox provide durable intent |
+| Search engine | [NOT-RECOMMENDED] None | Indexed PostgreSQL queries first |
+| Realtime gateway | [NOT-RECOMMENDED] None | SSE remains inside the application initially |
+| Media | [CONFIRMED] Managed LiveKit RTC | Transport only; connection is not official session state |
+| Files | [CONFIRMED] Private managed object storage | PostgreSQL owns scoped metadata and workflow |
 
-## Candidate service objectives
+[OPEN] Request rate, participant count, concurrent sessions/connections, data volume, staffing, budget, and numeric SLOs are not established. Therefore no capacity tier or technology threshold is asserted.
 
-Targets are validation proposals, not contractual SLOs.
+## Required observations
 
-| Journey | Candidate objective | Measurement |
+| Area | Signals | Decision supported |
 | --- | --- | --- |
-| Successful authorized join | At least 99% excluding unsupported device/user denial | Admission-to-media-ready event |
-| Microphone readiness | At least 95% before scheduled start among attendees | Preflight completion |
-| Reconnect after brief loss | 95% within 15 seconds | Disconnect/rejoin correlation |
-| Stage transition | 99% acknowledged within 2 seconds | Command to version receipt |
-| Interest persistence | No acknowledged loss; reconciliation alert on mismatch | Idempotency/audit check |
-| Authorized reveal | 99% within 3 seconds; zero known unauthorized reveal | Grant-to-view event/security alert |
-| Reminder delivery | Channel-specific measured, not guaranteed | Provider acceptance/delivery |
-| Payment/refund accuracy | N/A: payment excluded | Future separate objective |
+| REST/API | RPS, latency distribution, error/timeout/conflict rate | App capacity, endpoint/query remediation |
+| PostgreSQL | CPU, IOPS, storage, connections/pool wait, slow queries, lock wait/deadlocks, replica/backup state | Query/index/connection work and scaling |
+| SSE | Concurrent connections, fan-out latency, disconnect/reconnect/drop rate | Gateway extraction or delivery tuning |
+| JVM | Heap, allocation, GC pause/frequency, thread pools, CPU | Resource tuning and realtime isolation |
+| LiveKit | Room/participant count, join success, first audio, packet loss/jitter/RTT, TURN/relay, webhook lag/errors | Quota, device/media policy, provider gate |
+| DB jobs/Outbox | Ready/running/retry/dead backlog, oldest age, attempts, processing latency | Worker capacity or broker review |
+| Search | Query latency, rows examined, timeout, DB CPU/IOPS contribution | Read model/search engine gate |
+| Object storage | Upload/download bytes, errors, latency, signed-URL failures, deletion backlog | File-worker/storage operation |
+| Providers | Request latency, timeout/error/retry, duplicate/replay, reconciliation/manual backlog | Circuit/pause/vendor isolation |
+| Privacy/operations | Deletion backlog/age/failures, audit-write failures, break-glass activity | Privacy staffing and incident action |
 
-## Failure scenarios
+Metrics, logs, and traces use opaque identifiers and aggregates; they exclude raw identity, preferences, choices, report content, credentials, voice/media, and provider payloads. General telemetry is not an audit or completion record.
 
-- Reconnect storm: jitter, per-session snapshot, rate controls, capacity reserve.
-- Media outage: bounded wait, operator communication, cancellation; no cross-provider mid-session switch.
-- Database degradation: stop new critical mutations before accepting unpersisted interests/consent.
-- Redis loss: rebuild projections; never bypass authorization.
-- Notification outage: alternate channel where consented; account inbox remains source.
-- Partial cohort failure: explicit threshold and cancellation/recovery policy; no hidden replacements.
-- Regional failure: prototype may cancel safely; multi-region state requires later evidence.
+## Failure handling matrix
 
-## Growth gates
+| Failure | Impact | Automatic recovery/retry | Manual action and record | User treatment and minimum recovery |
+| --- | --- | --- | --- | --- |
+| Application restart | Requests/connections interrupt | Process restart; clients reconnect with jitter and reload snapshot | Inspect crash/deploy correlation; operational incident | Show interruption; no inferred state; committed facts survive |
+| Application instance loss | Pilot app unavailable under single-instance ADR-008 baseline | Health check can replace/restart instance if platform supports it [OPEN] | Restore service, reconcile jobs/provider intents | Fail closed until healthy; no silent authorization widening |
+| PostgreSQL outage | No authoritative reads/writes | Bounded connection retry only | Managed recovery/restore/failover per verified capability [OPEN]; DB incident/audit exceptions | Reject critical work; do not acknowledge completion |
+| Cache outage | No initial impact because cache absent | If later adopted, bypass/rebuild only where safe | Investigate invalidation/session impact | Never widen permission; session store uncertainty rejects auth |
+| Broker outage | No initial impact because broker absent | DB jobs/Outbox remain durable | If later adopted, pause relay and reconcile offsets/deduplication | Core committed request remains queryable |
+| External provider outage | Eligibility, notification, or media step unavailable | Timeout, circuit/pause, bounded idempotent retry | Manual reconciliation after retry limit; provider incident/reference | State remains pending/paused/cancelled by approved policy, never false success |
+| SSE disconnect | Change hints stop | Backoff reconnect, then snapshot; polling fallback | Alert on sustained fan-out/drop anomaly | Show stale/reconnecting state; business state unchanged |
+| WebRTC/LiveKit failure | Audio/media unavailable | Device recovery or bounded reconnect | Operator pause/cancel/reconcile; media incident | Connection loss is not official end; no mid-session provider switch by default |
+| Network uncertainty | Response/outcome unknown | Requery using same idempotency key | Reconcile unmatched request if needed | Show pending/unknown, never duplicate action |
+| Deployment failure | New version unhealthy/partial | Health gate stops rollout where supported [OPEN] | Roll back to known artifact; record version/config/decision | Keep or restore previous healthy service; no schema guess |
+| Incorrect data change | Wrong authoritative fact or access | No blind automated reversal | Freeze affected workflow, inspect audit/history, approved corrective transaction or restore | Notify operations/affected user as policy requires; preserve evidence |
+| Privacy deletion failure | Data remains beyond planned step | Idempotent retry with attempt/next-run/dead state | Privacy/operations alert, scoped manual repair, completion recheck | Do not claim deletion complete; access remains restricted |
 
-Do not prebuild 10,000-participant architecture. Reassess at measured room creation rate, provider quota pressure, database latency, reconnect bursts, human safety capacity, and vendor spend. Extraction follows [application architecture](application-architecture.md).
+Retries are bounded, classified as safe or unsafe, and idempotent. Every retryable external/job operation records attempt, next run, last error class, owning state/reference, and dead/manual disposition without sensitive payloads. Exact fields remain [OPEN].
 
-## Approval gate
+## Recovery and correctness principles
 
-SLOs, regions, quotas, capacity purchases, failover, and staffing require approval and load/device testing.
+- [RECOMMENDED] PostgreSQL is the recovery anchor. Restore must not revive revoked sessions/permissions, expired assignments, old sanctions, completed deletion work, or stale Outbox delivery.
+- [RECOMMENDED] Clients recover from realtime loss by reauthentication/current-scope check and REST snapshot, not by replaying UI state or assuming the last event succeeded.
+- [RECOMMENDED] External recovery reconciles intent, provider reference/event, idempotency key, current state, and current authorization before any transition.
+- [RECOMMENDED] Keep rollback artifacts and configuration identity; do not combine an unverified schema change with automatic application rollback.
+- [OPEN] Numeric RPO/RTO, backup interval/retention, point-in-time restore, failover time, replacement automation, and regional disaster policy require verified platform behavior and recovery drills.
 
+## Technology revisit gates
+
+| Technology | Evidence required before adoption | Cost accepted on adoption |
+| --- | --- | --- |
+| Redis-compatible store | Multiple app instances need shared sessions; shared rate limit/presence/high-frequency TTL; or measured DB bottleneck | New consistency, expiry, privacy copy, persistence, failover, and on-call boundary |
+| RabbitMQ/Kafka/managed broker | DB-job backlog breaches approved objective; many independent consumers; complex routing; replay; or DB polling becomes measured bottleneck | Delivery semantics, duplicates, offsets/queues, schema, monitoring, recovery |
+| Realtime gateway | Connection/fan-out/thread/heap/GC load materially degrades approved REST SLO and independent owner exists | Auth propagation, routing, cross-process trace, deployment/on-call |
+| Search engine | Indexed PostgreSQL misses approved search SLO or approved full-text/faceted corpus cannot be served | Index lag, delete/privacy synchronization, another datastore |
+| Kubernetes | Several independently deployed services, sustained multi-instance scaling/rollout needs, and staffed platform/on-call ownership | Cluster security, upgrades, networking, observability, cost |
+| Microservices | Independent data ownership, scale, failure boundary, release cadence, and operating team are all demonstrated | Distributed consistency, contracts, compensation, cross-service security/observability |
+
+Exact thresholds remain [OPEN]; “traffic increased” alone is not an entry condition. Evidence must link the measured bottleneck to the technology's specific benefit.
+
+## Reliability testing gates
+
+- [RECOMMENDED] Unit-test every allowed/forbidden domain transition and invariant, including choice/capability, report/case/sanction/appeal, assignment/work, and access-end/deletion separation.
+- [RECOMMENDED] Spring Security and API tests cover authentication, CSRF, coarse roles, session revocation, assignment/resource row scope, stable error classes, conflict, and idempotent retry.
+- [RECOMMENDED] Use Testcontainers with the real PostgreSQL engine for transaction, optimistic conflict, constraints, concurrent commands, job lease, Outbox, backup/restore, and revoked/deleted-state restoration behavior.
+- [RECOMMENDED] Adapter contract tests and webhook tests cover timeout, bounded retry, signature, replay, duplicate, disorder, provider error mapping, and reconciliation without false completion.
+- [RECOMMENDED] Browser E2E covers participant, operator, and reviewer critical journeys; actual-device tests cover iOS Safari/Android Chrome media, accessibility, interruption, and SSE-to-polling recovery.
+- [RECOMMENDED] Run application restart, LiveKit/vendor outage, DB-job retry/dead recovery, backup/restore, and privacy deletion reprocessing drills before live operation.
+- [REVISIT-WHEN] Large load, fault injection, multi-instance failover, and broad service-to-service contract tests become required only when their corresponding topology exists or capacity risk is approved.
