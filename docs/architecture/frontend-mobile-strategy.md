@@ -3,83 +3,94 @@ title: Frontend and Mobile Strategy
 document_type: architecture analysis
 classification: user decision and proposal
 status: Approved delivery and UX baseline; contract promotion pending
-last_verified: 2026-07-28
-related: [../discovery/product-concept.md, ../discovery/decisions.md]
-decision_authority: Only explicit approvals in ../discovery/decisions.md
+last_verified: 2026-07-29
+related: [../discovery/decisions.md, ../spec/traceability-ux-implementation.md, ../spec/actor-authorization-contract.md, ../spec/realtime-contract.md, ../spec/web-mobile-experience.md, application-architecture.md, realtime-media.md, security-privacy.md, ../adr/ADR-002-web-first-delivery.md]
+decision_authority: D-008 and D-024; implementation contracts remain unapproved
 ---
 
 # Frontend and Mobile Strategy
 
-## Recommendation proposal
+## Scope and authority
 
-**User decision:** use responsive React + Vite Web/PWA first. Evaluate
-Expo/React Native only when the approved numeric device gates fail. D-024 later
-approved the UX baseline. **Unapproved contract proposal:** vocabulary, design
-tokens and analytics taxonomy should remain portable; maximum UI sharing is not
-a goal.
+- [CONFIRMED] D-008 and ADR-002 select responsive React + Vite Web/PWA for the bounded Pilot; D-024 approves the UX baseline, not source code or final API contracts.
+- [CONFIRMED] The screen, URL, browser memory, local cache, realtime message, and media connection are never business authority. PostgreSQL-committed server state remains authoritative.
+- [RECOMMENDED] The client collects input, presents scoped server state, shows uncertainty/errors, reconnects, and requeries. It never finalizes authorization, official session end, sanction, appeal, assignment work, or deletion completion.
+- [OPEN] Exact repository layout, frontend project split, state library, routing, generated client, API schema, build/deploy configuration, and native fallback remain implementation decisions.
 
-## Decision matrix
+## Framework comparison
 
-| Option | MVP speed | Media reliability | Push/background | Reuse | Operations | Migration risk | Finding |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| React/Vite PWA | High | Browser/device dependent | Limited | Web logic/tokens | One surface | Medium | Recommended time-box |
-| Next.js web | Medium-high | Same browser limits | Same | React ecosystem | Server/runtime added | Medium | Reject unless SSR matters |
-| React web + Expo | Medium | Native escape hatches | Strong | Logic/tokens, some UI | Web plus stores | Medium | Fallback |
-| React web + Flutter | Medium-low | Vendor support varies | Strong | Little code | Two ecosystems | High | Reject for skill fit |
-| Separate native apps | Low | Best platform control | Strongest | Contracts/tokens | Three surfaces | High | Future escape hatch |
+| Candidate | Useful strengths | Project costs or gaps | Current decision |
+| --- | --- | --- | --- |
+| React + Vite SPA/PWA | One responsive browser release, component ecosystem, direct client-state model, ADR alignment | Browser media/background limits; client routing and API state need discipline | [CONFIRMED] Pilot baseline |
+| Next.js | React plus SSR, server components, file routing, server runtime | Adds rendering/runtime/caching boundaries without approved SEO/SSR need; can blur browser/backend authority | [NOT-RECOMMENDED] Initial Pilot |
+| Vue + Vite | Concise templates and approachable reactivity | Stack migration from ADR-002 without project-specific benefit | [NOT-RECOMMENDED] No demonstrated advantage |
+| Nuxt | Vue SSR/full-stack conventions | Same absent SEO/SSR need plus another server surface | [NOT-RECOMMENDED] Initial Pilot |
+| Angular | Integrated framework, forms, DI, enterprise conventions | Higher framework/tooling cost for a bounded Pilot and ADR migration | [NOT-RECOMMENDED] No team/scale evidence |
+| Server templates | Simple server-rendered forms and fewer client dependencies | Poor fit for device/media interaction, reconnecting session UI, and scoped realtime updates | [NOT-RECOMMENDED] Core experience |
 
-## Actual-device gates
+[REVISIT-WHEN] Consider Next.js/Nuxt only if public indexable pages, measured first-render needs, or server-owned composition justify an extra runtime. SEO and SSR are not current product requirements.
 
-Test iOS Safari and Android Chrome across representative devices for:
+## Participant and workforce surfaces
 
-- microphone permission, selection, mute, Bluetooth routing, echo;
-- calls, alarms, app switching, screen lock, background transitions;
-- network handoff, reconnect, duplicate join, token refresh;
-- reminders and authenticated deep-link return;
-- screen reader, keyboard, zoom, text alternatives, pass, reduced motion;
-- optional future camera only as a separate gate.
+| Choice | Advantages | Risks | Decision |
+| --- | --- | --- | --- |
+| One technology base | Shared accessibility primitives, error model, API client conventions, security controls | Accidental component/data reuse can expose workforce fields | [RECOMMENDED] React/Vite for both |
+| One codebase/build | Fast initial reuse and one release pipeline | Larger authorization blast radius and coupled deploys | [OPEN] Only if strict route/bundle/test boundaries suffice |
+| Separate participant and workforce projects | Stronger deployment, data, and operational separation | Duplicate tooling and shared-component governance | [REVISIT-WHEN] Different teams, release cadence, threat boundary, or hosting access |
 
-Failure to meet agreed join, reconnect, or accessibility thresholds triggers Expo. Persistent gaps may justify a narrow native module or separate native client after approval.
+Regardless of project layout, participant, operator, and reviewer permissions remain server-enforced. Workforce searches send explicit scoped criteria and receive only authorized rows/fields; hiding a menu or route is not access control.
 
-## Experience parity
+## Client state and server interaction
 
-Both web and mobile proposals expose the same server-authoritative stage, visible-information notice, consent status, progress/time, reporting, and recovery. Mobile prioritizes one action and interruption recovery; web handles multiple windows, tab suspension, and device selection.
+| Client concern | Allowed responsibility | Prohibited authority |
+| --- | --- | --- |
+| Form/input state | Drafts, validation hints, retry intent | Durable submission result |
+| View state | Tabs, focus, disclosure expansion, device preference | Current grant, assignment, sanction, session stage |
+| REST | Submit idempotent command and load scoped snapshot | Inferring commit from network success alone |
+| SSE | Receive minimal post-commit change hint | Treating payload as final state or sensitive snapshot |
+| Polling | Recover snapshot when SSE is unavailable | Creating a parallel state machine |
+| WebRTC/LiveKit | Device/media transport and connection display | Official session start/end or capability |
+| Error UI | Distinguish local/device, transport, authentication, authorization, conflict, validation, pending/unknown, and server failure | Reclassifying a server failure as completed work |
 
-## Client boundaries
+```text
+UI action -> REST command -> explicit pending/unknown/success response
+SSE hint or reconnect -> REST snapshot requery -> render current server state
+uncertain network result -> same idempotency key -> retrieve recorded outcome
+```
 
-Client-local state may hold drafts, device preferences, view state, and optimistic presentation. It must not own eligibility, admission, stage, disclosure grant, interest, progression, or sanction. Sensitive data is excluded from URLs, logs, crash reports, and notifications.
+- [RECOMMENDED] Revalidate current session and resource scope on the server for every command; frontend guards only improve navigation.
+- [RECOMMENDED] On SSE loss show stale/reconnecting state, retry with backoff, use polling fallback, and reload the snapshot after reconnection.
+- [RECOMMENDED] Keep sensitive state in memory only as needed. Do not place session tokens, private choices, reports, identity data, signed URLs, or unnecessary personal data in local/session storage, URLs, analytics, crash reports, or notifications.
+- [RECOMMENDED] Clear or replace stale participant/workforce data on logout, role/scope change, account suspension, assignment end, and navigation across resource boundaries.
 
-## Repository proposal
+## REST, GraphQL, and BFF boundary
 
-**Proposal — pending UX and implementation planning:** a monorepo may hold clients, backend, later approved schema contracts, design tokens and docs while deployment units remain separate. Repository layout, generated clients and shared schemas are not approved by D-008.
+| Pattern | Current fit | Cost | Decision |
+| --- | --- | --- | --- |
+| REST | Explicit commands, snapshots, error/idempotency semantics, backend authority | Endpoint/query evolution requires discipline | [RECOMMENDED] Baseline |
+| GraphQL | Flexible composition for many clients/screens | Field-level authorization, caching, query cost, schema and sensitive overfetch controls | [NOT-RECOMMENDED] No demonstrated composition problem |
+| BFF | Client-specific aggregation and policy facade | Another deployment/authorization boundary | [NOT-RECOMMENDED] No independent client needs |
 
-## Migration path
+[REVISIT-WHEN] Reconsider GraphQL or a BFF only when several independently released clients have measured over/under-fetching or composition problems that cannot be handled safely by scoped REST read models. Neither becomes a permission authority.
 
-1. D-024 UX behavior is approved; separately approve contract documentation
-   before defining candidate contracts or event names.
-2. Complete PWA device gates.
-3. If gates fail, reuse contracts, state-machine tests, tokens, and logic in Expo.
-4. Add native modules only for measured media, identity, notification, or accessibility gaps.
-5. Consider native apps only when product evidence justifies maintenance.
+## Mobile Web, PWA, and native gate
 
-## Approval gate
+- [CONFIRMED] Native applications and store distribution are outside the current Pilot baseline. PWA capability may improve install/return behavior but cannot be assumed to provide native background, push, Bluetooth, interruption, or deep-link behavior.
+- [RECOMMENDED] Test iOS Safari and Android Chrome on actual representative devices for microphone permission/selection/mute, Bluetooth routing, calls/alarms, app switching, lock/background, tab suspension, Wi-Fi/mobile handoff, reconnect, duplicate join, and authenticated deep-link return.
+- [RECOMMENDED] A failed device/media flow explains what failed, what the browser can detect, how to retry, and whether pass, text alternative, operator help, or reschedule is available. It never pressures camera/microphone consent.
+- [REVISIT-WHEN] Evaluate Expo/React Native only when approved real-device join, reconnect, interruption, media, deep-link, accessibility, or notification gates fail and a native capability can remedy the measured gap.
+- [OPEN] Device matrix, observed results, developer capacity, app-store lead time, notification/store policies, native SDK behavior, and participant install willingness remain evidence gates; native evaluation is not implementation approval.
 
-React/Vite PWA-first delivery is approved by D-008. Repository strategy, app-store path, native implementation and UI/layout behavior remain unapproved; actual-device gates control Expo evaluation.
+## Accessibility and interaction requirements
 
-## Accessibility and failure UX gates
+- [CONFIRMED] Preserve the D-024 responsive/mobile/accessibility behavior baseline: visible pass/recovery, thinking time, text alternative where approved, scalable text, high contrast, non-color status, reduced motion, and clear current disclosure.
+- [RECOMMENDED] Every interaction is keyboard operable with visible focus, logical order, focus recovery after route/stage changes, accessible error summary, and no hover-only or pointer-only operation.
+- [RECOMMENDED] Screen readers receive meaningful headings, control names, state changes, time/progress alternatives, and non-duplicative live-region announcements; realtime hints do not repeatedly expose private data.
+- [OPEN] Captioning and any media transcription require separate accuracy, privacy, retention, disclosure, and vendor approval.
 
-The client proposal must support a visible pass action, text alternative where the activity permits it, thinking time before speaking, keyboard and screen-reader operation, focus recovery after stage change, scalable text, high-contrast states, and non-color-only status. Captioning feasibility requires separate media/privacy research.
+## Testing and release gates
 
-When permission or device setup fails, explain what was denied, what the service can and cannot detect, how to retry, and whether an accessible alternative or reschedule is available. Do not pressure a participant to enable camera or expose private device details.
-
-## Release and observability criteria
-
-Track client/version, supported device class, permission outcome, media-ready time, reconnect outcome, stage-version mismatch, crash/error, and accessibility path without collecting raw voice or private selections. Release gates include actual-device regression, deep-link authorization, background behavior, and vendor SDK compatibility.
-
-## Store-policy boundary
-
-If Expo/native delivery is triggered, re-evaluate app-store account deletion, privacy labels, identity SDK review, notification permissions, external payment rules, and age-rating requirements. A native fallback is not approval for store distribution or in-app payments.
-
-## Decision evidence gap
-
-The numeric fallback thresholds are approved in [web-mobile experience](../spec/web-mobile-experience.md). Device evidence, developer capacity, store-review lead time and participant willingness to install remain Pilot evidence gaps; Expo evaluation is not implementation approval.
+- [RECOMMENDED] Unit/component tests cover view states and error mapping; API integration tests cover auth expiry, forbidden scope, conflict, idempotent retry, and stale snapshot; browser E2E covers participant/operator/reviewer critical paths.
+- [RECOMMENDED] Actual-device regression covers iOS Safari and Android Chrome media, interruption, network transitions, keyboard, screen reader, zoom, focus recovery, and SSE-to-polling recovery.
+- [RECOMMENDED] Telemetry may record app/version, coarse supported device class, permission outcome, media-ready latency, reconnect outcome, stage-version mismatch, and error class without raw voice, identity, private choice, report content, or credentials.
+- [OPEN] Browser support matrix, numeric release thresholds, analytics product/vendor, crash-report retention, and real-device results require approved evidence before a live Pilot.

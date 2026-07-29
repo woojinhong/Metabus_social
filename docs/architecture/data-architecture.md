@@ -3,88 +3,122 @@ title: Data Architecture
 document_type: architecture analysis
 classification: proposal
 status: Unapproved
-last_verified: 2026-07-27
-related: [../discovery/product-concept.md, ../discovery/decisions.md]
-decision_authority: Only explicit approvals in ../discovery/decisions.md
+last_verified: 2026-07-29
+related: [../discovery/decisions.md, ../spec/data-contract.md, ../spec/lifecycle-contract.md, ../spec/actor-authorization-contract.md, application-architecture.md, ../adr/ADR-004-postgresql-primary-store.md, ../adr/ADR-005-redis-ephemeral-session-state.md, ../adr/ADR-006-object-storage-for-media.md]
+decision_authority: Only explicit approvals in ../discovery/decisions.md and Accepted ADRs
 ---
 
 # Data Architecture
 
-## Recommendation proposal
+## Purpose and authority
 
-**Proposal — unapproved:** PostgreSQL is the durable source of truth; optional Redis holds TTL projections only; private object storage holds reviewed media; analytics receives minimized derived events. No NoSQL, search engine, vector database, or permanent event stream is justified initially.
+- [RECOMMENDED] This document defines data responsibility, lifecycle, consistency, concurrency, and recovery boundaries; it does not define final tables, columns, entities, enums, or migrations.
+- [CONFIRMED] PostgreSQL is the durable business ledger. A business outcome exists only after its valid state transition commits.
+- [CONFIRMED] Frontend state, caches, messages, SSE/WebSocket delivery, and LiveKit room/participant state are projections or observations, never durable authority.
+- [CONFIRMED] A provider response or webhook is reconciliation input, not internal completion. It must be deduplicated and checked against current state and authorization before commit.
+- [CONFIRMED] Private object storage owns encrypted binary bytes; PostgreSQL owns purpose, classification, object reference, access scope, retention workflow, and audit metadata. Neither a stable public URL nor storage existence proves business authorization.
 
-## State ownership
+| Store or producer | Owns | Must not own | Failure default |
+| --- | --- | --- | --- |
+| PostgreSQL | Current business facts, required history, audit, idempotency, job/Outbox state, file metadata | Media packets or transient presence | Authoritative writes fail closed |
+| Browser | Draft input and presentation state | Eligibility, authorization, session, sanction, deletion completion | Discard/requery REST snapshot |
+| SSE/WebSocket/cache | Delivery or expiring projection | Sole copy of a business fact | Lose/rebuild without widening access |
+| LiveKit | Media connection observations | Official session state or capability | Media degrades; business state remains |
+| External provider | Provider-side result and reference | Internal completion or permission | Reconcile later; never assume success |
+| Private object storage | Encrypted binary objects | Business metadata or permanent public access | Deny access and retain retryable workflow |
 
-| State owner | Proposed contents | Explicit exclusions |
-| --- | --- | --- |
-| PostgreSQL | Accounts, reservations, attendance, durable stages, consent, interests, progression, reveal authorization, reports, moderation, audit | Raw voice and transient presence |
-| Optional Redis | Presence, timers, room projection, reconnect lease, rate limit | Sole copy of authority or consent |
-| Media provider | Transport presence and quality metadata | Product stage, selections, reveal authority |
-| Client | Drafts, device preference, presentation state | Authoritative eligibility or progression |
-| Object storage | Encrypted participant media with scoped access | Public stable URLs and retained EXIF |
-| Analytics/event sink | Purpose-limited derived events | Raw identity, choices, messages, voice |
+## Data responsibility classification
 
-## Data category register
+| Responsibility | Current fact | Separate history/evidence | Required separation |
+| --- | --- | --- | --- |
+| Account | Lifecycle and restriction state | Lifecycle history | Account closure is not deletion completion |
+| Authentication session | Active/revoked/expired state | Rotation and revocation evidence | Cookie presence is not authentication authority |
+| Current authorization | Grant, scope, resource, lifetime | Grant/revoke history | Rechecked for every consequential request |
+| User choice | Private submitted choice | Submission/change evidence as approved | Must not disclose the choice to infer a result |
+| Derived capability | Capability created from valid choices/policy | Create/revoke history | Separate from either participant's choice |
+| Reservation | Current booking state | Booking changes | Does not itself admit or start a session |
+| Official session | Current lifecycle state and durable deadlines | Start/stage/end history | Separate from connection and presence |
+| Realtime observation | Connection/presence projection | Short operational evidence only if justified | Never proves official start/end |
+| Report | Report fact and lifecycle | Submission/access history | Separate from case, sanction, and appeal |
+| Case | Investigation/workflow state | Case transitions | May link reports without replacing them |
+| Sanction | Current decision/effect | Decision/change history | Separate from case and appeal |
+| Appeal | Request/review/result | Review history | Does not silently rewrite sanction history |
+| Assignment | Current assignee/scope/lifetime | Assignment change history | Separate from work performed |
+| Work record | Actual operator/reviewer action | Action chronology | Assignment is not proof of work |
+| Privacy request | Requested scope and receipt state | Request evidence | Access revocation is not deletion |
+| Deletion workflow | Step, retry, exception, completion state | Execution evidence and backup expiry | Completion requires reconciled required steps |
+| Audit record | Governed action, actor, scope, reason, result | Durable append-oriented evidence | Separate from operational logs |
+| Provider call intent | Intended operation and owning state version | Attempt chronology | Created before external execution |
+| Provider result | Received result/reference | Reconciliation history | Not completion until internal commit |
+| Webhook receipt | Provider event identity and verification result | Duplicate/replay disposition | Deduplicate before applying |
+| Idempotency record | Request key, operation scope, recorded result reference | Expiry/cleanup evidence as approved | Same key cannot create a second fact |
+| Async job | Status, lease, attempt, next run, dead/manual state | Attempt history | Job success is not sole business evidence |
+| File metadata | Purpose, classification, object reference, scope, retention | Access/delete evidence | Binary remains outside relational rows |
 
-Retention periods are proposals requiring legal, safety, and operational review.
+Exact payloads, retention periods, identity fields, and provider-returned fields remain [OPEN] until contract, legal, privacy, and implementation review.
 
-| Category | Purpose | Sensitivity | Source | Encryption | Retention proposal / deletion | Audit | Access | Store? |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Account | Authentication/lifecycle | High | PostgreSQL | Transit/at rest | Account life + legal minimum; erase/anonymize | Lifecycle | Identity service | Yes |
-| Age/identity verification | Eligibility evidence | Very high | Provider token + PostgreSQL result | Field + transport | Short evidence validity; delete raw artifacts | Verify/access | Restricted identity role | Result only |
-| Face images | Consent-controlled reveal | Very high | Object storage | Object/key | Until withdrawn/account delete; safety hold exception | Read/grant/delete | Scoped disclosure service | Optional |
-| Profile photos | Profile/reveal | Very high | Object storage | Object/key | Same as grant purpose | Read/grant/delete | Scoped service | Optional |
-| Non-face game media | Session game | High | Object storage | Object/key | Session + short dispute window | Read/delete | Session members by stage | Only if used |
-| Dating preferences | Compatibility | Very high | PostgreSQL | Field + at rest | While active; delete/anonymize | Policy change/access | Compatibility module | Yes |
-| Orientation/compatibility | Cohort relevance | Very high | PostgreSQL | Field | Minimize; delete with account | Access/result | Restricted policy module | Yes |
-| Location/activity area | Broad-area eligibility | High | PostgreSQL | Field | Current value only | Change/access | Compatibility/booking | Broad only |
-| Reservation | Seat ownership | Medium | PostgreSQL | At rest | Operational/legal window | Full lifecycle | Booking/support scoped | Yes |
-| Attendance | Recovery/no-show | Medium-high | PostgreSQL | At rest | Defined validation window | Changes | Booking/safety | Yes |
-| Room/session state | Authoritative progression | High | PostgreSQL + Redis projection | At rest/in transit | Durable checkpoints; TTL ephemeral state | Transitions | Orchestrator | Yes/minimal |
-| Game responses | Facilitate conversation | High | Memory/TTL; selective PostgreSQL | Transit/at rest | Prefer session TTL; retain only consented need | Access if stored | Session scope | Usually no |
-| Voice metadata | Quality/participation | High | Provider -> metrics | Transit/at rest | Short aggregated window | Export/access | Operations only | Aggregate only |
-| Interest selections | Private progression | Very high | PostgreSQL | Field | Product/safety window then erase/anonymize | Submit/read | Progression service; no operator default | Yes |
-| Mutual matches | Permission basis | Very high | PostgreSQL | Field | Until revoke/account delete + limited audit | Create/revoke | Parties + progression service | Yes |
-| Webcam consent | Future scoped grant | Very high | PostgreSQL | Field | Deferred; live grant + short audit | Every change | Media authorization | Deferred |
-| Messages | Mutual follow-up | High | PostgreSQL if approved | Field/at rest | Short stated period; participant deletion/safety hold | Access/moderation | Parties and case-scoped safety | Limited |
-| Reports | Safety investigation | Very high | PostgreSQL/object evidence | Field/object | Policy/legal window; case deletion rules | Immutable actions | Safety role only | Yes |
-| Moderation actions | Sanctions/appeals | Very high | PostgreSQL | Field | Sanction/appeal + legal window | Tamper-evident | Separated safety/admin | Yes |
-| Payment/refund | Future financial accuracy | Very high | PG + ledger | Tokenized/at rest | Statutory period | Full ledger | Finance role | Deferred |
-| Offline coordination | Future mutual meeting | Very high | PostgreSQL | Field | Until event + short safety window | Grant/change | Parties/coordination | Deferred |
-| Analytics/experiments | Validation | Medium-high | Derived event store | At rest | Short purpose-based; aggregate | Schema/access | Analytics role | Minimized |
+## Current state, history, audit, and logs
 
-## Consistency and replay
+| Record type | Purpose | Recommended model | Not interchangeable with |
+| --- | --- | --- | --- |
+| Current state | Fast authoritative decision and transition | Normalized relational current row/aggregate | History or cache |
+| Change history | Reconstruct material business changes | Separate immutable-or-correctable history by policy | General audit |
+| Audit/privacy access | Who acted/accessed, why, scope, result | Dedicated durable record with restricted access | Debug log |
+| Operational log | Diagnose software and infrastructure | Structured, redacted, short-purpose retention | Business completion evidence |
 
-Critical commands use idempotency keys, expected versions, unique constraints, and transactional audit/outbox records. Webhooks are signature-checked and deduplicated. Out-of-order events reconcile against authoritative version. Analytics failure never blocks a critical transition.
+[RECOMMENDED] Keep current state plus only required histories in relational models. [NOT-RECOMMENDED] Event sourcing is not the Pilot default: replay semantics, schema evolution, privacy deletion, and operational tooling add cost without an approved replay requirement.
 
-## Deletion and consent withdrawal
+## Database options
 
-Withdrawal immediately ends future disclosure authorization and revokes derived access URLs/tokens. Storage deletion follows the stated retention process; safety/legal holds must be narrow, auditable, and disclosed. Cache, CDN, backup, vendor, and analytics deletion capabilities require verification.
+| Candidate | Fit for this project | Advantages | Costs and risks | Decision |
+| --- | --- | --- | --- | --- |
+| PostgreSQL | Interrelated grants, sessions, safety workflow, assignments, idempotency | ACID, foreign/unique/check constraints, conditional updates, locking, JSON, mature backup/restore | One primary dependency; schema/query discipline required | [CONFIRMED] Durable authority |
+| MySQL/MariaDB | Can model the same relational core | Mature operations and replication | Migration without a requirement; different SQL/locking/JSON behavior | [NOT-RECOMMENDED] ADR-004 already selects PostgreSQL |
+| MongoDB/document store | Flexible documents and provider snapshots | Easy variable-shape documents | Cross-document invariants, relations, and state transitions become application burden | [NOT-RECOMMENDED] Not the authority |
+| Key-value store | TTL, rate limit, presence, session acceleration | Fast expiring access | Weak relational integrity; cache invalidation and privacy copies | [REVISIT-WHEN] Measured ephemeral need |
+| Search engine | Full-text, ranking, large faceted search | Specialized query performance | Index lag, deletion synchronization, extra access surface and operations | [REVISIT-WHEN] Indexed PostgreSQL misses approved SLO |
+| Event store | Replay and temporal event streams | Complete event chronology | Event evolution, projection repair, deletion conflict, high complexity | [NOT-RECOMMENDED] No approved replay need |
 
-## Redis adoption gate
+PostgreSQL is preferred over document storage because permission, assignment, session, report–case–sanction–appeal, deletion workflow, and deduplication require strong multi-record consistency. JSON may hold bounded provider payload fragments or versioned non-authoritative metadata after minimization; identities, current authorization, lifecycle states, assignments, idempotency, and audit relationships remain normalized.
 
-Begin without Redis if one application instance and database load suffice. Add it only for multi-instance presence/timers, reconnect coordination, or measured contention. Loss must degrade to reconstruction, not authorization bypass.
+## Data access options
 
-## Approval gate
+| Technology | Appropriate use | Limitation | Current decision |
+| --- | --- | --- | --- |
+| JPA | Aggregate writes, transactional lifecycle, simple reads | N+1, hidden SQL, bulk/complex search friction | [RECOMMENDED] Baseline candidate |
+| QueryDSL | Type-safe dynamic JPA queries | Adds generation/tooling and still follows JPA limits | [OPEN] Evaluate for operator filters |
+| jOOQ | SQL-controlled complex search, reporting, locking | Generated schema workflow and another model | [REVISIT-WHEN] Query complexity is demonstrated |
+| MyBatis | Explicit mapped SQL | Mapping duplication and string-based maintenance | [NOT-RECOMMENDED] No present advantage |
+| JDBC | Small explicit queries, bulk or vendor-neutral control | Manual mapping and boilerplate | [REVISIT-WHEN] A measured query needs it |
 
-Database, cache, storage vendor, schema, retention, encryption keys, analytics, and identity evidence require explicit approval. Legal conclusions require qualified review.
+[RECOMMENDED] Do not force every query through JPA. Keep write models and API/query DTOs separate; exposing a JPA entity would leak persistence shape, lazy-loading behavior, internal relationships, and sensitive fields into the public contract. [OPEN] Final JPA, QueryDSL, jOOQ, and JDBC dependency combination waits for implementation planning.
 
-## Access-boundary proposal
+## Transactions, concurrency, and duplicate handling
 
-| Access path | Allowed purpose | Prohibited default access |
-| --- | --- | --- |
-| Participant | Own data, current authorized disclosures | Other participants’ private choices/reports |
-| Session service | Current membership, stage, grants | Raw identity artifacts and unrelated history |
-| Safety reviewer | Case-scoped evidence | Bulk profile/interest browsing |
-| Support | Booking/device/session recovery | Report narrative and private selection |
-| Analytics | Minimized derived events | Direct identifiers and raw sensitive content |
-| Administrator | Role/configuration under audit | Silent impersonation or unrestricted export |
+- [RECOMMENDED] Use expected-state conditional updates for every material transition and optimistic version checks for ordinary concurrent edits.
+- [RECOMMENDED] Use unique constraints for invariants such as one active assignment or one accepted operation scope; the exact constraints remain [OPEN].
+- [RECOMMENDED] Consider pessimistic locking only for short, rare contention where retry is unsafe; never hold it across a provider call.
+- [RECOMMENDED] Scope idempotency keys to actor/operation/resource, reuse recorded outcomes, and deduplicate webhooks by verified provider event identity.
+- [RECOMMENDED] A DB worker acquires a bounded lease, records attempts and next-run/dead state, and makes handlers idempotent before retry.
+- [NOT-RECOMMENDED] Application locks and distributed locks are not initial correctness controls; the former fail across instances and the latter add another failure authority.
+- [NOT-RECOMMENDED] Distributed transactions and Saga are unnecessary while one application and one authoritative database can use local ACID.
 
-## Backup and export
+## Deletion, retention, and access end
 
-Backups inherit data classification, encryption, access, residency, and deletion limitations. Restore tests must verify that expired grants and sanctions do not regress. Vendor exit exports preserve stable IDs and audit relationships without exporting unnecessary raw telemetry.
+| Lifecycle event | Immediate effect | Later work | Evidence status |
+| --- | --- | --- | --- |
+| Authorization end | Deny future scoped access | Revoke derived tokens/projections | Grant/revoke history |
+| Login-session revocation | Reject future session use | Expire server session and rotate credentials as applicable | Revocation evidence |
+| Privacy request | Register requested scope idempotently | Plan and queue required steps | Request receipt |
+| Active deletion | Delete, redact, anonymize, or retain by approved rule | Reconcile DB, object, provider, analytics, cache/CDN | Step/exception evidence |
+| Legal/business retention | Restrict use and access | Review hold and release | Reason, authority, expiry [OPEN] |
+| Backup expiry | Prevent reintroduction after retention cycle | Verify restore procedure honors tombstones/revocation | Expiry/restore evidence |
+| Audit retention | Preserve minimum accountability | Restrict, minimize, expire per approved schedule | Period and lawful basis [OPEN] |
 
-## Data validation gates
+[OPEN] Retention periods, legal holds, anonymization sufficiency, backup expiry, and provider deletion terms require qualified legal/privacy and B-session contract evidence. Soft delete alone is not privacy deletion; hard deletion is not always permitted; both require purpose-specific policy.
 
-Create a data-flow inventory before implementation; verify every write has purpose and owner; test disclosure authorization under concurrent withdrawal; test account deletion through database, cache, object, CDN, vendor, backup schedule, and analytics; and confirm sensitive values never appear in URLs, notifications, logs, or generic events.
+## Backup, restore, and validation gates
+
+- [RECOMMENDED] Backups inherit classification, encryption, residency, access, and deletion restrictions. Restore tests must not revive expired grants, revoked sessions, sanctions, or completed deletion work.
+- [RECOMMENDED] Before implementation, verify every write has a purpose/owner, every sensitive read is scoped and auditable, concurrent withdrawal blocks disclosure, duplicate requests produce one fact, and object/provider deletion can be reconciled.
+- [OPEN] Numeric RPO/RTO, managed backup behavior, point-in-time restore, failover, and provider export/deletion capabilities require exercises and verified service terms.
