@@ -73,6 +73,11 @@ class PostgresSpikeTests {
 
   @DynamicPropertySource
   static void postgresProperties(DynamicPropertyRegistry registry) {
+    // Spring resolves datasource properties while building its context. Start explicitly so that
+    // the mapped port exists regardless of JUnit extension ordering on the CI runner.
+    if (!POSTGRES.isRunning()) {
+      POSTGRES.start();
+    }
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
