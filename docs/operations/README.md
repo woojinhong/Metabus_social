@@ -3,8 +3,8 @@ title: Operations Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-28
-related_documents: ["../discovery/decisions.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md"]
+last_verified: 2026-07-30
+related_documents: ["../discovery/decisions.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -28,10 +28,15 @@ decision_authority: decisions.md and approved operations policies
 - [WorkGraph state and lock schema](automation/workgraph-state-lock-schema.md)
   is the third proposal-only contract. It defines ordering, state, lease and
   lock requirements without executing a graph.
+- [Dry-run Planner contract](automation/dry-run-planner-contract.md) is the
+  fourth proposal-only contract. It defines a read-only Plan Proposal and
+  historical Pilot interface without modifying the repository or GitHub.
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
-  a future Dry-run Planner. No Dispatcher or Runtime Ledger exists, and Hermes
-  and Slack are not connected; these proposals grant no implementation authority.
+  Dry-run Planner Contract. No Planner implementation, Dispatcher or Runtime
+  Ledger exists, and Hermes and Slack are not connected; these proposals grant
+  no implementation authority. The next step is Owner review followed by a
+  separately approved historical Pilot implementation plan.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
