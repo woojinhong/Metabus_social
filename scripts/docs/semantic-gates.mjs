@@ -26,6 +26,14 @@ const IGNORED_DIRECTORIES = new Set([
   "node_modules",
 ]);
 
+const OWNER_APPROVED_PRODUCT_MIGRATIONS = new Set([
+  "src/main/resources/db/migration/V1__framework_spring_session_4_1_0_postgresql.sql",
+  "src/main/resources/db/migration/V2__account_persistence.sql",
+  "src/main/resources/db/migration/V3__credential_persistence.sql",
+  "src/main/resources/db/migration/V4__authorization_persistence.sql",
+  "src/main/resources/db/migration/V5__audit_persistence.sql",
+]);
+
 const D024_DIRECT_PATTERNS = [
   /\bD-024\b\s*(?:gate\s*)?(?:is|remains|status:)?\s*(?:still\s+)?(?:pending|awaiting|unsatisfied|not yet satisfied|the next gate|still gated|approval (?:is )?pending)\b/i,
   /\b(?:pending|awaiting|blocked by|still gated by|next gate(?:\s+is)?)\s+(?:the\s+)?(?:UX\s+gate\s+)?\bD-024\b/i,
@@ -358,7 +366,8 @@ async function prohibitedArtifacts(root) {
         const rel = normalizePath(path.relative(root, target));
         const prohibited = /^docs\/spec\/api\/.*(?:openapi|asyncapi).*\.(?:json|ya?ml)$/i.test(rel)
           || /^docs\/spec\/data\/.*\.dbml$/i.test(rel)
-          || /^(?:docs\/spec\/data|src|app|backend|prototype)\/(?:.*\/)?migrations?\//i.test(rel);
+          || (/^(?:docs\/spec\/data|src|app|backend|prototype)\/(?:.*\/)?migrations?\//i.test(rel)
+            && !OWNER_APPROVED_PRODUCT_MIGRATIONS.has(rel));
         if (prohibited) findings.push(finding(
           "SGV-ARTIFACT-E001",
           "error",

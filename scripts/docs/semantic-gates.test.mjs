@@ -198,6 +198,29 @@ test("detects prohibited authoritative artifact paths without changing repositor
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-ARTIFACT-E001"]);
 });
 
+test("allows only the owner-approved Slice 1 PR B product migrations", async t => {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "semantic-gates-"));
+  t.after(() => fs.promises.rm(root, { recursive: true, force: true }));
+  const migrationDirectory = path.join(root, "src", "main", "resources", "db", "migration");
+  await fs.promises.mkdir(migrationDirectory, { recursive: true });
+  await fs.promises.writeFile(
+    path.join(migrationDirectory, "V1__framework_spring_session_4_1_0_postgresql.sql"),
+    "-- approved\n",
+    "utf8",
+  );
+  await fs.promises.writeFile(
+    path.join(migrationDirectory, "V6__unapproved_follow_up.sql"),
+    "-- not approved\n",
+    "utf8",
+  );
+
+  const findings = await inspectSemanticRepository(root, new Map());
+  assert.deepEqual(
+    findings.map(finding => [finding.id, finding.file]),
+    [["SGV-ARTIFACT-E001", "src/main/resources/db/migration/V6__unapproved_follow_up.sql"]],
+  );
+});
+
 test("returns deterministic findings on repeated execution", async () => {
   const first = await inspectFixture("stale-current.md", "docs/operations/current-state.md");
   const second = await inspectFixture("stale-current.md", "docs/operations/current-state.md");
