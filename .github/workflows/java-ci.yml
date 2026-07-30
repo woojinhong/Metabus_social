@@ -1,0 +1,57 @@
+name: Java product build
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/java-ci.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/java-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Java 25 product verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Java 25
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "25.0.4"
+      - name: Set up Gradle and validate wrappers
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          cache-provider: basic
+          validate-wrappers: true
+      - name: Make root Gradle wrapper executable
+        run: chmod +x gradlew
+      - name: Verify formatting
+        run: ./gradlew --no-daemon spotlessCheck
+      - name: Run context and Modulith tests
+        run: ./gradlew --no-daemon test
+      - name: Run SpotBugs on product source
+        run: ./gradlew --no-daemon spotbugsMain
+      - name: Build product application
+        run: ./gradlew --no-daemon build
