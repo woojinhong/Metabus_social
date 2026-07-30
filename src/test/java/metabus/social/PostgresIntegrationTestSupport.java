@@ -40,6 +40,7 @@ public abstract class PostgresIntegrationTestSupport {
           authorization_history,
           current_authorizations,
           account_credentials,
+          account_login_identifiers,
           account_status_history,
           accounts
         CASCADE

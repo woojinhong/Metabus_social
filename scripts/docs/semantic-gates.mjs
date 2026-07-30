@@ -1,11 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 const AUTHORITATIVE_STATE = {
   d024:
     "D-024 is satisfied only for the approved UX baseline and isolated low-fidelity prototype (docs/discovery/decisions.md).",
   implementation:
     "Proposal-only Implementation Contract documentation is approved; authoritative contracts and production implementation remain unapproved, and implementation_ready must remain false (docs/discovery/implementation-contract-promotion-proposal.md).",
+  migrations:
+    "Only the exact owner-approved V1 through V6 product migrations and the canonical Flyway location are authorized.",
 };
 
 const HISTORICAL_PATHS = [
@@ -26,13 +29,36 @@ const IGNORED_DIRECTORIES = new Set([
   "node_modules",
 ]);
 
-const OWNER_APPROVED_PRODUCT_MIGRATIONS = new Set([
-  "src/main/resources/db/migration/V1__framework_spring_session_4_1_0_postgresql.sql",
-  "src/main/resources/db/migration/V2__account_persistence.sql",
-  "src/main/resources/db/migration/V3__credential_persistence.sql",
-  "src/main/resources/db/migration/V4__authorization_persistence.sql",
-  "src/main/resources/db/migration/V5__audit_persistence.sql",
+const OWNER_APPROVED_PRODUCT_MIGRATIONS = new Map([
+  [
+    "src/main/resources/db/migration/V1__framework_spring_session_4_1_0_postgresql.sql",
+    "5884132eecec1fe352d83161da7ab23269313c267110d86bb2b87a4b4fc9c7c3",
+  ],
+  [
+    "src/main/resources/db/migration/V2__account_persistence.sql",
+    "4cef025f955ea10e40bd4bfabc82751421fb36f3e0faacd8c9d40ea601acc9b2",
+  ],
+  [
+    "src/main/resources/db/migration/V3__credential_persistence.sql",
+    "08742c1d6dd3d6f714e83b37e782e62d4c7dc13ae21f0b828254582b20ba99c4",
+  ],
+  [
+    "src/main/resources/db/migration/V4__authorization_persistence.sql",
+    "847f450af0dec14d6c5f3682aa0b6dcd01507b0a9cb855d50ab40a87cbeeab85",
+  ],
+  [
+    "src/main/resources/db/migration/V5__audit_persistence.sql",
+    "b9e0b989bf498a4a291b5f236b5114478b187b093b4333c3a04c5b7ed8a686f5",
+  ],
+  [
+    "src/main/resources/db/migration/V6__account_login_identifier.sql",
+    "2428972185bef9d5ac139b86f1896fe5e2f396c7a892627c8e29b419696dabef",
+  ],
 ]);
+
+function normalizedSha256(contents) {
+  return crypto.createHash("sha256").update(contents.replace(/\r\n/g, "\n"), "utf8").digest("hex");
+}
 
 const D024_DIRECT_PATTERNS = [
   /\bD-024\b\s*(?:gate\s*)?(?:is|remains|status:)?\s*(?:still\s+)?(?:pending|awaiting|unsatisfied|not yet satisfied|the next gate|still gated|approval (?:is )?pending)\b/i,
@@ -364,17 +390,44 @@ async function prohibitedArtifacts(root) {
       if (entry.isDirectory()) await visit(target);
       else {
         const rel = normalizePath(path.relative(root, target));
+        const approvedChecksum = OWNER_APPROVED_PRODUCT_MIGRATIONS.get(rel);
+        if (approvedChecksum) {
+          const actualChecksum = normalizedSha256(await fs.promises.readFile(target, "utf8"));
+          if (actualChecksum !== approvedChecksum) findings.push(finding(
+            "SGV-MIGRATION-E002",
+            "error",
+            rel,
+            1,
+            `${rel} sha256:${actualChecksum}`,
+            AUTHORITATIVE_STATE.migrations,
+            "Restore the approved immutable migration content; use a newly approved version for changes.",
+          ));
+          continue;
+        }
+        let alternateFlywayConfiguration = false;
+        if (/^src\/main\/resources\/.*\.(?:properties|ya?ml)$/i.test(rel)) {
+          const text = await fs.promises.readFile(target, "utf8");
+          alternateFlywayConfiguration =
+            /spring\.flyway\.locations\s*[=:]/i.test(text)
+            || /(?:^|\n)\s*flyway\s*:\s*(?:\r?\n[ \t]+[^\n]*)*?\r?\n[ \t]+locations\s*:/i.test(text);
+        } else if (/^src\/main\/java\/.*\.java$/i.test(rel)) {
+          const text = await fs.promises.readFile(target, "utf8");
+          alternateFlywayConfiguration =
+            /\b(?:JavaMigration|BaseJavaMigration)\b/.test(text)
+            || /\.locations\s*\(/.test(text);
+        }
         const prohibited = /^docs\/spec\/api\/.*(?:openapi|asyncapi).*\.(?:json|ya?ml)$/i.test(rel)
           || /^docs\/spec\/data\/.*\.dbml$/i.test(rel)
           || (/^(?:docs\/spec\/data|src|app|backend|prototype)\/(?:.*\/)?migrations?\//i.test(rel)
-            && !OWNER_APPROVED_PRODUCT_MIGRATIONS.has(rel));
+            && !OWNER_APPROVED_PRODUCT_MIGRATIONS.has(rel))
+          || alternateFlywayConfiguration;
         if (prohibited) findings.push(finding(
           "SGV-ARTIFACT-E001",
           "error",
           rel,
           1,
           rel,
-          AUTHORITATIVE_STATE.implementation,
+          alternateFlywayConfiguration ? AUTHORITATIVE_STATE.migrations : AUTHORITATIVE_STATE.implementation,
           "Remove the authoritative artifact from the unapproved path or obtain explicit promotion authority.",
         ));
       }

@@ -7,12 +7,14 @@ on:
       - "AGENTS.md"
       - ".github/**"
       - "scripts/docs/**"
+      - "src/main/resources/db/migration/**"
   push:
     paths:
       - "**/*.md"
       - "AGENTS.md"
       - ".github/**"
       - "scripts/docs/**"
+      - "src/main/resources/db/migration/**"
 
 permissions:
   contents: read
@@ -29,5 +31,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: "Test semantic gates"
+        run: node scripts/docs/semantic-gates.test.mjs
       - name: "Validate durable documentation"
         run: node scripts/docs/validate-docs.mjs
