@@ -29,7 +29,7 @@ jobs:
   verify:
     name: Java 25 product verification
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -51,6 +51,8 @@ jobs:
         run: ./gradlew --no-daemon spotlessCheck
       - name: Run context and Modulith tests
         run: ./gradlew --no-daemon test
+      - name: Run PostgreSQL migration and repository integration tests
+        run: ./gradlew --no-daemon integrationTest
       - name: Run SpotBugs on product source
         run: ./gradlew --no-daemon spotbugsMain
       - name: Build product application
