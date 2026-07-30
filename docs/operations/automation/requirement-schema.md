@@ -51,18 +51,19 @@ status: {lifecycle: DRAFT, changed_by: "", changed_at: ""}
 statement: ""
 rationale: ""
 acceptance_intent: []
-implementation_gate: {state: NOT_GRANTED, reason: "", grant_source: null, granted_by: null, granted_at: null, valid_until: null, scope: []}
+implementation_gate: {state: NOT_GRANTED, reason: "", approval_record_id: null, grant_source: null, granted_by: null, granted_at: null, valid_until: null, scope: []}
 external_evidence: {required: false, state: NOT_REQUIRED, references: [], accepted_by: null, accepted_at: null, revalidate_at: null}
 parent_requirement: null
 related_requirements: []
+conflicts: [{conflict_id: "", conflicts_with: "", conflict_type: MUST_VS_MUST_NOT, detected_from: [], state: DETECTED, resolution_record: null, resolved_by: null, resolved_at: null}]
 supersedes: []
 superseded_by: []
 created_at: ""
 generated_by: ""
 content_hash: "sha256:"
-record_hash: "sha256:"
-requirement_digest: "sha256:"
+requirement_record_hash: "sha256:"
 ```
+Requirement 집합은 개별 record 밖의 `{repository_sha, requirements: [{requirement_id, requirement_record_hash}], requirement_set_digest}` envelope로 고정한다.
 `authority.source_authority`, `status.lifecycle`, `implementation_gate.state`, `external_evidence.state`는 각각 Source 권위, Requirement 생명주기, 실행 Grant, Evidence 준비도를 나타내며 서로 승격시키지 않는다.
 ## 4. 필드 정의표
 
@@ -99,6 +100,7 @@ requirement_digest: "sha256:"
 | `acceptance_intent` | Y; verifiable string[] | Planner→reviewer | 새 revision | Y/Y/Y |
 | `implementation_gate.state` | Y; grant enum | Owner record→authority validator | grant event 시 | Y/Y/Y |
 | `implementation_gate.reason` | Y; string | grant owner→reviewer | grant event 시 | Y/Y/Y |
+| `implementation_gate.approval_record_id` | C; durable approval ID | Owner record→authority validator | grant event 시 | Y/Y/Y |
 | `implementation_gate.grant_source` | C; locator | Owner record→authority validator | grant event 시 | Y/Y/Y |
 | `implementation_gate.granted_by` | C; actor ID | Owner record→authority validator | grant event 시 | Y/Y/Y |
 | `implementation_gate.granted_at` | C; RFC3339 | Owner record→authority validator | grant event 시 | Y/Y/Y |
@@ -112,13 +114,14 @@ requirement_digest: "sha256:"
 | `external_evidence.revalidate_at` | C; RFC3339/null | Acceptor→time validator | acceptance 시 | Y/Y/Y |
 | `parent_requirement` | C; requirement ID | Planner→cycle check | lineage review 시 | Y/C/Y |
 | `related_requirements` | Y; ID[] | Planner→reference check | append 가능 | Y/C/Y |
+| `conflicts` | Y; typed conflict[] | Detector/Owner→conflict validator | detect/resolve 시 | Y/Y/Y |
 | `supersedes` | Y; ID[] | Planner/Owner→lineage check | 결정 기록 시 | Y/Y/Y |
 | `superseded_by` | Y; ID[] | Planner/Owner→lineage check | 결정 기록 시 | Y/Y/Y |
 | `created_at` | Y; RFC3339 | Generator→schema check | 불변 | N/N/Y |
 | `generated_by` | Y; generator ID/version | Generator→schema check | 불변 | N/N/Y |
 | `content_hash` | Y; SHA-256 | Generator→hash check | content 변경 시 | Y/N/Y |
-| `record_hash` | Y; SHA-256 | Generator→hash check | record 변경 시 | N/N/Y |
-| `requirement_digest` | Y; SHA-256 | Compiler→hash check | snapshot set 변경 시 | Y/N/Y |
+| `requirement_record_hash` | Y; SHA-256 | Generator→hash check | record 변경 시 | N/N/Y |
+| `requirement_set_digest` | set envelope Y; SHA-256 | Compiler→hash check | selected set 변경 시 | Y/N/Y |
 ## 5. Requirement ID 생성 규칙
 
 [RECOMMENDED] Project namespace는 RFC 4122 URL namespace에 canonical repository URI를 넣은 UUIDv5이고, Requirement UUIDv5 name은 `identity_path + "\n" + normalized_anchor + "\n" + requirement_kind + "\n" + normalized_statement`이다. URI host/owner/repo와 anchor는 lowercase, Git path case는 보존하며 slash는 `/`로 통일한다. Text는 Unicode NFC, LF, trim, 연속 공백 1개로 만들고 Markdown emphasis/code fence 표시는 제거하되 code token case는 보존한다. Link는 label text를 ID에 쓰고 target 변경은 hash로 탐지한다. 문장 순서가 바뀌어도 atomic statement가 같으면 ID는 같다.
@@ -150,7 +153,9 @@ requirement_digest: "sha256:"
 - 한 Requirement는 하나의 명확한 주체, 의무, 조건·효과와 검증 가능한 결과를 가져야 한다.
 ## 9. 중복과 충돌 판정
 
-동일 Source/의미는 한 레코드, 다른 Source의 동일 의미는 primary+supporting, 상·하위 반복은 높은 권위를 primary로 둔다. 의미상 후보는 actor/action/object/condition/effect/kind 정규형으로 탐지하되 자동 병합하지 않는다. 권위가 다른 중복은 낮은 문서를 승격시키지 않는다. MUST/MUST NOT, 다른 값, 최신/이전, 승인/Proposal 불일치는 `conflicts_with` 후보로 보고 `BLOCKED`, `HUMAN_DECISION_REQUIRED` 또는 승인된 `SUPERSEDED` 확인 전까지 Agent가 선택하지 않는다.
+동일 Source/의미는 한 레코드, 다른 Source의 동일 의미는 primary+supporting, 상·하위 반복은 높은 권위를 primary로 둔다. 의미상 후보는 자동 병합하지 않는다. Conflict type은 `MUST_VS_MUST_NOT|VALUE_MISMATCH|AUTHORITY_CONFLICT|VERSION_CONFLICT|PROPOSAL_VS_APPROVED|SCOPE_CONFLICT`, state path는 `DETECTED→UNDER_REVIEW→RESOLVED|SUPERSEDED|REJECTED`이며 terminal 이력을 보존한다.
+
+`RESOLVED`가 아닌 conflict는 Requirement를 실행 불가로 만들고 Work Package `READY`를 금지한다. Agent는 대상을 선택하거나 conflict를 해소할 수 없다. 해결은 Owner/권한 있는 Decision record의 ID, actor, source SHA, scope와 시각을 `resolution_record`에 남기고 `resolved_by/resolved_at`은 그 record와 일치해야 하며 이력은 삭제하지 않는다. Conflict `SUPERSEDED/REJECTED`는 충돌 검토를 종료해도 현재 Requirement를 실행 가능하게 만들지 않고, `RESOLVED`만 양립 가능한 현재 규범을 뜻한다. Requirement supersede lineage와 conflict resolution은 서로 대신하지 않는다.
 ## 10. 상위·하위 Requirement와 Supersede
 
 Parent는 넓은 결과, Child는 독립 검증 가능한 제약이며 related는 비계층 연결이다. Parent 폐기는 Child를 자동 폐기하지 않고 영향 검토로 막는다. Child 변경은 Parent를 바꾸지 않는다. 부분 대체는 새 Requirement가 대체한 ID만 `supersedes`에 기록한다. Source 교체는 snapshot과 lineage를 추가하며 기존 record, hash, approval와 evidence 이력은 삭제하지 않는다.
@@ -169,26 +174,17 @@ Requirement 승인은 “무엇이 규범인가”, Grant는 “누가 어떤 so
 | --- | --- |
 | Source text | 선택된 원문 bytes의 LF 정규화; 공백·링크·이동 후 원문 변화 탐지 |
 | Content | kind+statement+rationale+acceptance; statement/acceptance/의미 rationale 변경 |
-| Record | Source, authority, lifecycle, grant, evidence, lineage를 포함한 canonical record |
-| Requirement digest | Work Package가 참조한 sorted `(requirement_id, record_hash)` 집합 |
+| Requirement record | Source, authority, lifecycle, grant, evidence, conflict, lineage를 포함한 canonical record |
+| Requirement set | selected record 밖에서 sorted `(requirement_id, requirement_record_hash)` canonical 집합 |
 
-공백/Markdown만의 변화는 ID를 유지해도 hash 재검증한다. 링크·rationale만 바뀌면 ID는 유지하고 content/record hash를 갱신한다. statement 의미가 바뀌면 새 ID, acceptance/authority/status/grant/evidence 변경은 최소 record/digest를 바꾼다. 이동은 location만, 삭제는 BLOCKED/SUPERSEDED와 digest 변경이다.
+`requirement_set_digest`는 위 Requirement set의 canonical JSON SHA-256이며 개별 record에 저장하지 않는다. 공백/Markdown만의 변화도 hash를 재검증하고 statement 의미 변경은 새 ID, acceptance/authority/status/grant/evidence/conflict 변경은 `requirement_record_hash`와 이를 포함한 set digest를 바꾼다. 이동은 location만, 삭제는 BLOCKED/SUPERSEDED와 set digest 변경이다.
 ## 15. 정상 예시
 
 [CONFIRMED] 병합 commit `ce168d5381015e46171a13c2a3b2b80509c299b1`의 [D-009 lines 73-78](https://github.com/woojinhong/Metabus_social/blob/ce168d5381015e46171a13c2a3b2b80509c299b1/docs/discovery/decisions.md#L73-L78), blob `01598392614871ea2c4b8e136574e8fa5bf0e05c`는 승인 Source다. Line 75의 첫 문장은 “OpenJDK 25 LTS 사용”, “Spring Boot 4.1 사용”, “modular monolith 사용”, “managed RTC adapter 경계”로 나누고, 둘째 문장의 capability boundary와 exact-contract pending Gate도 별도 Requirement로 분리한다. 각 ID는 `REQ-<calculated-uuidv5>` 예시이고 D-009는 alias다. Source Authority는 APPROVED이나 line 77은 source code를 승인하지 않으므로 기본 Grant는 NOT_GRANTED다. [Issue #35](https://github.com/woojinhong/Metabus_social/issues/35)는 PR A scope의 별도 Grant로만 연결하며 D-009나 proposal plan을 승인 Source로 바꾸지 않는다.
 ## 16. 거부 예시
 
-| 오류 | 거부 조건 |
-| --- | --- |
-| `REQ_SOURCE_SHA_MISSING` | commit/blob SHA 없음 |
-| `REQ_LINE_ID_FORBIDDEN` | 줄 번호만으로 ID 생성 |
-| `REQ_PROPOSAL_AS_APPROVED` | proposal을 APPROVED Source로 승격 |
-| `REQ_OPEN_NOT_EXECUTABLE` | OPEN에서 구현 실행 생성 |
-| `REQ_NON_ATOMIC` | 독립 의무 여러 개를 한 record에 저장 |
-| `REQ_EXTERNAL_EVIDENCE_UNMET` | 필수 evidence 없이 실행 Grant 사용 |
-| `REQ_SUPERSEDED_REFERENCE` | superseded Requirement로 신규 실행 |
-| `REQ_ID_COLLISION` | 같은 ID에 다른 canonical identity/content |
-| `REQ_SOURCE_STALE` | Source 변경 뒤 기존 snapshot/Grant 재사용 |
+Source/identity 오류는 `REQ_SOURCE_SHA_MISSING|REQ_LINE_ID_FORBIDDEN|REQ_ID_COLLISION|REQ_SOURCE_STALE`, 권위/실행 오류는 `REQ_PROPOSAL_AS_APPROVED|REQ_OPEN_NOT_EXECUTABLE|REQ_EXTERNAL_EVIDENCE_UNMET|REQ_SUPERSEDED_REFERENCE|REQ_NON_ATOMIC`이다.
+Conflict 오류는 미해결 상태의 `REQ_CONFLICT_UNRESOLVED`, decision record가 없는 `REQ_CONFLICT_RESOLUTION_MISSING`, actor/source SHA/scope 권위가 불일치한 `REQ_CONFLICT_AUTHORITY_INVALID`다. 모두 Work Package 후보의 실행 가능 판정과 `READY`를 차단한다.
 ## 17. 검증 규칙
 
-[RECOMMENDED] 미래 Validator 계약은 (1) 필수 필드·enum·RFC3339·hash 형식, (2) repository commit/path/blob/anchor/range 존재와 source text 일치, (3) UUIDv5·content/record/digest 재계산, (4) 중복 ID·의미/충돌 후보, Parent cycle와 supersede 양방향/자기참조, (5) OPEN·proposal·superseded 실행, evidence 우회, Grant 누락·scope/SHA stale을 검사한다. 오류는 record를 실행 불가로 만들며 자동 권위 결정을 하지 않는다. [CONFIRMED] 이번 단계는 이 검증 계약만 문서화하며 Validator 코드는 구현하지 않는다.
+[RECOMMENDED] 미래 Validator 계약은 (1) 필수 필드·enum·RFC3339·hash 형식, (2) repository commit/path/blob/anchor/range와 source text, (3) UUIDv5·content/record와 sorted record set의 `requirement_set_digest`, (4) 중복 ID·typed conflict·resolution authority·Parent/supersede, (5) OPEN·proposal·superseded 실행, evidence 우회, Grant 누락·scope/SHA stale을 검사한다. 오류는 record/Requirement set을 실행 불가로 만들며 자동 권위 결정을 하지 않는다. [CONFIRMED] 이번 단계는 계약만 문서화하며 Validator 코드는 구현하지 않는다.

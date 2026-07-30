@@ -16,7 +16,7 @@ decision_authority: H-session owner instruction authorizes this proposal documen
 [RECOMMENDED] 이 문서는 검증된 Requirement를 하나의 제한되고 검토 가능한 작업과 GitHub Issue 투영으로 표현한다. 입력은 [Requirement Schema](requirement-schema.md), 출력은 미래 WorkGraph 후보와 Issue 초안이다. 이 문서만으로 Issue 생성, Agent 실행, 코드 수정, Merge 또는 후속 Node 해제 권한을 부여하지 않으며 WorkGraph 상태·Edge·Dispatcher는 정의하지 않는다. Issue/PR은 승인 Spec을 대체하지 않고 Owner review·merge는 자동화 밖이라는 정책을 유지한다 ([GitHub workflow](../github-workflow.md) lines 19-36, 110-113).
 ## 2. Requirement에서 생성되는 조건
 
-`valid source + atomic + not rejected/superseded + current snapshot + lifecycle-compatible type + executable이면 GRANTED + required evidence ACCEPTED/NOT_REQUIRED + bounded scope + verifiable acceptance`가 모두 참이어야 `READY`가 된다. 후보 생성은 실행 허가가 아니며 Work Package는 Requirement 권위·lifecycle·grant·evidence를 변경하지 않는다.
+`valid source + atomic + no unresolved conflict + not rejected/superseded + current snapshot + lifecycle-compatible type + executable이면 GRANTED + required evidence ACCEPTED/NOT_REQUIRED + bounded scope + verifiable acceptance + requirement_set_digest match`가 모두 참이어야 `READY`가 된다. 후보 생성은 실행 허가가 아니며 Work Package는 Requirement 권위·lifecycle·grant·evidence를 변경하지 않는다.
 | Lifecycle | 허용 후보 | 실행 가능한 제품 Work Package |
 | --- | --- | --- |
 | `DRAFT` | DOCUMENTATION/DESIGN/HUMAN_DECISION | 불가 |
@@ -34,7 +34,7 @@ decision_authority: H-session owner instruction authorizes this proposal documen
 {
 schema_version: "1.0-proposal", work_package_id: "WP-<uuidv5>", work_package_revision: 1,
 title: "", type: DOCUMENTATION, workstream: "", vertical_slice: null,
-source_snapshot: {repository: "", repository_sha: "", source_digest: "sha256:", policy_version: ""},
+source_snapshot: {repository: "", repository_sha: "", requirement_set_digest: "sha256:", policy_version: ""},
 source_requirements: [{requirement_id: "", requirement_record_hash: "sha256:", authority_status: APPROVED, lifecycle: APPROVED, execution_grant: NOT_GRANTED, evidence_state: NOT_REQUIRED}],
 source_documents: [], authority_status: {source_authority: APPROVED, execution_grant: NOT_GRANTED, evidence_readiness: NOT_REQUIRED, package_status: PROPOSED},
 objective: "", scope: [], out_of_scope: [], dependencies: [], blocks: [], owned_modules: [],
@@ -48,10 +48,10 @@ human_approval: {execution: approval_record, review: approval_record, merge: app
 external_evidence_gate: {requirement_ids: [], required_evidence: [], acceptor: null, state: NOT_REQUIRED, expires_at: null, conflicts: [], blocks_execution: false},
 lock_requirements: {modules: [], paths: [], shared_resources: []}, rollback_or_recovery: [], completion_definition: [],
 issue_mapping: {title: "", labels: [], milestone: null, parent_issue: null, existing_issue: null},
-plan_digest: "sha256:", created_at: "", generated_by: ""
+work_package_plan_digest: "sha256:", created_at: "", generated_by: ""
 }
 ```
-`approval_record`는 `{state: REQUIRED, actor: null, source: null, scope: [], source_sha: "", decided_at: null, valid_until: null}`다. 네 권위 축, package 상태와 네 사람 승인은 독립 필드이며 하나의 `status`/`approved` boolean으로 합치지 않는다.
+`approval_record`는 `{approval_record_id, approval_type, state: REQUIRED, required_actor_role, source, source_approval_record_id, scope, source_sha, decided_by, decided_at, valid_until}`다. Requirement Grant와 package execution은 ID/source reference로 연결하되 execution/review/merge/follow-up unlock은 서로 다른 ID와 decision을 가지며 하나로 합치지 않는다.
 ## 4. 필드 정의표
 
 표면 `I/C/L`은 Issue 표시/Agent Context 전달/미래 Runtime Ledger 저장, `Y/N/C`는 yes/no/conditional이다.
@@ -59,7 +59,7 @@ plan_digest: "sha256:", created_at: "", generated_by: ""
 | --- | --- | --- | --- | --- |
 | schema, ID, revision, title, type | Y; semver/UUIDv5/int/string/type enum | Planner→schema/ID validator | identity 불변; 내용/Y | Y/Y/Y |
 | workstream, vertical_slice | Y/C; stable slug | Planner→Owner/reviewer | planning 전/Y | Y/Y/Y |
-| source snapshot 4필드 | Y; URI/40-hex/hash/version | Compiler→Git/hash validator | source/policy/Y | Y/Y/Y |
+| source snapshot 4필드 | Y; URI/40-hex/requirement_set_digest/version | Compiler→Git/hash validator | source/policy/Y | Y/Y/Y |
 | source requirements 6필드 | Y; ID/hash/권위 enum | Compiler→Requirement validator | upstream/Y | Y/Y/Y |
 | source_documents | Y; snapshot locator[] | Planner→Git/authority review | source/Y | Y/C/Y |
 | source_authority | Y; PROPOSAL/CONFIRMED/APPROVED/BLOCKED/SUPERSEDED | Compiler→authority review | 결정/Y | Y/Y/Y |
@@ -86,11 +86,11 @@ plan_digest: "sha256:", created_at: "", generated_by: ""
 | follow-up unlock approval | Y; approval record | Owner/policy→graph validator | decision/N | Y/N/Y |
 | external evidence gate | Y; typed gate | Planner/acceptor→evidence review | evidence/Y | Y/Y/Y |
 | locks, recovery, completion | Y; module/path/resource/step[] | Planner→reviewer | READY 전/Y | Y/Y/Y |
-| issue mapping, digest, audit metadata | Y; projection/hash/RFC3339/generator | Compiler→mapping/hash/schema | plan Y; binding/audit N | Y/C/Y |
+| issue mapping, work_package_plan_digest, audit | Y; projection/hash/RFC3339/generator | Compiler→mapping/hash/schema | plan Y; binding/audit N | Y/C/Y |
 ## 5. Work Package ID와 Revision
 
 [RECOMMENDED] Requirement Schema와 같은 canonical repository URI 기반 UUIDv5 namespace를 쓴다. name은 `normalized workstream/slice + type + sorted source Requirement IDs + normalized objective identity`, 표시는 `WP-<calculated-uuidv5>`이며 계산기 전에는 Placeholder다. Requirement record hash, scope/out-of-scope, acceptance, path, risk/gate, policy나 capability 변경은 같은 논리 결과의 revision과 digest를 바꾼다. 모델 교체, retry/attempt는 계약이 같으면 revision을 바꾸지 않는다. objective/type/Requirement 결과 집합이 달라지거나 독립 결과로 분리되면 새 ID다.
-`plan_digest`는 schema+source hashes+normative scope/path/acceptance/test/check/evidence/risk/profile/gates/runtime bounds/locks/recovery/completion의 canonical JSON SHA-256이며 projection/runtime timestamps는 제외한다. 동일 ID·digest는 재사용하고 동일 ID·다른 digest는 덮어쓰지 않고 새 revision을 `VALIDATING`한다.
+`work_package_plan_digest`는 schema+`requirement_set_digest`+normative scope/path/acceptance/test/check/evidence/risk/profile/gates/runtime bounds/locks/recovery/completion의 canonical JSON SHA-256이며 projection/runtime timestamps와 package status는 제외한다. 동일 ID·digest는 재사용하고 동일 ID·다른 digest는 덮어쓰지 않고 새 revision을 `VALIDATING`한다.
 ## 6. Work Package 유형
 
 `C`는 권위·Grant·risk·path gate 충족 시만 가능, 사람 칸 `Y`는 승인 필수다. 모든 Git 변경의 자동 Merge는 `N`이다.
@@ -142,10 +142,10 @@ Profile은 모델명이 아니라 capability 계약이다. 예: `bounded-java-bo
 `READ_ONLY`, isolated `WORKTREE`, stronger `SANDBOX`, `HUMAN_ONLY`만 허용한다. retry는 유한 횟수, retryable/non-retryable 오류, 동일 오류 한계, backoff와 새 attempt 여부를 가진다. stale source, permission/evidence/gate, non-atomic scope는 retry하지 않는다. claim/worker/CI/review timeout과 실행 시간/token/비용/외부 호출은 유한 상한이다. `human_approval_seconds: null`은 실행 중 무제한이 아니라 package의 무기한 비실행 대기다.
 ## 13. 사람 승인과 External Evidence Gate
 
-각 승인은 `NOT_REQUIRED|REQUIRED|GRANTED|REVOKED|EXPIRED`, actor, durable source, scope, source SHA, time, expiry를 가진다. Requirement Execution Grant, package execution/review/Merge/follow-up unlock은 서로 대체하지 않는다. Slack/label만으로 고위험 승인을 확정하지 않고 SHA/scope 변경은 재검증한다. Evidence gate는 Requirement, 자료, acceptor, `NOT_REQUIRED|MISSING|PARTIAL|ACCEPTED|EXPIRED|CONFLICTING`, 만료·충돌·차단을 기록하며 Worker는 우회할 수 없다.
+각 승인은 `NOT_REQUIRED|REQUIRED|GRANTED|REJECTED|REVOKED|EXPIRED|CANCELLED`, durable `approval_record_id`, actor role, source, scope, source SHA, decision actor/time/expiry를 가진다. Requirement Grant는 package execution record의 `source_approval_record_id`로만 연결하고 review/Merge/follow-up unlock은 별도 ID라 서로 대체하지 않는다. Slack/label만으로 승인을 확정하지 않고 SHA/scope 변경은 재검증한다. Evidence gate는 Requirement, 자료, acceptor, `NOT_REQUIRED|MISSING|PARTIAL|ACCEPTED|EXPIRED|CONFLICTING`, 만료·충돌·차단을 기록하며 Worker는 우회할 수 없다.
 ## 14. 완료 정의와 Evidence
 
-완료는 각 `Criterion -> changed files -> test -> CI check -> review verdict`와 필수 evidence가 같은 PR commit을 가리킬 때만 가능하다. criterion 누락, test 미실행/실패, check/approval/evidence 미충족, source digest 불일치, path 위반, HIGH/BLOCK finding, PR/evidence commit 불일치, known failure 은폐, secret/개인정보 포함은 실패다. Agent의 완료 선언은 evidence가 아니다.
+완료는 각 `Criterion -> changed files -> test -> CI check -> review verdict`와 필수 evidence가 같은 PR commit을 가리킬 때만 가능하다. criterion 누락, test 미실행/실패, check/approval/evidence 미충족, requirement set/Work Package plan digest 불일치, path 위반, HIGH/BLOCK finding, PR/evidence commit 불일치, known failure 은폐, secret/개인정보 포함은 실패다. Agent의 완료 선언은 evidence가 아니다.
 ## 15. GitHub Issue 변환
 
 ```markdown
@@ -164,7 +164,7 @@ Profile은 모델명이 아니라 capability 계약이다. 예: `bounded-java-bo
 ## 위험과 승인 Gate
 ## 자동화 정책
 <!-- work-package-id: WP-...; work-package-revision: 1 -->
-<!-- plan-digest: sha256:...; source-sha: 40-hex -->
+<!-- work-package-plan-digest: sha256:...; requirement-set-digest: sha256:... -->
 ```
 제목은 `[WP:<work_package_id>][<TYPE>] <title>`이다. Requirement IDs와 commit permalink/line, slice, milestone, parent/child를 표시한다. Open Issue는 scope+acceptance+ID/digest 일치 때만 bind하며 closed Issue는 감사 링크다. Owner-only closure 때문에 자동화는 `Refs #n`만 쓰고 `Closes`로 닫지 않는다 ([GitHub workflow](../github-workflow.md) lines 73-113, 135-140). Issue/label은 미래 Runtime Ledger의 projection이다.
 ## 16. Label 규격
@@ -172,28 +172,26 @@ Profile은 모델명이 아니라 capability 계약이다. 예: `bounded-java-bo
 [CONFIRMED] 현재 Issue templates는 `labels: []`이다 (`../../../.github/ISSUE_TEMPLATE/documentation.yml` lines 1-5). [RECOMMENDED] 후보는 `agent:{ready,claimed,running,review,blocked,failed,paused}`, `gate:{human,external-evidence,security,architecture,privacy}`, `type:{documentation,design,spike,bootstrap,implementation,test,evidence}`, `risk:{low,medium,high,critical}`, `slice:01`, `module:{account,authentication,authorization}`다. Label은 검색·표시·routing projection이고 수동 변경은 상태 전이를 만들지 않는다. Ledger 불일치는 drift로 차단하며 저장 구조는 후속 WorkGraph에서 정한다.
 ## 17. 중복과 재사용
 
-중복 키는 `repository + work_package_id + plan_digest`다. 같은 ID·digest는 active package/Issue를 재사용하고 같은 ID·다른 digest는 새 revision, 다른 ID지만 Requirement+scope가 같으면 의미 중복 경고다. Open Issue는 metadata·scope·acceptance 일치 때만 bind하고 closed/COMPLETED evidence는 감사 근거일 뿐 신규 실행 권한이 아니다. source 변경은 `STALE` 재검증, `SUPERSEDED`는 신규 실행 금지다. Agent는 유사 Issue를 임의로 닫거나 재사용하지 않는다.
+중복 키는 `repository + work_package_id + work_package_plan_digest`다. 같은 ID·digest는 active package/Issue를 재사용하고 같은 ID·다른 digest는 새 revision, 다른 ID지만 Requirement+scope가 같으면 의미 중복 경고다. Open Issue는 metadata·scope·acceptance 일치 때만 bind하고 closed/COMPLETED evidence는 감사 근거일 뿐 신규 실행 권한이 아니다. source 변경은 `STALE` 재검증, `SUPERSEDED`는 신규 실행 금지다. Agent는 유사 Issue를 임의로 닫거나 재사용하지 않는다.
 ## 18. 정상 예시: Slice 1 Product Bootstrap
 
-[CONFIRMED] 이는 병합 전 PR A의 역사적 Schema 예시다. 현재 `master` `446ba9f3e31381c43d9f1b13f14129ae9cb50622`에는 PR #36 구현이 병합됐으므로 신규 Issue/실행 지시가 아니다.
+[CONFIRMED] 이는 PR A 병합 전 commit `446ba9f3e31381c43d9f1b13f14129ae9cb50622`의 역사적 abbreviated 예시이며 validator fixture나 신규 Issue/실행 지시가 아니다. `omitted_fields_follow_schema_defaults`는 실제 default가 있는 필드에만 적용되고 나머지 필수 필드는 전체 record에서 채워야 한다.
 ```yaml
 {
-work_package_id: "WP-<calculated-uuidv5>", work_package_revision: 1, type: BOOTSTRAP, source_snapshot: {repository: "https://github.com/woojinhong/Metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, source_digest: "sha256:<calculated>", policy_version: "requirement-schema@1.0-proposal"},
+example_mode: abbreviated, omitted_fields_follow_schema_defaults: true,
+work_package_id: "WP-<calculated-uuidv5>", work_package_revision: 1, type: BOOTSTRAP, source_snapshot: {repository: "https://github.com/woojinhong/Metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, requirement_set_digest: "sha256:<calculated>", policy_version: "requirement-schema@1.0-proposal"},
 source_requirements: [{requirement_id: "REQ-<java25-bootstrap-uuidv5>", requirement_record_hash: "sha256:<calculated>", authority_status: APPROVED, lifecycle: APPROVED, execution_grant: GRANTED, evidence_state: NOT_REQUIRED}], source_documents: [{path: docs/discovery/decisions.md, lines: 73-78, blob: 01598392614871ea2c4b8e136574e8fa5bf0e05c, role: "approved D-009"}, {path: docs/discovery/slice-01-product-implementation-approval-plan.md, lines: 80-93, blob: 7ebec161f53931dbeb590b7e486bd30564d0ab3b, role: "proposal decomposition"}],
 authority_status: {source_authority: APPROVED, execution_grant: GRANTED, evidence_readiness: NOT_REQUIRED, package_status: READY}, objective: "후속 PR용 기능 없는 Java/Spring Boot build·module·quality 기반",
-scope: ["root Gradle KTS/wrapper", "Java 25 and Boot 4.1 shell", "metabus.social module skeleton", "DB-free tests", "Spotless/SpotBugs/Modulith", "Java CI"], out_of_scope: ["feature behavior", "security/session", "controller/API/DTO", "Flyway/PostgreSQL/migration", deployment], dependencies: ["PR #34 merged", "Issue #35 scoped Owner execution grant"],
+scope: ["root Gradle KTS/wrapper", "Java 25 and Boot 4.1 shell", "module skeleton", "DB-free tests", "Java CI"], out_of_scope: ["feature behavior", "security/session", "API/DTO", "migration", deployment], dependencies: [],
 path_policy: {allowed_paths: [build.gradle.kts, settings.gradle.kts, "gradle/**", gradlew, gradlew.bat, "src/**", .github/workflows/java-ci.yml, .gitignore, README.md], forbidden_paths: [docs/discovery/decisions.md, "docs/spec/**", "docs/adr/**", "**/db/migration/**", "**/*secret*"], shared_paths: [build.gradle.kts, .github/workflows/java-ci.yml]},
-acceptance_criteria: [{criterion_id: "AC-<context-uuidv5>", statement: "DB·secret·외부 서비스 없이 context load 성공", verification_method: "./gradlew test", required_evidence: ["test result"]}, {criterion_id: "AC-<module-uuidv5>", statement: "module cycle/internal access/승인 방향 위반 0", verification_method: "Modulith verification test", required_evidence: ["test result"]}, {criterion_id: "AC-<quality-uuidv5>", statement: "format, SpotBugs, build와 최소권한 CI 성공", verification_method: "local commands + remote checks", required_evidence: [checks, CI]}],
-required_tests: ["gradlew.bat clean build", "gradlew.bat spotlessCheck", "gradlew.bat test", "gradlew.bat spotbugsMain"], required_checks: ["node scripts/docs/validate-docs.mjs", "git diff --check", "allowed-path check", "remote CI", "architecture/build-supply-chain review"],
-required_evidence: [changed_files, commits, pull_request, acceptance_mapping, tests, checks, reviews, known_failures, rollback_or_recovery], risk: {level: MEDIUM, factors: ["shared build", CI, multi-module], mitigations: ["bounded paths", "no product behavior", "independent review"]},
-agent_profile: {role: bounded-java-bootstrap-worker, capabilities: [READ_REPOSITORY, WRITE_ALLOWED_PATHS, RUN_LOCAL_TESTS, CREATE_DRAFT_PR], denied_capabilities: [MERGE_PR, EXPAND_SCOPE, MODIFY_SECRETS, DEPLOY_PRODUCTION], network_policy: DENY_BY_DEFAULT, secret_policy: NONE},
-human_approval: {execution: "GRANTED by Owner via Issue #35 for PR A", merge: REQUIRED, follow_up_unlock: "REQUIRED: Owner merge + green remote CI before PR B"},
-completion_definition: ["criteria mapped", "tests/checks pass", "HIGH/BLOCK zero", "Draft PR evidence"], issue_mapping: {existing_issue: 35, labels: []}, plan_digest: "sha256:<placeholder>"
+acceptance_criteria: [{criterion_id: "AC-<context-uuidv5>", source_requirements: ["REQ-<java25-bootstrap-uuidv5>"], statement: "DB·secret·외부 서비스 없이 context load 성공", verification_method: "./gradlew test", required_evidence: ["test result"]}],
+human_approval: {execution: {approval_record_id: APR-35-EXEC, approval_type: EXECUTION_APPROVAL, state: GRANTED, source_approval_record_id: APR-REQ-35, source: "Issue #35", scope: ["PR A"], source_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, decided_by: owner, decided_at: "2026-07-29T00:00:00Z"}, review: {approval_record_id: APR-35-REVIEW, approval_type: REVIEW_ACCEPTANCE, state: REQUIRED}, merge: {approval_record_id: APR-35-MERGE, approval_type: MERGE_APPROVAL, state: REQUIRED}, follow_up_unlock: {approval_record_id: APR-35-UNLOCK, approval_type: FOLLOW_UP_UNLOCK, state: REQUIRED}},
+completion_definition: ["criteria mapped", "tests/checks pass", "HIGH/BLOCK zero", "Draft PR evidence"], issue_mapping: {existing_issue: 35, labels: []}, work_package_plan_digest: "sha256:<placeholder>"
 }
 ```
 D-009는 Source Authority, proposal plan은 분해 근거, Issue #35는 제한된 Execution Grant이며 서로의 권위를 대신하지 않는다.
 ## 19. 거부 예시와 미래 Validator
 
-다음 오류는 모두 해소 전 `READY`를 금지한다: `WP_REQUIREMENT_MISSING`(참조 없음), `WP_REQUIREMENT_STALE`(hash/source 변경), `WP_REQUIREMENT_NOT_EXECUTABLE`(lifecycle/type 불일치), `WP_OPEN_REQUIREMENT_IMPLEMENTATION`(OPEN 구현), `WP_EXECUTION_GRANT_MISSING`, `WP_EXTERNAL_EVIDENCE_UNMET`, `WP_SCOPE_UNBOUNDED`, `WP_ALLOWED_PATHS_EMPTY`, `WP_PATH_POLICY_CONFLICT`, `WP_ACCEPTANCE_NOT_VERIFIABLE`, `WP_REQUIRED_TEST_UNDEFINED`, `WP_RISK_UNDERCLASSIFIED`, `WP_HUMAN_GATE_MISSING`, `WP_DUPLICATE_ACTIVE_PACKAGE`, `WP_PLAN_DIGEST_MISMATCH`, `WP_SUPERSEDED_SOURCE`. Superseded/OPEN은 새 권위 결정 없이는 해결되지 않고 duplicate는 기존 bind 또는 사람 판단, 나머지는 해당 계약 재검증이 필요하다.
-[RECOMMENDED] 미래 Validator는 필드·enum·hash/time, Requirement/record hash, commit/path/blob/digest, lifecycle/type/Grant/Evidence, scope/out-of-scope, path canonicalization·교집합·탈출, acceptance, test/check, risk/gate/profile, bounded retry/timeout/budget, Issue metadata, duplicate/digest, proposal 권위 승격, OPEN 구현과 auto Merge를 검사한다. 실패는 `READY`를 차단하고 권위 결정을 생성하지 않는다. [CONFIRMED] 이번 단계는 계약만 기록하며 Validator, WorkGraph와 Runtime Ledger는 구현하지 않는다.
-[CONFIRMED] 한 Issue 한 결과, 중복 검색, branch/commit/Draft PR와 Owner-only closure는 [GitHub workflow](../github-workflow.md) lines 58-113, 135-140에 있다. Product Bootstrap은 [approval plan](../../discovery/slice-01-product-implementation-approval-plan.md) lines 80-93이고 lines 147-155는 Owner 승인 전 실행을 막았다. [OPEN] UUID namespace URI의 영구 표기, canonical JSON, Runtime Ledger/WorkGraph 상태와 label 동기화는 후속 승인 문서가 정해야 한다.
+다음 오류는 모두 해소 전 `READY`를 금지한다: `WP_REQUIREMENT_MISSING`, `WP_REQUIREMENT_STALE`, `WP_REQUIREMENT_NOT_EXECUTABLE`, `WP_OPEN_REQUIREMENT_IMPLEMENTATION`, `WP_EXECUTION_GRANT_MISSING`, `WP_EXTERNAL_EVIDENCE_UNMET`, `WP_REQUIREMENT_SET_DIGEST_MISMATCH`, `WP_PLAN_DIGEST_MISMATCH`, `WP_SCOPE_UNBOUNDED`, `WP_ALLOWED_PATHS_EMPTY`, `WP_PATH_POLICY_CONFLICT`, `WP_ACCEPTANCE_NOT_VERIFIABLE`, `WP_REQUIRED_TEST_UNDEFINED`, `WP_RISK_UNDERCLASSIFIED`, `WP_HUMAN_GATE_MISSING`, `WP_DUPLICATE_ACTIVE_PACKAGE`, `WP_SUPERSEDED_SOURCE`.
+[RECOMMENDED] 미래 Validator는 Requirement record와 sorted set digest, `work_package_plan_digest`, conflict/Grant/Evidence, scope/path, acceptance/test/check, risk/profile, approval record mapping, bounded runtime, Issue metadata, duplicate, proposal 승격, OPEN 구현과 auto Merge를 검사한다. digest/authority/gate 실패는 `READY`를 차단하고 권위 결정을 생성하지 않는다. [CONFIRMED] 이번 단계는 계약만 기록하며 Validator, WorkGraph와 Runtime Ledger는 구현하지 않는다.
+[CONFIRMED] 한 Issue 한 결과와 Owner-only closure는 [GitHub workflow](../github-workflow.md)에 있다. Product Bootstrap은 [approval plan](../../discovery/slice-01-product-implementation-approval-plan.md)의 역사적 abbreviated 예시다. [OPEN] UUID namespace URI, canonical JSON, Runtime Ledger/WorkGraph 상태와 label 동기화는 후속 승인 문서가 정해야 한다.
