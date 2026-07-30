@@ -3,7 +3,9 @@ package metabus.social;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
@@ -17,7 +19,7 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
 
   @Test
   void migratesCleanPostgresAndRecognizesAlreadyAppliedMigrations() {
-    assertThat(flyway.info().applied()).hasSize(5);
+    assertThat(flyway.info().applied()).hasSize(6);
     assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 
@@ -35,10 +37,43 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
             "accounts",
             "account_status_history",
             "account_credentials",
+            "account_login_identifiers",
             "current_authorizations",
             "authorization_history",
             "audit_records",
             "flyway_schema_history");
+  }
+
+  @Test
+  void upgradesAnExistingV1ThroughV5SchemaToV6AndRemainsRepeatable() {
+    String schema = "upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    jdbc.execute("CREATE SCHEMA " + schema);
+    try {
+      Flyway v5 =
+          Flyway.configure()
+              .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+              .defaultSchema(schema)
+              .schemas(schema)
+              .locations("classpath:db/migration")
+              .target(MigrationVersion.fromVersion("5"))
+              .load();
+      assertThat(v5.migrate().migrationsExecuted).isEqualTo(5);
+      assertThat(v5.info().applied()).hasSize(5);
+
+      Flyway current =
+          Flyway.configure()
+              .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+              .defaultSchema(schema)
+              .schemas(schema)
+              .locations("classpath:db/migration")
+              .load();
+      assertThat(current.migrate().migrationsExecuted).isOne();
+      assertThat(current.info().applied()).hasSize(6);
+      assertThat(current.validateWithResult().validationSuccessful).isTrue();
+      assertThat(current.migrate().migrationsExecuted).isZero();
+    } finally {
+      jdbc.execute("DROP SCHEMA " + schema + " CASCADE");
+    }
   }
 
   @Test
@@ -99,6 +134,9 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
             "account_status_history_transition_ck",
             "account_credentials_account_fk",
             "account_credentials_password_hash_ck",
+            "account_login_identifiers_account_fk",
+            "account_login_identifiers_email_ck",
+            "account_login_identifiers_timestamps_ck",
             "current_authorizations_id_account_uk",
             "current_authorizations_status_ck",
             "authorization_history_authorization_account_fk",
@@ -136,6 +174,18 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
         .contains("password_hash")
         .doesNotContain("password", "plain_password", "password_plaintext");
 
+    String normalizedEmailCollation =
+        jdbc.queryForObject(
+            """
+            SELECT collation_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'account_login_identifiers'
+              AND column_name = 'normalized_email'
+            """,
+            String.class);
+    assertThat(normalizedEmailCollation).isEqualTo("C");
+
     List<String> auditColumns =
         jdbc.queryForList(
             """
@@ -167,6 +217,7 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
               AND constraints.constraint_type = 'PRIMARY KEY'
               AND constraints.table_name IN (
                 'accounts', 'account_status_history', 'account_credentials',
+                'account_login_identifiers',
                 'current_authorizations', 'authorization_history', 'audit_records'
               )
             """,
@@ -176,6 +227,7 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
             "accounts:uuid",
             "account_status_history:uuid",
             "account_credentials:uuid",
+            "account_login_identifiers:uuid",
             "current_authorizations:uuid",
             "authorization_history:uuid",
             "audit_records:uuid");
@@ -190,6 +242,7 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
               AND constraint_definition.confdeltype <> 'r'
               AND owning_table.relname IN (
                 'account_status_history', 'account_credentials',
+                'account_login_identifiers',
                 'current_authorizations', 'authorization_history'
               )
             """,
@@ -204,6 +257,7 @@ class MigrationIntegrationTests extends PostgresIntegrationTestSupport {
             WHERE table_schema = 'public'
               AND table_name IN (
                 'accounts', 'account_status_history', 'account_credentials',
+                'account_login_identifiers',
                 'current_authorizations', 'authorization_history', 'audit_records'
               )
               AND (

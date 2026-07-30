@@ -3,12 +3,10 @@ package metabus.social.audit.infrastructure.persistence;
 import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-@ConditionalOnProperty("spring.datasource.url")
 class AuditRecordRepository {
 
   private final EntityManager entityManager;

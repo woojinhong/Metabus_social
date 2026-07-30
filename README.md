@@ -58,6 +58,7 @@ Spring Session automatic schema initialization is disabled.
 | `V3` | Account-separated password credential persistence |
 | `V4` | Current Authorization and append-only Authorization History |
 | `V5` | Purpose-bounded Audit records and idempotency constraint |
+| `V6` | Account-owned verified email login identifier persistence |
 
 The V1 SQL is pinned to the
 [Spring Session 4.1.0 upstream resource](https://github.com/spring-projects/spring-session/blob/a8a11445956c1db2babb07aa9bcbb09e3fdc034b/spring-session-jdbc/src/main/resources/org/springframework/session/jdbc/schema-postgresql.sql).
@@ -69,6 +70,15 @@ package. Cross-module relationships use UUID references rather than JPA object
 associations, while PostgreSQL enforces the approved foreign keys with
 `ON DELETE RESTRICT`. UUIDs and `Instant` timestamps are supplied by the
 application boundary; PostgreSQL stores time as `timestamptz`.
+
+The Account module owns the login identifier while Authentication owns password
+credentials. V6 stores only the caller-supplied normalized email, requires a
+verification timestamp, and applies bytewise active uniqueness. It does not
+store a second display copy. The schema rejects outer whitespace in the stored
+normalized value. Whether callers trim or reject input, plus the local-part
+case, IDN, and Unicode normalization policy, remains a PR C Owner gate;
+whole-address lowercasing and provider-specific dot or plus-tag canonicalization
+are not assumed here.
 
 Credential algorithm, parameters, pepper, recovery, and actual password hash
 generation remain PR C gates. Audit retention/tamper policy and typed metadata

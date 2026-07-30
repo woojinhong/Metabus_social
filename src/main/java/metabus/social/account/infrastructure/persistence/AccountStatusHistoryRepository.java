@@ -1,12 +1,10 @@
 package metabus.social.account.infrastructure.persistence;
 
 import jakarta.persistence.EntityManager;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-@ConditionalOnProperty("spring.datasource.url")
 class AccountStatusHistoryRepository {
 
   private final EntityManager entityManager;

@@ -10,11 +10,33 @@ import {
   inspectSemanticRepository,
 } from "./semantic-gates.mjs";
 
-const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "semantic-gates");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = path.resolve(scriptDirectory, "..", "..");
+const fixtureRoot = path.join(scriptDirectory, "fixtures", "semantic-gates");
+const approvedProductMigrations = [
+  "V1__framework_spring_session_4_1_0_postgresql.sql",
+  "V2__account_persistence.sql",
+  "V3__credential_persistence.sql",
+  "V4__authorization_persistence.sql",
+  "V5__audit_persistence.sql",
+  "V6__account_login_identifier.sql",
+];
 
 async function inspectFixture(name, file) {
   const text = await fs.promises.readFile(path.join(fixtureRoot, name), "utf8");
   return inspectSemanticDocument({ file, text });
+}
+
+async function temporaryRepository(t) {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "semantic-gates-"));
+  t.after(() => fs.promises.rm(root, { recursive: true, force: true }));
+  return root;
+}
+
+async function writeRepositoryFile(root, file, contents = "-- test fixture\n") {
+  const target = path.join(root, ...file.split("/"));
+  await fs.promises.mkdir(path.dirname(target), { recursive: true });
+  await fs.promises.writeFile(target, contents, "utf8");
 }
 
 test("accepts current gate wording", async () => {
@@ -189,8 +211,7 @@ test("warns when user-decision classification lacks an approval basis", async ()
 });
 
 test("detects prohibited authoritative artifact paths without changing repository documents", async t => {
-  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "semantic-gates-"));
-  t.after(() => fs.promises.rm(root, { recursive: true, force: true }));
+  const root = await temporaryRepository(t);
   const artifact = path.join(root, "docs", "spec", "api", "openapi.yaml");
   await fs.promises.mkdir(path.dirname(artifact), { recursive: true });
   await fs.promises.writeFile(artifact, "openapi: 3.1.0\n", "utf8");
@@ -198,27 +219,100 @@ test("detects prohibited authoritative artifact paths without changing repositor
   assert.deepEqual(findings.map(finding => finding.id), ["SGV-ARTIFACT-E001"]);
 });
 
-test("allows only the owner-approved Slice 1 PR B product migrations", async t => {
-  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "semantic-gates-"));
-  t.after(() => fs.promises.rm(root, { recursive: true, force: true }));
-  const migrationDirectory = path.join(root, "src", "main", "resources", "db", "migration");
-  await fs.promises.mkdir(migrationDirectory, { recursive: true });
-  await fs.promises.writeFile(
-    path.join(migrationDirectory, "V1__framework_spring_session_4_1_0_postgresql.sql"),
-    "-- approved\n",
+test("documentation validation is triggered by migration-only changes", async () => {
+  const workflow = await fs.promises.readFile(
+    path.join(repositoryRoot, ".github", "workflows", "docs-validation.yml"),
     "utf8",
   );
-  await fs.promises.writeFile(
-    path.join(migrationDirectory, "V6__unapproved_follow_up.sql"),
-    "-- not approved\n",
-    "utf8",
+  assert.equal(
+    workflow.match(/-\s+"src\/main\/resources\/db\/migration\/\*\*"/g)?.length,
+    2,
   );
+  assert.match(workflow, /run:\s+node scripts\/docs\/semantic-gates\.test\.mjs/);
+  assert.match(workflow, /run:\s+node scripts\/docs\/validate-docs\.mjs/);
 
-  const findings = await inspectSemanticRepository(root, new Map());
-  assert.deepEqual(
-    findings.map(finding => [finding.id, finding.file]),
-    [["SGV-ARTIFACT-E001", "src/main/resources/db/migration/V6__unapproved_follow_up.sql"]],
+  const javaWorkflow = await fs.promises.readFile(
+    path.join(repositoryRoot, ".github", "workflows", "java-ci.yml"),
+    "utf8",
   );
+  assert.match(javaWorkflow, /run:\s+node scripts\/docs\/validate-docs\.mjs/);
+});
+
+test("allows every owner-approved product migration through V6", async t => {
+  const root = await temporaryRepository(t);
+  for (const migration of approvedProductMigrations) {
+    const contents = await fs.promises.readFile(
+      path.join(repositoryRoot, "src", "main", "resources", "db", "migration", migration),
+      "utf8",
+    );
+    await writeRepositoryFile(root, `src/main/resources/db/migration/${migration}`, contents);
+  }
+  const findings = await inspectSemanticRepository(root, new Map());
+  assert.deepEqual(findings, []);
+});
+
+test("rejects content changes to immutable approved migrations", async t => {
+  const root = await temporaryRepository(t);
+  const migration = approvedProductMigrations[0];
+  const contents = await fs.promises.readFile(
+    path.join(repositoryRoot, "src", "main", "resources", "db", "migration", migration),
+    "utf8",
+  );
+  await writeRepositoryFile(
+    root,
+    `src/main/resources/db/migration/${migration}`,
+    `${contents}\n-- unauthorized edit\n`,
+  );
+  const findings = await inspectSemanticRepository(root, new Map());
+  assert.deepEqual(findings.map(finding => finding.id), ["SGV-MIGRATION-E002"]);
+});
+
+test("rejects unapproved migration versions and path or filename bypasses", async t => {
+  const bypasses = [
+    "src/main/resources/db/migration/V7__unapproved_follow_up.sql",
+    "src/main/resources/db/migration/v6__account_login_identifier.sql",
+    "src/main/resources/db/migration/nested/V6__account_login_identifier.sql",
+    "src/main/resources/db/migrations/V6__account_login_identifier.sql",
+    "src/main/resources/DB/MIGRATION/V6__account_login_identifier.sql",
+  ];
+
+  for (const bypass of bypasses) {
+    const root = await temporaryRepository(t);
+    await writeRepositoryFile(root, bypass);
+    const findings = await inspectSemanticRepository(root, new Map());
+    assert.deepEqual(
+      findings.map(finding => [finding.id, finding.file]),
+      [["SGV-ARTIFACT-E001", bypass]],
+    );
+  }
+});
+
+test("rejects alternate Flyway locations and Java migrations", async t => {
+  const bypasses = [
+    [
+      "src/main/resources/application.properties",
+      "spring.flyway.locations=classpath:db/alternate\n",
+    ],
+    [
+      "src/main/resources/application.yml",
+      "spring:\n  flyway:\n    locations: classpath:db/alternate\n",
+    ],
+    [
+      "src/main/java/metabus/social/common/FlywayConfiguration.java",
+      "class FlywayConfiguration { void configure(Object flyway) { flyway.locations(\"db/alternate\"); } }\n",
+    ],
+    [
+      "src/main/java/db/migration/V7__JavaMigration.java",
+      "class V7__JavaMigration implements JavaMigration {}\n",
+    ],
+  ];
+
+  for (const [file, contents] of bypasses) {
+    const root = await temporaryRepository(t);
+    await writeRepositoryFile(root, file, contents);
+    const findings = await inspectSemanticRepository(root, new Map());
+    assert.deepEqual(findings.map(finding => finding.id), ["SGV-ARTIFACT-E001"]);
+  }
 });
 
 test("returns deterministic findings on repeated execution", async () => {
