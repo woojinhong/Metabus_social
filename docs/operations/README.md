@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-28
-related_documents: ["../discovery/decisions.md","../spec/ux/README.md","github-workflow.md"]
+related_documents: ["../discovery/decisions.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -20,6 +20,18 @@ decision_authority: decisions.md and approved operations policies
 - [AI runtime](ai-runtime.md) records current repository execution guidance.
 - [Initial backlog](github-initial-backlog.md) is a reconciled historical/candidate register; it does not override the approved GitHub workflow.
 - [Content operations](content-operations.md), [session operations](session-operations.md), [trust/safety operations](trust-safety-operations.md) and [vendor operations](vendor-operations.md) remain procedure drafts where they conflict with current decisions.
+- [Requirement extraction schema](automation/requirement-schema.md) is the proposal-only
+  entry point for deterministic Requirement extraction.
+- [Work Package and GitHub Issue schema](automation/work-package-and-issue-schema.md)
+  is the second proposal-only contract. It specifies bounded task records and
+  Issue projection without creating an Issue or granting Agent execution.
+- [WorkGraph state and lock schema](automation/workgraph-state-lock-schema.md)
+  is the third proposal-only contract. It defines ordering, state, lease and
+  lock requirements without executing a graph.
+- Read these after the repository authority sources in this order: Requirement
+  Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
+  a future Dry-run Planner. No Dispatcher or Runtime Ledger exists, and Hermes
+  and Slack are not connected; these proposals grant no implementation authority.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
