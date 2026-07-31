@@ -2,11 +2,11 @@
 title: Work Package and GitHub Issue Schema Proposal
 document_type: automation specification proposal
 classification: proposal
-status: Draft for owner review; no issue creation, agent execution or merge authority
+status: Machine schema foundation implemented; no issue creation, agent execution or merge authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
-decision_authority: H-session owner instruction authorizes this proposal documentation only; execution, issue creation, merge and follow-up unlock remain separately gated
+related_documents: ["../../../schemas/automation/work-package.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
+decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; execution, issue creation, merge and follow-up unlock remain separately gated
 ---
 
 # Work Package and GitHub Issue Schema Proposal
@@ -32,7 +32,7 @@ decision_authority: H-session owner instruction authorizes this proposal documen
 
 ```yaml
 {
-schema_version: "1.0.0-proposal", work_package_id: "WP-<uuidv5>", work_package_revision: 1,
+schema_id: "https://github.com/woojinhong/metabus_social/schemas/automation/work-package.schema.json", schema_version: "1.0.0", work_package_id: "WP-<uuidv5>", work_package_revision: 1,
 title: "", type: DOCUMENTATION, workstream: "", vertical_slice: null,
 source_snapshot: {repository: "", repository_sha: "", requirement_set_digest: "sha256:", policy_version: ""},
 source_requirements: [{requirement_id: "", requirement_record_hash: "sha256:", authority_status: APPROVED, lifecycle: APPROVED, execution_grant: NOT_GRANTED, evidence_state: NOT_REQUIRED}],
@@ -179,7 +179,7 @@ Profile은 모델명이 아니라 capability 계약이다. 예: `bounded-java-bo
 ```yaml
 {
 example_mode: abbreviated, omitted_fields_follow_schema_defaults: true,
-work_package_id: "WP-<calculated-uuidv5>", work_package_revision: 1, type: BOOTSTRAP, source_snapshot: {repository: "https://github.com/woojinhong/Metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, requirement_set_digest: "sha256:<calculated>", policy_version: "requirement-schema@1.0.0-proposal"},
+work_package_id: "WP-<calculated-uuidv5>", work_package_revision: 1, type: BOOTSTRAP, source_snapshot: {repository: "https://github.com/woojinhong/metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, requirement_set_digest: "sha256:<calculated>", policy_version: "requirement-schema@1.0.0"},
 source_requirements: [{requirement_id: "REQ-<java25-bootstrap-uuidv5>", requirement_record_hash: "sha256:<calculated>", authority_status: APPROVED, lifecycle: APPROVED, execution_grant: GRANTED, evidence_state: NOT_REQUIRED}], source_documents: [{path: docs/discovery/decisions.md, lines: 73-78, blob: 01598392614871ea2c4b8e136574e8fa5bf0e05c, role: "approved D-009"}, {path: docs/discovery/slice-01-product-implementation-approval-plan.md, lines: 80-93, blob: 7ebec161f53931dbeb590b7e486bd30564d0ab3b, role: "proposal decomposition"}],
 authority_status: {source_authority: APPROVED, execution_grant: GRANTED, evidence_readiness: NOT_REQUIRED, package_status: READY}, objective: "후속 PR용 기능 없는 Java/Spring Boot build·module·quality 기반",
 scope: ["root Gradle KTS/wrapper", "Java 25 and Boot 4.1 shell", "module skeleton", "DB-free tests", "Java CI"], out_of_scope: ["feature behavior", "security/session", "API/DTO", "migration", deployment], dependencies: [],
@@ -193,5 +193,5 @@ D-009는 Source Authority, proposal plan은 분해 근거, Issue #35는 제한�
 ## 19. 거부 예시와 미래 Validator
 
 다음 오류는 모두 해소 전 `READY`를 금지한다: `WP_REQUIREMENT_MISSING`, `WP_REQUIREMENT_STALE`, `WP_REQUIREMENT_NOT_EXECUTABLE`, `WP_OPEN_REQUIREMENT_IMPLEMENTATION`, `WP_EXECUTION_GRANT_MISSING`, `WP_EXTERNAL_EVIDENCE_UNMET`, `WP_REQUIREMENT_SET_DIGEST_MISMATCH`, `WP_PLAN_DIGEST_MISMATCH`, `WP_SCOPE_UNBOUNDED`, `WP_ALLOWED_PATHS_EMPTY`, `WP_PATH_POLICY_CONFLICT`, `WP_ACCEPTANCE_NOT_VERIFIABLE`, `WP_REQUIRED_TEST_UNDEFINED`, `WP_RISK_UNDERCLASSIFIED`, `WP_HUMAN_GATE_MISSING`, `WP_DUPLICATE_ACTIVE_PACKAGE`, `WP_SUPERSEDED_SOURCE`.
-[RECOMMENDED] 미래 Validator는 Requirement record와 sorted set digest, `work_package_plan_digest`, conflict/Grant/Evidence, scope/path, acceptance/test/check, risk/profile, approval record mapping, bounded runtime, Issue metadata, duplicate, proposal 승격, OPEN 구현과 auto Merge를 검사한다. digest/authority/gate 실패는 `READY`를 차단하고 권위 결정을 생성하지 않는다. [CONFIRMED] 이번 단계는 계약만 기록하며 Validator, WorkGraph와 Runtime Ledger는 구현하지 않는다.
-[CONFIRMED] 한 Issue 한 결과와 Owner-only closure는 [GitHub workflow](../github-workflow.md)에 있다. Product Bootstrap은 [approval plan](../../discovery/slice-01-product-implementation-approval-plan.md)의 역사적 abbreviated 예시다. [OWNER REVIEW] [AH-P0-01](../../discovery/autonomous-harness-foundation-approval-plan.md)은 canonical JSON/UUID/version, SQLite Ledger authority와 GitHub projection을 권고하지만 승인 전에는 OPEN이다.
+[IMPLEMENTED FOUNDATION] [Work Package machine schema](../../../schemas/automation/work-package.schema.json)는 record 구조, Gate, path, acceptance, risk와 proposal-to-READY 차단을 `1.0.0`으로 고정한다. Structural subset test만 구현했고 semantic Compiler, duplicate reconciliation, Issue writer, WorkGraph runtime과 Ledger는 미구현이다.
+[CONFIRMED] 한 Issue 한 결과와 Owner-only closure는 [GitHub workflow](../github-workflow.md)에 있다. Product Bootstrap은 [approval plan](../../discovery/slice-01-product-implementation-approval-plan.md)의 역사적 abbreviated 예시다. AH-P0-01의 SQLite authority/GitHub projection은 design boundary이며 Issue #48은 저장·projection mutation을 구현하지 않는다.

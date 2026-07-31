@@ -1,0 +1,686 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json",
+  "title": "Propscans Requirement Candidate and Canonical Record",
+  "x-schema-version": "1.0.0",
+  "x-canonicalization": {
+    "profiles": {
+      "CANONICAL_REQUIREMENT": {
+        "excluded_paths": [
+          "/created_at",
+          "/generated_by",
+          "/content_hash",
+          "/requirement_record_hash"
+        ],
+        "set_like": [
+          {
+            "path": "/stable_aliases",
+            "key": "$value"
+          },
+          {
+            "path": "/related_requirements",
+            "key": "$value"
+          },
+          {
+            "path": "/supersedes",
+            "key": "$value"
+          },
+          {
+            "path": "/superseded_by",
+            "key": "$value"
+          },
+          {
+            "path": "/implementation_gate/scope",
+            "key": "$value"
+          },
+          {
+            "path": "/external_evidence/references",
+            "key": "$value"
+          },
+          {
+            "path": "/conflicts",
+            "key": "conflict_id"
+          }
+        ]
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/candidate"
+    },
+    {
+      "$ref": "#/$defs/canonicalRequirement"
+    }
+  ],
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_id",
+        "schema_version",
+        "record_kind",
+        "candidate_ref",
+        "candidate_status",
+        "requirement_kind",
+        "title",
+        "statement",
+        "source",
+        "acceptance_intent"
+      ],
+      "properties": {
+        "schema_id": {
+          "const": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json"
+        },
+        "schema_version": {
+          "$ref": "common.schema.json#/$defs/schemaVersion"
+        },
+        "record_kind": {
+          "const": "CANDIDATE"
+        },
+        "candidate_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_status": {
+          "enum": [
+            "PROPOSED",
+            "NEEDS_REVIEW",
+            "BLOCKED"
+          ]
+        },
+        "requirement_kind": {
+          "$ref": "#/$defs/requirementKind"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "common.schema.json#/$defs/sourceSnapshot"
+        },
+        "acceptance_intent": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "canonicalRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_id",
+        "schema_version",
+        "record_kind",
+        "requirement_id",
+        "requirement_kind",
+        "stable_aliases",
+        "title",
+        "source",
+        "authority",
+        "status",
+        "statement",
+        "rationale",
+        "acceptance_intent",
+        "implementation_gate",
+        "external_evidence",
+        "parent_requirement",
+        "related_requirements",
+        "conflicts",
+        "supersedes",
+        "superseded_by",
+        "created_at",
+        "generated_by",
+        "content_hash",
+        "requirement_record_hash"
+      ],
+      "properties": {
+        "schema_id": {
+          "const": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json"
+        },
+        "schema_version": {
+          "$ref": "common.schema.json#/$defs/schemaVersion"
+        },
+        "record_kind": {
+          "const": "CANONICAL_REQUIREMENT"
+        },
+        "requirement_id": {
+          "$ref": "common.schema.json#/$defs/requirementId"
+        },
+        "requirement_kind": {
+          "$ref": "#/$defs/requirementKind"
+        },
+        "stable_aliases": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "common.schema.json#/$defs/sourceSnapshot"
+        },
+        "authority": {
+          "$ref": "#/$defs/authority"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "acceptance_intent": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "implementation_gate": {
+          "$ref": "#/$defs/implementationGate"
+        },
+        "external_evidence": {
+          "$ref": "#/$defs/externalEvidence"
+        },
+        "parent_requirement": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/requirementId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "related_requirements": {
+          "$ref": "#/$defs/requirementIds"
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/conflict"
+          }
+        },
+        "supersedes": {
+          "$ref": "#/$defs/requirementIds"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/requirementIds"
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/rfc3339"
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "requirement_record_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "source_authority": {
+                    "const": "PROPOSAL"
+                  }
+                },
+                "required": [
+                  "source_authority"
+                ]
+              }
+            },
+            "required": [
+              "authority"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "properties": {
+                  "lifecycle": {
+                    "enum": [
+                      "DRAFT",
+                      "OPEN",
+                      "BLOCKED"
+                    ]
+                  }
+                }
+              },
+              "implementation_gate": {
+                "properties": {
+                  "state": {
+                    "const": "NOT_GRANTED"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "source_authority": {
+                    "const": "APPROVED"
+                  }
+                },
+                "required": [
+                  "source_authority"
+                ]
+              }
+            },
+            "required": [
+              "authority"
+            ]
+          },
+          "then": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "approval_record": {
+                    "$ref": "common.schema.json#/$defs/sourceLocator"
+                  },
+                  "approved_by": {
+                    "$ref": "common.schema.json#/$defs/nonEmptyString"
+                  },
+                  "approved_at": {
+                    "$ref": "common.schema.json#/$defs/rfc3339"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "implementation_gate": {
+                "properties": {
+                  "state": {
+                    "const": "GRANTED"
+                  }
+                },
+                "required": [
+                  "state"
+                ]
+              }
+            },
+            "required": [
+              "implementation_gate"
+            ]
+          },
+          "then": {
+            "properties": {
+              "authority": {
+                "properties": {
+                  "source_authority": {
+                    "const": "APPROVED"
+                  }
+                }
+              },
+              "status": {
+                "properties": {
+                  "lifecycle": {
+                    "const": "APPROVED"
+                  }
+                }
+              },
+              "implementation_gate": {
+                "properties": {
+                  "approval_record_id": {
+                    "$ref": "common.schema.json#/$defs/nonEmptyString"
+                  },
+                  "grant_source": {
+                    "$ref": "common.schema.json#/$defs/sourceLocator"
+                  },
+                  "granted_by": {
+                    "$ref": "common.schema.json#/$defs/nonEmptyString"
+                  },
+                  "granted_at": {
+                    "$ref": "common.schema.json#/$defs/rfc3339"
+                  },
+                  "scope": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "requirementKind": {
+      "enum": [
+        "FUNCTIONAL",
+        "UX",
+        "SAFETY",
+        "NON_FUNCTIONAL",
+        "POLICY",
+        "ARCHITECTURE",
+        "EXECUTION_CONSTRAINT"
+      ]
+    },
+    "requirementIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/requirementId"
+      },
+      "uniqueItems": true
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_classification",
+        "source_status",
+        "source_authority",
+        "approval_record",
+        "approved_by",
+        "approved_at",
+        "supporting_sources"
+      ],
+      "properties": {
+        "document_classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_authority": {
+          "enum": [
+            "PROPOSAL",
+            "CONFIRMED",
+            "APPROVED",
+            "BLOCKED",
+            "SUPERSEDED"
+          ]
+        },
+        "approval_record": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/sourceLocator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approved_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approved_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "supporting_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/sourceSnapshot"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle",
+        "changed_by",
+        "changed_at"
+      ],
+      "properties": {
+        "lifecycle": {
+          "enum": [
+            "DRAFT",
+            "CONFIRMED",
+            "APPROVED",
+            "OPEN",
+            "BLOCKED",
+            "EXTERNAL_EVIDENCE_REQUIRED",
+            "SUPERSEDED",
+            "REJECTED"
+          ]
+        },
+        "changed_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/rfc3339"
+        }
+      }
+    },
+    "implementationGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reason",
+        "approval_record_id",
+        "grant_source",
+        "granted_by",
+        "granted_at",
+        "valid_until",
+        "scope"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "NOT_GRANTED",
+            "GRANTED",
+            "REVOKED",
+            "EXPIRED"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approval_record_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "grant_source": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/sourceLocator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "granted_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "granted_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_until": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        }
+      }
+    },
+    "externalEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "state",
+        "references",
+        "accepted_by",
+        "accepted_at",
+        "revalidate_at"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "common.schema.json#/$defs/evidenceState"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "accepted_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "accepted_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revalidate_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_id",
+        "conflicts_with",
+        "conflict_type",
+        "detected_from",
+        "state",
+        "resolution_record",
+        "resolved_by",
+        "resolved_at"
+      ],
+      "properties": {
+        "conflict_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conflicts_with": {
+          "$ref": "common.schema.json#/$defs/requirementId"
+        },
+        "conflict_type": {
+          "enum": [
+            "MUST_VS_MUST_NOT",
+            "VALUE_MISMATCH",
+            "AUTHORITY_CONFLICT",
+            "VERSION_CONFLICT",
+            "PROPOSAL_VS_APPROVED",
+            "SCOPE_CONFLICT"
+          ]
+        },
+        "detected_from": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "state": {
+          "enum": [
+            "DETECTED",
+            "UNDER_REVIEW",
+            "RESOLVED",
+            "SUPERSEDED",
+            "REJECTED"
+          ]
+        },
+        "resolution_record": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolved_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

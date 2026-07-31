@@ -1,0 +1,6 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/dry-run.schema.json",
+  "schema_version": "2.0.0",
+  "record_kind": "READ_ONLY_DRY_RUN",
+  "dry_run_id": "DR-66666666-6666-5666-8666-666666666666"
+}

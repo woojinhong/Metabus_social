@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/woojinhong/metabus_social/schemas/automation/common.schema.json",
+  "title": "Propscans Automation Common Definitions",
+  "x-schema-version": "1.0.0",
+  "$defs": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "uuidV5": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "rfc3339": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "posixPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\\\\)(?!.*//)(?!.*\\/$)[^\\u0000]+$"
+    },
+    "canonicalRepository": {
+      "const": "https://github.com/woojinhong/metabus_social"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stringSet": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^(?:(?:FR|UX|SR|NFR)-[A-Za-z0-9._-]+|REQ-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$"
+    },
+    "workPackageId": {
+      "type": "string",
+      "pattern": "^WP-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "graphId": {
+      "type": "string",
+      "pattern": "^WG-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "nodeId": {
+      "type": "string",
+      "pattern": "^N-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "edgeId": {
+      "type": "string",
+      "pattern": "^E-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "lockId": {
+      "type": "string",
+      "pattern": "^L-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "criterionId": {
+      "type": "string",
+      "pattern": "^AC-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sourceLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "repository_sha"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/posixPath"
+        },
+        "repository_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "section_anchor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line_start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "line_end": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "sourceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "repository_sha",
+        "identity_path",
+        "document_path",
+        "document_blob_sha",
+        "section_anchor",
+        "line_range",
+        "source_text_hash",
+        "previous_locations"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/canonicalRepository"
+        },
+        "repository_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "identity_path": {
+          "$ref": "#/$defs/posixPath"
+        },
+        "document_path": {
+          "$ref": "#/$defs/posixPath"
+        },
+        "document_blob_sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "section_anchor": {
+          "type": "string"
+        },
+        "line_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "source_text_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "previous_locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceLocator"
+          }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "severity",
+        "message",
+        "source"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "severity": {
+          "enum": [
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ]
+        },
+        "message": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sourceLocator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "validationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "findings"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "VALID",
+            "VALID_WITH_WARNINGS",
+            "BLOCKED",
+            "STALE",
+            "REJECTED"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        }
+      }
+    },
+    "approvalState": {
+      "enum": [
+        "NOT_REQUIRED",
+        "REQUIRED",
+        "GRANTED",
+        "REJECTED",
+        "REVOKED",
+        "EXPIRED",
+        "CANCELLED"
+      ]
+    },
+    "evidenceState": {
+      "enum": [
+        "NOT_REQUIRED",
+        "MISSING",
+        "COLLECTING",
+        "PARTIAL",
+        "ACCEPTED",
+        "EXPIRED",
+        "CONFLICTING",
+        "REJECTED"
+      ]
+    }
+  }
+}

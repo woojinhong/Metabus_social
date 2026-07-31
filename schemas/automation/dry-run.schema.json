@@ -1,0 +1,798 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/woojinhong/metabus_social/schemas/automation/dry-run.schema.json",
+  "title": "Propscans Read-only Planner Dry-run Record",
+  "x-schema-version": "1.0.0",
+  "x-canonicalization": {
+    "excluded_paths": [
+      "/generated_at",
+      "/generated_by",
+      "/result_digest",
+      "/issue_drafts/*/title",
+      "/issue_drafts/*/body",
+      "/issue_drafts/*/labels"
+    ],
+    "set_like": [
+      {
+        "path": "/requirements",
+        "key": "requirement_id"
+      },
+      {
+        "path": "/work_packages",
+        "key": "work_package_id"
+      },
+      {
+        "path": "/issue_drafts",
+        "key": "work_package_id"
+      },
+      {
+        "path": "/errors",
+        "key": "error_id"
+      }
+    ]
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "record_kind",
+    "dry_run_id",
+    "generated_at",
+    "generated_by",
+    "input_snapshot",
+    "requirements",
+    "requirement_set_digest",
+    "work_packages",
+    "work_package_set_digest",
+    "workgraph",
+    "issue_drafts",
+    "lock_analysis",
+    "risk_summary",
+    "human_decisions",
+    "external_evidence_gaps",
+    "warnings",
+    "errors",
+    "blocked_reasons",
+    "execution_summary",
+    "result",
+    "result_digest"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "https://github.com/woojinhong/metabus_social/schemas/automation/dry-run.schema.json"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "record_kind": {
+      "const": "READ_ONLY_DRY_RUN"
+    },
+    "dry_run_id": {
+      "type": "string",
+      "pattern": "^DR-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "generated_at": {
+      "$ref": "common.schema.json#/$defs/rfc3339"
+    },
+    "generated_by": {
+      "$ref": "common.schema.json#/$defs/nonEmptyString"
+    },
+    "input_snapshot": {
+      "$ref": "#/$defs/inputSnapshot"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "requirement.schema.json#/$defs/canonicalRequirement"
+      }
+    },
+    "requirement_set_digest": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "work_packages": {
+      "type": "array",
+      "items": {
+        "$ref": "work-package.schema.json"
+      }
+    },
+    "work_package_set_digest": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "workgraph": {
+      "oneOf": [
+        {
+          "$ref": "workgraph.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "issue_drafts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issueDraft"
+      }
+    },
+    "lock_analysis": {
+      "$ref": "workgraph.schema.json#/$defs/lockAnalysis"
+    },
+    "risk_summary": {
+      "$ref": "#/$defs/riskSummary"
+    },
+    "human_decisions": {
+      "$ref": "common.schema.json#/$defs/stringSet"
+    },
+    "external_evidence_gaps": {
+      "$ref": "common.schema.json#/$defs/stringSet"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "error.schema.json"
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "error.schema.json"
+      }
+    },
+    "blocked_reasons": {
+      "$ref": "common.schema.json#/$defs/stringSet"
+    },
+    "execution_summary": {
+      "$ref": "#/$defs/executionSummary"
+    },
+    "result": {
+      "enum": [
+        "DRY_RUN_VALID",
+        "DRY_RUN_VALID_WITH_WARNINGS",
+        "DRY_RUN_BLOCKED",
+        "DRY_RUN_STALE",
+        "DRY_RUN_REJECTED"
+      ]
+    },
+    "result_digest": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "enum": [
+              "DRY_RUN_BLOCKED",
+              "DRY_RUN_STALE",
+              "DRY_RUN_REJECTED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution_summary": {
+            "properties": {
+              "executable_nodes": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "inputSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "planning_scope",
+        "policy",
+        "execution_authority",
+        "external_evidence_context",
+        "existing_state"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/repositorySnapshot"
+        },
+        "planning_scope": {
+          "$ref": "#/$defs/planningScope"
+        },
+        "policy": {
+          "$ref": "#/$defs/plannerPolicy"
+        },
+        "execution_authority": {
+          "$ref": "#/$defs/executionAuthority"
+        },
+        "external_evidence_context": {
+          "$ref": "#/$defs/externalEvidenceContext"
+        },
+        "existing_state": {
+          "$ref": "#/$defs/existingState"
+        }
+      }
+    },
+    "repositorySnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_uri",
+        "repository_sha",
+        "default_branch"
+      ],
+      "properties": {
+        "canonical_uri": {
+          "$ref": "common.schema.json#/$defs/canonicalRepository"
+        },
+        "repository_sha": {
+          "$ref": "common.schema.json#/$defs/gitSha"
+        },
+        "default_branch": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        }
+      }
+    },
+    "planningScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vertical_slice",
+        "workstream",
+        "modules",
+        "source_documents",
+        "source_requirement_ids"
+      ],
+      "properties": {
+        "vertical_slice": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workstream": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "modules": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "source_documents": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/sourceSnapshot"
+          }
+        },
+        "source_requirement_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/requirementId"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "plannerPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version",
+        "allowed_work_package_types",
+        "allowed_risk_levels",
+        "max_work_packages",
+        "max_graph_nodes",
+        "max_parallel_nodes",
+        "allow_product_code_change",
+        "allow_infrastructure_change",
+        "allow_external_access"
+      ],
+      "properties": {
+        "policy_version": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "allowed_work_package_types": {
+          "type": "array",
+          "items": {
+            "$ref": "work-package.schema.json#/properties/type"
+          },
+          "uniqueItems": true
+        },
+        "allowed_risk_levels": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "max_work_packages": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_graph_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_parallel_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "allow_product_code_change": {
+          "type": "boolean"
+        },
+        "allow_infrastructure_change": {
+          "type": "boolean"
+        },
+        "allow_external_access": {
+          "type": "boolean"
+        }
+      }
+    },
+    "executionAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_record_ids",
+        "approval_records",
+        "allowed_scopes"
+      ],
+      "properties": {
+        "approval_record_ids": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "approval_records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pinnedApprovalRecord"
+          }
+        },
+        "allowed_scopes": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        }
+      }
+    },
+    "pinnedApprovalRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_record_id",
+        "approval_type",
+        "state",
+        "required_actor_role",
+        "source",
+        "source_approval_record_id",
+        "scope",
+        "source_sha",
+        "decided_by",
+        "decided_at",
+        "valid_until",
+        "record_hash"
+      ],
+      "properties": {
+        "approval_record_id": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "approval_type": {
+          "enum": [
+            "EXECUTION_APPROVAL",
+            "REVIEW_ACCEPTANCE",
+            "MERGE_APPROVAL",
+            "FOLLOW_UP_UNLOCK",
+            "HIGH_RISK_DECISION",
+            "EXTERNAL_EVIDENCE_ACCEPTANCE"
+          ]
+        },
+        "state": {
+          "$ref": "common.schema.json#/$defs/approvalState"
+        },
+        "required_actor_role": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "source": {
+          "$ref": "common.schema.json#/$defs/sourceLocator"
+        },
+        "source_approval_record_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "source_sha": {
+          "$ref": "common.schema.json#/$defs/gitSha"
+        },
+        "decided_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decided_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_until": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "externalEvidenceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_evidence_ids",
+        "accepted_evidence_records"
+      ],
+      "properties": {
+        "accepted_evidence_ids": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "accepted_evidence_records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pinnedEvidenceRecord"
+          }
+        }
+      }
+    },
+    "pinnedEvidenceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id",
+        "state",
+        "acceptor",
+        "source",
+        "scope",
+        "source_sha",
+        "accepted_at",
+        "revalidate_at",
+        "conflicts",
+        "record_hash"
+      ],
+      "properties": {
+        "evidence_id": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "state": {
+          "const": "ACCEPTED"
+        },
+        "acceptor": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "source": {
+          "$ref": "common.schema.json#/$defs/sourceLocator"
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "source_sha": {
+          "$ref": "common.schema.json#/$defs/gitSha"
+        },
+        "accepted_at": {
+          "$ref": "common.schema.json#/$defs/rfc3339"
+        },
+        "revalidate_at": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/rfc3339"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conflicts": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "record_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "existingState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot",
+        "open_issues",
+        "completed_work_packages",
+        "active_work_packages",
+        "existing_graphs"
+      ],
+      "properties": {
+        "snapshot": {
+          "$ref": "#/$defs/stateSnapshot"
+        },
+        "open_issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/openIssueSnapshot"
+          }
+        },
+        "completed_work_packages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/workPackageStateRef"
+          }
+        },
+        "active_work_packages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/workPackageStateRef"
+          }
+        },
+        "existing_graphs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/graphStateRef"
+          }
+        }
+      }
+    },
+    "stateSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "as_of",
+        "source_sha",
+        "record_hash"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "as_of": {
+          "$ref": "common.schema.json#/$defs/rfc3339"
+        },
+        "source_sha": {
+          "$ref": "common.schema.json#/$defs/gitSha"
+        },
+        "record_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "workPackageStateRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "work_package_id",
+        "work_package_revision",
+        "work_package_plan_digest"
+      ],
+      "properties": {
+        "work_package_id": {
+          "$ref": "common.schema.json#/$defs/workPackageId"
+        },
+        "work_package_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "work_package_plan_digest": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "graphStateRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "graph_id",
+        "graph_revision",
+        "workgraph_plan_digest"
+      ],
+      "properties": {
+        "graph_id": {
+          "$ref": "common.schema.json#/$defs/graphId"
+        },
+        "graph_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workgraph_plan_digest": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "openIssueSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_number",
+        "state",
+        "work_package_id",
+        "work_package_revision",
+        "work_package_plan_digest",
+        "record_hash"
+      ],
+      "properties": {
+        "issue_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "const": "OPEN"
+        },
+        "work_package_id": {
+          "$ref": "common.schema.json#/$defs/workPackageId"
+        },
+        "work_package_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "work_package_plan_digest": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "record_hash": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "issueDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "work_package_id",
+        "renderer_version",
+        "canonical_fields",
+        "title",
+        "body",
+        "labels",
+        "milestone",
+        "parent_issue",
+        "existing_issue_candidate",
+        "duplicate_check",
+        "source_links"
+      ],
+      "properties": {
+        "work_package_id": {
+          "$ref": "common.schema.json#/$defs/workPackageId"
+        },
+        "renderer_version": {
+          "const": "issue-template@1.0.0"
+        },
+        "canonical_fields": {
+          "$ref": "work-package.schema.json"
+        },
+        "title": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "body": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "labels": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "milestone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parent_issue": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "existing_issue_candidate": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "duplicate_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "status"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "common.schema.json#/$defs/nonEmptyString"
+            },
+            "status": {
+              "enum": [
+                "UNIQUE",
+                "REUSE_CANDIDATE",
+                "AMBIGUOUS",
+                "DUPLICATE"
+              ]
+            }
+          }
+        },
+        "source_links": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/sourceLocator"
+          }
+        }
+      }
+    },
+    "riskSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "highest_level",
+        "factors",
+        "blocked"
+      ],
+      "properties": {
+        "highest_level": {
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "factors": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "blocked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "executionSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable_nodes",
+        "blocked_nodes",
+        "human_nodes",
+        "evidence_nodes",
+        "review_nodes"
+      ],
+      "properties": {
+        "executable_nodes": {
+          "$ref": "workgraph.schema.json#/$defs/nodeIds"
+        },
+        "blocked_nodes": {
+          "$ref": "workgraph.schema.json#/$defs/nodeIds"
+        },
+        "human_nodes": {
+          "$ref": "workgraph.schema.json#/$defs/nodeIds"
+        },
+        "evidence_nodes": {
+          "$ref": "workgraph.schema.json#/$defs/nodeIds"
+        },
+        "review_nodes": {
+          "$ref": "workgraph.schema.json#/$defs/nodeIds"
+        }
+      }
+    }
+  }
+}

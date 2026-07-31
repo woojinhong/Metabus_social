@@ -1,0 +1,77 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANONICAL_REQUIREMENT",
+  "requirement_id": "REQ-11111111-1111-5111-8111-111111111111",
+  "requirement_kind": "POLICY",
+  "stable_aliases": [
+    "AH-P0-01"
+  ],
+  "title": "Pinned compiler input",
+  "source": {
+    "repository": "https://github.com/woojinhong/metabus_social",
+    "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "identity_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_blob_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "section_anchor": "llm-owner와-compiler-경계",
+    "line_range": {
+      "start": 92,
+      "end": 105
+    },
+    "source_text_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "previous_locations": []
+  },
+  "authority": {
+    "document_classification": "user decision",
+    "source_status": "Approved for AH-P0-02 schema foundation",
+    "source_authority": "APPROVED",
+    "approval_record": {
+      "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+      "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "section_anchor": "purpose-and-authority",
+      "line_start": 1,
+      "line_end": 10
+    },
+    "approved_by": "owner",
+    "approved_at": "2026-07-31T00:00:00Z",
+    "supporting_sources": []
+  },
+  "status": {
+    "lifecycle": "APPROVED",
+    "changed_by": "owner",
+    "changed_at": "2026-07-31T00:00:00Z"
+  },
+  "statement": "Only Owner-pinned Requirements enter the deterministic compiler.",
+  "rationale": null,
+  "acceptance_intent": [
+    "A Candidate cannot claim an official ID, READY state or GRANTED state."
+  ],
+  "implementation_gate": {
+    "state": "NOT_GRANTED",
+    "reason": "Machine schema authority is separate from execution authority.",
+    "approval_record_id": null,
+    "grant_source": null,
+    "granted_by": null,
+    "granted_at": null,
+    "valid_until": null,
+    "scope": []
+  },
+  "external_evidence": {
+    "required": false,
+    "state": "NOT_REQUIRED",
+    "references": [],
+    "accepted_by": null,
+    "accepted_at": null,
+    "revalidate_at": null
+  },
+  "parent_requirement": null,
+  "related_requirements": [],
+  "conflicts": [],
+  "supersedes": [],
+  "superseded_by": [],
+  "created_at": "2026-07-31T00:00:00Z",
+  "generated_by": "ah-p0-02-fixture",
+  "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "requirement_record_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

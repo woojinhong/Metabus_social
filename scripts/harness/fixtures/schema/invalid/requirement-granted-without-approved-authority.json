@@ -1,0 +1,70 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANONICAL_REQUIREMENT",
+  "requirement_id": "REQ-11111111-1111-5111-8111-111111111111",
+  "requirement_kind": "POLICY",
+  "stable_aliases": ["AH-P0-01"],
+  "title": "Pinned compiler input",
+  "source": {
+    "repository": "https://github.com/woojinhong/metabus_social",
+    "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "identity_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_blob_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "section_anchor": "llm-owner와-compiler-경계",
+    "line_range": {"start": 92, "end": 105},
+    "source_text_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "previous_locations": []
+  },
+  "authority": {
+    "document_classification": "confirmed fact",
+    "source_status": "Confirmed but not Owner-approved",
+    "source_authority": "CONFIRMED",
+    "approval_record": null,
+    "approved_by": null,
+    "approved_at": null,
+    "supporting_sources": []
+  },
+  "status": {
+    "lifecycle": "CONFIRMED",
+    "changed_by": "reviewer",
+    "changed_at": "2026-07-31T00:00:00Z"
+  },
+  "statement": "Only Owner-pinned Requirements enter the deterministic compiler.",
+  "rationale": null,
+  "acceptance_intent": ["A Candidate cannot claim an official execution grant."],
+  "implementation_gate": {
+    "state": "GRANTED",
+    "reason": "Invalid fixture: grant cannot exceed Requirement authority.",
+    "approval_record_id": "APR-invalid",
+    "grant_source": {
+      "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+      "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "section_anchor": "invalid",
+      "line_start": 1,
+      "line_end": 1
+    },
+    "granted_by": "owner",
+    "granted_at": "2026-07-31T00:00:00Z",
+    "valid_until": null,
+    "scope": ["schema-only"]
+  },
+  "external_evidence": {
+    "required": false,
+    "state": "NOT_REQUIRED",
+    "references": [],
+    "accepted_by": null,
+    "accepted_at": null,
+    "revalidate_at": null
+  },
+  "parent_requirement": null,
+  "related_requirements": [],
+  "conflicts": [],
+  "supersedes": [],
+  "superseded_by": [],
+  "created_at": "2026-07-31T00:00:00Z",
+  "generated_by": "ah-p0-02-invalid-fixture",
+  "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "requirement_record_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

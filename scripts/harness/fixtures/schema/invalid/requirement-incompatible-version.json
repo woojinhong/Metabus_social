@@ -1,0 +1,12 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json",
+  "schema_version": "1.0.0-proposal",
+  "record_kind": "CANDIDATE",
+  "candidate_ref": "candidate-version",
+  "candidate_status": "PROPOSED",
+  "requirement_kind": "POLICY",
+  "title": "Proposal version",
+  "statement": "Proposal records are not official machine inputs.",
+  "source": {},
+  "acceptance_intent": []
+}

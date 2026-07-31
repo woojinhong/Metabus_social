@@ -1,0 +1,9 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/workgraph.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANONICAL_WORKGRAPH_PLAN",
+  "graph_id": "WG-44444444-4444-5444-8444-444444444444",
+  "graph_revision": 1,
+  "title": "Runtime field leakage",
+  "attempt_id": "A-forbidden"
+}
