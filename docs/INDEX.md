@@ -3,8 +3,8 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-29
-related_documents: ["discovery/decisions.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+last_verified: 2026-07-31
+related_documents: ["discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -13,22 +13,24 @@ decision_authority: discovery/decisions.md, Issue #7 documentation-phase approva
 ## Current phase
 
 The product/MVP and bounded Pilot platform baseline are approved. ADR-001
-through ADR-010 are Accepted. D-024 is satisfied. The owner approved a
-proposal-only Implementation Contract documentation phase in
-[Issue #7](https://github.com/woojinhong/Metabus_social/issues/7); authoritative
-contracts, production source code, provisioning, procurement and live operation
-remain unauthorized.
+through ADR-010 are Accepted and D-024 is satisfied. The
+[Slice 01 current authority](discovery/slice-01-current-authority.md) records
+PR A Product Bootstrap and PR B Persistence Foundation, including V1–V6, as
+bounded merged facts. PR C/D, V7+ or other migrations, authoritative API,
+realtime and Production Frontend contracts, provisioning, procurement and live
+operation remain separately gated.
 
 ## Required read order
 
 1. Root [AGENTS.md](../AGENTS.md) and this index.
 2. [Decision log](discovery/decisions.md).
-3. [Approved product brief](discovery/product-brief.md) and [MVP scope](spec/mvp-scope.md).
-4. [UX approval prerequisites](spec/ux/README.md) and [open UX decisions](spec/ux/open-ux-decisions.md).
-5. Relevant approved specifications and [implementation traceability gate](spec/traceability-implementation.md).
-6. [Accepted ADRs](adr/README.md), [architecture](architecture/README.md) and [operations](operations/README.md).
-7. [Research](research/README.md), including [Korean MVP vendor verification](research/technology/korean-mvp-vendor-verification.md).
-8. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
+3. [Slice 01 current implementation authority](discovery/slice-01-current-authority.md).
+4. [Approved product brief](discovery/product-brief.md) and [MVP scope](spec/mvp-scope.md).
+5. [UX approval prerequisites](spec/ux/README.md) and [open UX decisions](spec/ux/open-ux-decisions.md).
+6. Relevant approved specifications and [implementation traceability gate](spec/traceability-implementation.md).
+7. [Accepted ADRs](adr/README.md), [architecture](architecture/README.md) and [operations](operations/README.md).
+8. [Research](research/README.md), including [Korean MVP vendor verification](research/technology/korean-mvp-vendor-verification.md).
+9. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
 
 ## Authority and promotion
 
@@ -42,7 +44,9 @@ remain unauthorized.
 6. Assumptions, proposals and open questions.
 7. Wiki, reviews and summaries.
 
-D-024 keeps the approved UX baseline separate from API capability, conceptual data and real-time capability documents. Only a later explicit phase may promote implementation contracts.
+D-024 keeps the approved UX baseline separate from API capability, conceptual
+data and real-time capability documents. Separately merged PR A/B do not promote
+those proposal contracts or authorize PR C/D.
 
 The [Implementation Contract phase proposal](discovery/implementation-contract-promotion-proposal.md)
 records the approved documentation-only boundary. Its first
@@ -56,8 +60,9 @@ and [Data contract](spec/data-contract.md) preserve the same boundary.
 The [Slice 01 implementation plan](discovery/slice-01-account-session-authorization-plan.md)
 is an unapproved proposal; it does not authorize source code or migrations.
 The [Slice 01 product implementation approval plan](discovery/slice-01-product-implementation-approval-plan.md)
-proposes PR A–D boundaries from the merged PostgreSQL Spike while keeping
-`implementation_ready: false` until explicit Owner approval.
+is a partially superseded historical proposal: PR A/B are bounded complete,
+while PR C/D remain ungranted. Proposal-contract `implementation_ready: false`
+continues to block broad production promotion, not the exact merged PR A/B baseline.
 
 ## Directory purposes
 
@@ -67,7 +72,7 @@ proposes PR A–D boundaries from the merged PostgreSQL Spike while keeping
 | docs/spec | Approved rules plus UX/API/data and Implementation Contract proposals with explicit status |
 | docs/spec/ux | Required UX approval package; no visual designs yet |
 | docs/spec/api | Proposal-only logical API, error, idempotency and realtime-delivery contracts; no OpenAPI |
-| docs/spec/data | Proposal-only logical data ownership, lifecycle/classification/retention; no schema or migrations |
+| docs/spec/data | Proposal-only logical data ownership, lifecycle/classification/retention; no promotion of additional schema or migrations |
 | docs/adr | Accepted architecture decisions and their gates |
 | docs/architecture | Selected deployment/vendor boundaries and broader analysis |
 | docs/research | External evidence and limitations |

@@ -3,14 +3,14 @@ title: Approved Decision Log
 document_type: decision-log
 classification: user decision
 status: Approved baseline
-last_verified: 2026-07-28
-related_documents: ["product-brief.md","../spec/mvp-scope.md","../adr/README.md"]
+last_verified: 2026-07-31
+related_documents: ["product-brief.md","slice-01-current-authority.md","../spec/mvp-scope.md","../adr/README.md"]
 decision_authority: explicit project-owner delegation in the 2026-07-27 task
 ---
 
 # Decision Log
 
-These decisions are approved for the bounded Korean MVP Pilot. Approval does not claim legal compliance, vendor procurement, production readiness, or permission to create application source code.
+These decisions are approved for the bounded Korean MVP Pilot. They do not claim legal compliance, vendor procurement or production readiness. D-024 itself grants no code authority; separately merged bounded PR A/B scope is recorded in [Slice 01 current authority](slice-01-current-authority.md).
 
 ## Approved decisions
 
@@ -72,7 +72,7 @@ These decisions are approved for the bounded Korean MVP Pilot. Approval does not
 
 ### D-009 — Backend topology and runtime
 - **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
-- **Decision/scope:** OpenJDK 25 LTS, Spring Boot 4.1, modular monolith, and managed RTC adapter. Approve only a high-level REST and authenticated real-time capability boundary; exact transport and contracts remain pending D-024.
+- **Decision/scope:** OpenJDK 25 LTS, Spring Boot 4.1, modular monolith, and managed RTC adapter. Approve only a high-level REST and authenticated real-time capability boundary; D-024 is satisfied, while exact transport and contracts remain separately gated.
 - **Rationale/rejected:** Current LTS and mature transactions with low operational surface; reject microservices, function-heavy architecture, and stale NCP Java SDK.
 - **Reversibility/gate:** Pin exact supported patch versions during implementation planning; no source code is authorized here.
 - **ADR/SOT:** [ADR-001](../adr/ADR-001-modular-monolith-managed-rtc.md), [API SOT](../spec/api/README.md).
@@ -149,30 +149,30 @@ These decisions are approved for the bounded Korean MVP Pilot. Approval does not
 
 ### D-020 — API capability boundary and UX gate
 - **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
-- **Decision/scope:** Approve only a high-level API capability inventory. Endpoint paths, DTOs, page-specific authorization and OpenAPI remain Draft pending UX approval.
+- **Decision/scope:** Approve only a high-level API capability inventory. D-024 is satisfied; endpoint paths, DTOs, page-specific authorization and OpenAPI remain Draft pending separate contract/security promotion.
 - **Rationale/rejected:** Prevent interface behavior from being guessed before screen and wireflow decisions; reject implementation-ready API claims now.
-- **Reversibility/gate:** UX gates D-024 and security review must pass before OpenAPI can become authoritative.
+- **Reversibility/gate:** D-024 is satisfied; security review and explicit contract promotion must pass before OpenAPI can become authoritative.
 - **ADR/SOT:** [API capability draft](../spec/api/README.md).
 
 ### D-021 — Real-time authority boundary
 - **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
-- **Decision/scope:** Backend remains authoritative for session stage and permissions; RTC events are observations. Transport details, state machine, event names and payloads remain Draft pending UX approval.
+- **Decision/scope:** Backend remains authoritative for session stage and permissions; RTC events are observations. D-024 is satisfied; transport details, state machine, event names and payloads remain Draft pending separate promotion.
 - **Rationale/rejected:** Preserve security boundary without fixing interaction-dependent protocol; reject client/RTC authority and implementation-ready event contracts.
-- **Reversibility/gate:** Session, reconnect and failure wireflows under D-024 must be approved first.
+- **Reversibility/gate:** D-024 session, reconnect and failure wireflows are approved; authoritative realtime contracts still require separate review and promotion.
 - **ADR/SOT:** [real-time capability draft](../spec/api/realtime-capabilities.md).
 
 ### D-022 — Conceptual data boundary
 - **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
-- **Decision/scope:** Approve PostgreSQL authority, conceptual entities, aggregate boundaries, classifications and retention only. Tables, columns, types, enums and DBML remain Draft pending UX approval.
+- **Decision/scope:** Approve PostgreSQL authority, conceptual entities, aggregate boundaries, classifications and retention only. D-024 is satisfied; beyond the bounded PR B V1–V6 baseline, tables, columns, types, enums and DBML remain Draft pending separate promotion.
 - **Rationale/rejected:** Preserve domain/data minimization without guessing UI-driven states; reject production-schema or migration claims.
-- **Reversibility/gate:** D-024 plus API/event review must precede schema approval.
+- **Reversibility/gate:** D-024 is satisfied; API/event review and explicit approval must precede additional schema or migration work.
 - **ADR/SOT:** [conceptual data draft](../spec/data/README.md), [ADR-004](../adr/ADR-004-postgresql-primary-store.md).
 
 ### D-023 — Authentication and admission principles
 - **Status/date/authority:** Approved; 2026-07-27; explicit user delegation.
-- **Decision/scope:** Separate account authentication, NICE eligibility, reservation ownership, one-time admission and short-lived RTC authority; exact page flow, endpoint and token-exchange DTO remain pending UX/security design.
+- **Decision/scope:** Separate account authentication, NICE eligibility, reservation ownership, one-time admission and short-lived RTC authority. D-024 covers the UX baseline; exact endpoint, token-exchange DTO and PR C/D security implementation remain separately gated.
 - **Rationale/rejected:** Enforce purpose separation and fail-closed entry; reject reusable room links, SMS possession as adulthood proof and device fingerprinting.
-- **Reversibility/gate:** Account recovery, device replacement, waiting-room and reconnect wireflows require D-024 approval.
+- **Reversibility/gate:** D-024 approved the recovery, device, waiting-room and reconnect UX baseline; authentication/security contracts and implementation still require separate approval.
 - **ADR/SOT:** [identity principles](../spec/security/identity-admission-and-invitations.md).
 
 <a id="d-024-required-ux-approval-gate"></a>
@@ -182,11 +182,12 @@ These decisions are approved for the bounded Korean MVP Pilot. Approval does not
 - **Decision/scope:** API, database, real-time and implementation planning cannot become authoritative until information architecture, screen inventory, primary journeys, session wireflow, disclosure, interest/no-match, reconnect/failure, report/block/moderator, responsive/mobile and accessibility behavior are explicitly approved.
 - **Rationale/rejected:** Interaction behavior determines contracts and states; reject architecture-derived UI inference.
 - **Reversibility/gate:** UX approval is complete; production contracts and code still require a new explicit phase.
-- **ADR/SOT:** [UX gate](../spec/ux/README.md), [traceability](../spec/traceability-implementation.md).
+- **ADR/SOT:** [UX gate](../spec/ux/README.md), [current Slice 1 authority](slice-01-current-authority.md), [traceability](../spec/traceability-implementation.md).
 
 #### UX approval record
 - **Owner approvals:** Items 001–002 approved 2026-07-27; items 003–013 approved 2026-07-28 under explicit autonomous delegation. The complete decision and rejected-alternative record is in [Open UX Decisions](../spec/ux/open-ux-decisions.md).
 - **Approved boundaries:** Hybrid preparation/dashboard/`P10` shell; distinct `P01`–`P21` and `O01`–`O07` review boundaries; private choices and consent; safe waiting/live/game/result/recovery/reporting; mobile, accessibility, visual language and Korean copy.
 - **Closure evidence:** Required UX areas, low-fidelity prototype scope and acceptance criteria are explicit; documentation validation passed before prototype authorization.
-- **Authorized next work:** An isolated, synthetic-data, local-state, low-fidelity React Mock Prototype for UX validation.
-- **Still not authorized:** Production frontend/backend code, routes or page authorization, OpenAPI/AsyncAPI, endpoints/DTOs, schema/migrations, real-time contracts, vendor integration, cloud provisioning or live participant operation.
+- **Separately completed work:** Git history confirms bounded PR A Product Bootstrap and PR B Persistence Foundation/V1–V6 merges; D-024 did not grant them.
+- **Unknown lineage:** Issue #37 approval wording is not recoverable from current Git history and requires Owner confirmation; no new Decision is inferred.
+- **Still not authorized:** PR C/D, V7+ or new migrations, authoritative routes/page authorization/OpenAPI/AsyncAPI/DTO/realtime/Production Frontend contracts, vendor integration, cloud provisioning or live participant operation.

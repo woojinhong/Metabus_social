@@ -3,9 +3,9 @@ title: Specification Index
 document_type: navigation
 classification: confirmed fact
 status: Mixed approved baseline and proposal-only contract documentation
-last_verified: 2026-07-29
-related_documents: ["../discovery/decisions.md","ux/README.md","traceability-implementation.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md"]
-decision_authority: decisions.md and Issue #7 proposal-only documentation approval
+last_verified: 2026-07-31
+related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","ux/README.md","traceability-implementation.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md"]
+decision_authority: decisions.md, Slice 1 current authority and Issue #7 proposal-only documentation approval
 ---
 
 # Specification Index
@@ -46,7 +46,9 @@ Approved rules do not imply approved screen behavior or implementation.
 D-024 is satisfied and the prototype validation is complete. The owner approved
 proposal-only Implementation Contract documentation in Issue #7. Every
 contract-facing artifact remains `classification: proposal` and
-`implementation_ready: false`. No endpoint-level OpenAPI, AsyncAPI, DBML,
+`implementation_ready: false`. This blocks broad contract promotion while the
+separately merged PR A/B foundation, including exact V1–V6, remains a bounded
+repository fact. No endpoint-level OpenAPI, AsyncAPI, DBML, V7+ or other new
 migration, final state enum, page authorization or component contract is
 authoritative.
 

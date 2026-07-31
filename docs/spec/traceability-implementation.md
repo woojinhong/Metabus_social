@@ -4,9 +4,9 @@ document_type: traceability
 classification: proposal
 status: Proposal-only contract documentation approved; production promotion blocked
 implementation_ready: false
-last_verified: 2026-07-29
-related_documents: ["../discovery/decisions.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","api/realtime-capabilities.md","data/domain-data-model.md","../architecture/domain-boundaries.md","../architecture/integration-processing-contracts.md"]
-decision_authority: D-024 and explicit owner approval in GitHub Issue #7; Issue #25 scopes the current proposal
+last_verified: 2026-07-31
+related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/implementation-contract-promotion-proposal.md","traceability-ux-implementation.md","actor-authorization-contract.md","lifecycle-contract.md","realtime-contract.md","api-contract.md","data-contract.md","ux/README.md","../reviews/mvp-ux-prototype-validation-ko.md","api/README.md","api/realtime-capabilities.md","data/domain-data-model.md","../architecture/domain-boundaries.md","../architecture/integration-processing-contracts.md"]
+decision_authority: D-024 and Issue #7 proposal-only documentation approval; bounded PR A/B state is recorded separately
 ---
 
 # Implementation Traceability Gate
@@ -41,10 +41,20 @@ decision_authority: D-024 and explicit owner approval in GitHub Issue #7; Issue 
 
 D-024 is satisfied only for the approved UX baseline and the isolated,
 synthetic-data, local-state, low-fidelity prototype. This document remains
-`implementation_ready: false`. Closure does not authorize OpenAPI or AsyncAPI,
-endpoint or DTO definitions, DBML, schema or migrations, final real-time
-state/command/event/payload contracts, production React/backend code, vendor
-integration, provisioning or live participant operation.
+`implementation_ready: false`. D-024 closure did not authorize PR A/B, but
+separate merge history now confirms their bounded completion. Neither path
+authorizes PR C/D, V7+ or new migrations, OpenAPI/AsyncAPI, final endpoint/DTO,
+broad schema, real-time state/payload, Production Frontend, vendor integration,
+provisioning or live participant operation.
+
+## Bounded Slice 1 implementation state
+
+The [current authority register](../discovery/slice-01-current-authority.md)
+records PR A Product Bootstrap and PR B Persistence Foundation, including
+exact V1–V6, as bounded complete. Issue #37 approval wording remains
+Unknown/Owner-confirmation because it is absent from current Git history.
+Proposal-contract `implementation_ready: false` blocks broad promotion; it does
+not relabel the merged PR A/B baseline as unimplemented.
 
 ## Approved documentation-only phase
 
@@ -71,8 +81,9 @@ blocked pending later explicit approval.
 
 ## Vertical Slice implementation sequence
 
-The sequence validates the highest-risk authority boundaries before breadth. It
-is a proposal for a later approved implementation plan, not source-code authorization.
+The sequence describes the broader Slice progression. PR A/B foundation work is
+bounded complete; authentication and later responsibilities remain proposal
+material and are not authorized by this sequence.
 
 | Slice | Purpose and included responsibility | Excluded responsibility | Logical API/data contract | Core tests | Completion and next-entry condition |
 | --- | --- | --- | --- | --- | --- |
@@ -122,11 +133,11 @@ code, schema, vendor use, deployment, Ready-for-review transition, or live opera
 | Vendor contracts/Evidence | EXTERNAL_EVIDENCE_REQUIRED | Quote, quota, SLA, DPA, subprocessor, location, support | No live provider or reliable promise | Close B-session procurement/evidence Gates |
 | Testing strategy | PARTIALLY_READY | Risk-based suites above and acceptance mapping | Implementation may pass happy paths only | Convert Slice contracts to executable test plan after approval |
 | Deployment basis | PARTIALLY_READY | Accepted NCP boundary plus health/rollback/secrets plan | No safe deployable environment | Implementation plan; provisioning remains separate |
-| Source-code authorization | BLOCKED | Explicit owner approval after proposal review | No Controller/Entity/Migration/code may be created | Owner decides later implementation promotion |
+| Source-code authorization | BOUNDED_PR_A_B_ONLY | Merged PR #36/#38/#42 and current files | No PR C/D, V7+, API/realtime/frontend or other production expansion | Owner confirms Issue #37 wording and separately decides later implementation |
 
 ## Overall judgment and open boundary
 
 - [RECOMMENDED] The document set is ready for owner review as a proposal-only design package. Internal authority, ownership, execution, and test responsibilities can inform a later implementation plan.
-- [OPEN] Exact Endpoint/DTO/error strings, state enums, tables/columns/keys, JPA mapping, migrations, SSE names, retry/lease values, Java/Spring patch compatibility, and actual code remain unapproved.
+- [OPEN] Beyond the exact PR B JPA/Flyway/V1–V6 baseline, endpoint/DTO/error strings, state enums, additional tables/columns/keys/mappings/migrations, SSE names, retry/lease values and PR C/D code remain unapproved.
 - [OPEN] Provider behavior, contracts, pricing, quota, SLA, DPA/subprocessors, data location, device results, staffing, legal retention, backup/restore, RPO/RTO, deployment, and live Pilot require independent evidence.
 - [NOT-RECOMMENDED] Redis, Kafka, RabbitMQ, search engine, Kubernetes, microservices, distributed locks/transactions, Saga, event sourcing, full CQRS, separate policy engine, and realtime gateway remain outside the default until their measured entry condition exists.

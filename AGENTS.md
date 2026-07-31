@@ -3,8 +3,8 @@ title: Repository Operating Contract
 document_type: guidance
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-28
-related_documents: ["docs/INDEX.md","docs/discovery/decisions.md","docs/operations/github-workflow.md"]
+last_verified: 2026-07-31
+related_documents: ["docs/INDEX.md","docs/discovery/decisions.md","docs/discovery/slice-01-current-authority.md","docs/operations/github-workflow.md"]
 decision_authority: explicit user approvals recorded in decisions.md and repository-owner workflow delegation
 ---
 
@@ -15,19 +15,22 @@ decision_authority: explicit user approvals recorded in decisions.md and reposit
 - The bounded Korean MVP product/platform baseline is approved in [decisions.md](docs/discovery/decisions.md).
 - ADR-001 through ADR-010 are Accepted for the bounded Pilot.
 - Live participant operation is not approved until legal, procurement, vendor, real-device, moderation and privacy gates pass.
-- D-024 is satisfied only for the approved UX baseline and isolated low-fidelity prototype. Implementation contracts and production source code remain unapproved.
-- No application source code, infrastructure, migrations, cloud resources, vendor accounts, credentials or charges are authorized. Repository Git writes are limited to the owner-delegated documentation workflow below.
+- D-024 is satisfied for the approved UX baseline and isolated low-fidelity prototype.
+- PR A Product Bootstrap and PR B Persistence Foundation, including the exact V1–V6 migrations, are bounded merged repository facts. Their current scope is recorded in [Slice 01 current authority](docs/discovery/slice-01-current-authority.md).
+- PR C Authentication, PR D Security Commands, V7+ or other new migrations, authoritative API/realtime/frontend contracts, vendor/provisioning/deployment and live Pilot operation remain separately gated.
+- Proposal contracts retain `implementation_ready: false`: this blocks broad production promotion without denying the bounded PR A/B completion already present on `master`.
 
 ## Required read order
 
 1. [Documentation index](docs/INDEX.md).
 2. [Approved decisions](docs/discovery/decisions.md).
-3. Relevant approved product and security specifications.
-4. [UX prerequisites](docs/spec/ux/README.md) and open UX decisions.
-5. Relevant Accepted ADRs and architecture boundaries.
-6. Research for evidence and procurement caveats.
-7. Wiki only for non-authoritative navigation.
-8. Current code only after explicit source-code authorization; code is evidence, not product authority.
+3. [Slice 01 current implementation authority](docs/discovery/slice-01-current-authority.md).
+4. Relevant approved product and security specifications.
+5. [UX prerequisites](docs/spec/ux/README.md) and open UX decisions.
+6. Relevant Accepted ADRs and architecture boundaries.
+7. Research for evidence and procurement caveats.
+8. Wiki only for non-authoritative navigation.
+9. Current code and Git history as implementation-state evidence; code is not authority for new work.
 
 ## Authority hierarchy
 
@@ -51,7 +54,7 @@ Explicit user approval is required before:
 - making OpenAPI, database schema, real-time payload/state machine or page authorization authoritative;
 - accepting/superseding an ADR or changing selected stack/vendor/database/region;
 - adding biometric/manual document review, payment/deposit or broader sensitive processing;
-- creating application/infrastructure/migration/UI code or provisioning resources;
+- creating or changing product/infrastructure/UI code beyond the bounded PR A/B baseline, adding V7+ or other migrations, or provisioning resources;
 - Git writes outside the approved documentation workflow, including merge, ready-for-review transition, direct protected-branch push, reset, clean, force push, deletion or history rewrite.
 
 ## Documentation routing
@@ -68,7 +71,7 @@ Explicit user approval is required before:
 | Operational policies | docs/operations/ |
 | Non-authoritative navigation | docs/wiki/ and korea.md |
 
-Do not repeat research in specifications. Do not infer UI from architecture. Draft API/data/realtime artifacts must preserve `implementation_ready: false` and accurately name their current promotion gate.
+Do not repeat research in specifications. Do not infer UI from architecture. Draft API/data/realtime artifacts must preserve `implementation_ready: false`, distinguish the bounded PR A/B baseline from broad production promotion, and accurately name their current promotion gate.
 
 ## LLM working rules
 
