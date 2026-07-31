@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -31,6 +31,10 @@ operation remain separately gated.
 7. [Accepted ADRs](adr/README.md), [architecture](architecture/README.md) and [operations](operations/README.md).
 8. [Research](research/README.md), including [Korean MVP vendor verification](research/technology/korean-mvp-vendor-verification.md).
 9. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
+
+For Harness work, read the [readiness audit](operations/autonomous-harness-readiness-audit-2026-07-31.md)
+and [AH-P0-01 approval plan](discovery/autonomous-harness-foundation-approval-plan.md)
+after the operations index. They grant no implementation authority.
 
 ## Authority and promotion
 

@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -31,12 +31,15 @@ decision_authority: decisions.md and approved operations policies
 - [Dry-run Planner contract](automation/dry-run-planner-contract.md) is the
   fourth proposal-only contract. It defines a read-only Plan Proposal and
   historical Pilot interface without modifying the repository or GitHub.
+- [Autonomous Harness readiness audit](autonomous-harness-readiness-audit-2026-07-31.md)
+  records the current evidence and [AH-P0-01 approval plan](../discovery/autonomous-harness-foundation-approval-plan.md)
+  proposes canonical identity, authority and projection choices for Owner review.
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
-  Dry-run Planner Contract. No Planner implementation, Dispatcher or Runtime
-  Ledger exists, and Hermes and Slack are not connected; these proposals grant
-  no implementation authority. The next step is Owner review followed by a
-  separately approved historical Pilot implementation plan.
+  Dry-run Planner Contract, audit, then AH-P0-01. No Planner implementation,
+  Dispatcher or Runtime Ledger exists, and Hermes and Slack are not connected;
+  these proposals grant no implementation authority. AH-P0-02 remains blocked
+  until explicit Owner approval.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
