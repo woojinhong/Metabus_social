@@ -8,6 +8,7 @@ related_documents:
   - ../../AGENTS.md
   - ../INDEX.md
   - ../discovery/decisions.md
+  - ../discovery/autonomous-harness-lightweight-worktree-runner-authority.md
   - github-initial-backlog.md
 decision_authority: explicit repository-owner delegation on 2026-07-28
 ---
@@ -114,7 +115,34 @@ decision, accept an ADR, write an owner decision into `decisions.md`, or push
 directly to the default/protected branch. Reset, clean, force push and history
 rewrite are also prohibited.
 
-## 6. Validation gate
+## 6. AH-P2-01 Runner publication boundary
+
+After its authority and implementation merge, AH-P2-01 may use a narrower
+per-run flow for exact Owner-approved Work Packages:
+
+```text
+approved Dry-run + selected READY WP IDs
+  -> isolated branch/worktree/Worker
+  -> required tests and path validation
+  -> commit -> push -> Draft PR
+```
+
+Each Package has one branch, worktree and Draft PR. The Runner must use the
+approved proposed branch, refuse existing branch/worktree collisions, and never
+push to `master`. Overlapping or EXCLUSIVE paths are not parallelized or merged;
+the run stops `BLOCKED_CONFLICT`.
+
+The Worker receives no GitHub credential or secret. A pre-authenticated Runner
+control plane may publish only after all required tests and allowed/prohibited
+path checks pass. PR bodies pin the Work Package, Requirement, Planner digest,
+acceptance criteria, tests and authority record. Publication does not approve
+merge, Ready transition, Issue closure, Project/Kanban mutation or cleanup.
+
+The first Pilot is limited to `docs/**` and `scripts/harness/**`, defaults to at
+most two concurrent Packages and has an absolute Owner-approved ceiling of
+three. Full rules are in the [AH-P2-01 authority](../discovery/autonomous-harness-lightweight-worktree-runner-authority.md).
+
+## 7. Validation gate
 
 Before commit:
 
@@ -134,14 +162,14 @@ The existing [documentation validation workflow](../../.github/workflows/docs-va
 continues to run for relevant pull requests and default-branch pushes. This
 policy does not add hooks or alter that workflow.
 
-## 7. Durable knowledge and closure
+## 8. Durable knowledge and closure
 
 Final conclusions must update the appropriate Markdown SOT rather than exist
 only in an Issue comment. Issue closure remains an owner or separately
 authorized post-review action after acceptance criteria and required approval
 are satisfied. Draft PR creation is not approval or closure.
 
-## 8. Validated precedent
+## 9. Validated precedent
 
 [Issue #1](https://github.com/woojinhong/Metabus_social/issues/1) and
 [PR #2](https://github.com/woojinhong/Metabus_social/pull/2) exercised the

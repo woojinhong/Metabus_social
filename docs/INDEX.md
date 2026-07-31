@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -35,10 +35,11 @@ operation remain separately gated.
 For Harness work, read the [readiness audit](operations/autonomous-harness-readiness-audit-2026-07-31.md)
 and [AH-P0-01 foundation](discovery/autonomous-harness-foundation-approval-plan.md),
 then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authority.md)
-and the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
-AH-P1-01 authorizes deterministic read-only Proposal generation after its
-approval record merges. The bounded Planner implementation is under Owner review;
-it grants no runtime, GitHub mutation or product implementation authority.
+and [AH-P2-01 authority](discovery/autonomous-harness-lightweight-worktree-runner-authority.md),
+then the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
+PR #53 implements the non-executing Planner. AH-P2-01 authorizes only a future
+bounded Runner implementation after its authority merges; each run still needs
+an exact Owner-approved Planner digest and selected READY Package IDs.
 
 ## Authority and promotion
 
@@ -87,7 +88,7 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
 | schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic canonicalization, identity, structural contracts and bounded read-only Planner |
+| scripts/harness | Deterministic canonicalization, identity, structural contracts and merged read-only Planner; Runner not implemented |
 
 ## Stable IDs and document rules
 
