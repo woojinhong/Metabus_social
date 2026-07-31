@@ -29,21 +29,23 @@ decision_authority: decisions.md and approved operations policies
   is the third proposal-only contract. It defines ordering, state, lease and
   lock requirements without executing a graph.
 - [Dry-run Planner contract](automation/dry-run-planner-contract.md) is the
-  fourth proposal-only contract. It defines a read-only Plan Proposal and
-  historical Pilot interface without modifying the repository or GitHub.
+  fourth proposal-only contract. Its bounded implementation emits a read-only
+  Plan Proposal without modifying the repository or GitHub.
 - [Autonomous Harness readiness audit](autonomous-harness-readiness-audit-2026-07-31.md)
   records the historical evidence and [AH-P0-01 foundation](../discovery/autonomous-harness-foundation-approval-plan.md)
   records the approved canonical identity, authority and projection boundary.
 - [AH-P1-01 authority](../discovery/autonomous-harness-readonly-planner-authority.md)
   approves deterministic read-only Proposal generation after merge, without execution or mutation.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
-  `scripts/harness` golden contract tests implement AH-P0-02 without a Planner.
+  `scripts/harness` canonical tests implement AH-P0-02. The bounded
+  `scripts/harness/planner` implementation compiles only Owner-pinned canonical
+  Requirements to schema-valid `READ_ONLY_DRY_RUN` proposals.
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
   Dry-run Planner Contract, audit, then AH-P0-01/AH-P1-01 authority and machine
-  schemas. Planner implementation is authorized but not yet present. No Extractor,
-  Dispatcher, Runtime Ledger, Writer or Worker exists, and no product or runtime
-  execution authority is granted.
+  schemas. The Planner is implemented for Owner review, not execution. No
+  Extractor, GitHub/Project writer, Worktree runner, Dispatcher, Runtime Ledger,
+  Critic or Worker exists, and no product or runtime execution authority is granted.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
