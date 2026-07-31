@@ -2,20 +2,10 @@ import { createWriteStream } from "node:fs";
 import { access } from "node:fs/promises";
 import { delimiter, isAbsolute } from "node:path";
 import { runProcess } from "./process-utils.mjs";
-
-const SECRET_ENV_PATTERN =
-  /(TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|COOKIE|AUTH|KEY|GH_|GITHUB_)/iu;
+import { filterWorkerEnvironment } from "./worker-policy.mjs";
 
 export function minimalWorkerEnvironment(source = process.env) {
-  const allowed = new Set([
-    "PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "COMSPEC",
-    "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL", "TERM",
-  ]);
-  return Object.fromEntries(
-    Object.entries(source)
-      .filter(([key, value]) =>
-        allowed.has(key) && !SECRET_ENV_PATTERN.test(key) && typeof value === "string"),
-  );
+  return filterWorkerEnvironment(source).environment;
 }
 
 export function createWorkerProcessAdapter({

@@ -2,10 +2,10 @@
 title: AH-P2-01 Lightweight Worktree Runner Pilot Authority
 document_type: automation implementation authority
 classification: user decision
-status: Owner-approved scope; foundation implemented in Issue #56 Draft PR, actual Pilot not run
+status: Owner-approved scope; foundation implemented in Issue #56 and real-adapter work in Issue #58, actual Pilot not run
 last_verified: 2026-07-31
 related_documents: ["autonomous-harness-foundation-approval-plan.md","autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md","../operations/README.md","../INDEX.md"]
-decision_authority: explicit Owner instruction on 2026-07-31 and Issue #54
+decision_authority: explicit Owner instructions on 2026-07-31, Issue #54 and Issue #58
 ---
 
 # AH-P2-01 Lightweight Worktree Runner Pilot 권한
@@ -148,7 +148,7 @@ per-run approval record 없이는 시작할 수 없다.
 
 ## 11. Issue #56 구현 결과와 남은 Gate
 
-Issue #56의 Draft PR은 `scripts/harness/runner/**`, Runner fixture와
+Issue #56 구현은 `scripts/harness/runner/**`, Runner fixture와
 `scripts/harness/runner.test.mjs`로 dependency-free foundation을 구현한다. 입력 loader는
 schema-valid `READ_ONLY_DRY_RUN`, 재계산한 Planner digest, exact selected `READY` Package,
 source SHA와 Owner approval hash/pin을 fail closed로 검증한다. OS 임시 manifest는 동일
@@ -169,3 +169,22 @@ out-of-band expected record hash가 필요하다. 이는 record mutation을 탐�
 전자서명이나 Runtime Ledger 인증을 주장하지 않는다.
 제품 code, schema/migration, dependency/workflow, Dispatcher/Ledger/Critic, merge/Ready/close와
 cleanup 권한은 계속 없다.
+
+## 12. AH-P2-03 Real Codex Worker Adapter 권한과 결과
+
+Owner는 Issue #58에서 direct Codex CLI 0.146.0 adapter, strict environment allowlist,
+bounded JSONL/비-JSON log 수집, reparse escape 검사와 Windows process-tree fallback을
+구현하도록 승인했다. 실행은 `--real-codex-worker`와 exact Owner approval의
+`worker_policy` pin이 함께 있을 때만 구성되며 기본값은 계속 unavailable/prepare-only다.
+Worker에는 GitHub/API/cloud/database secret을 전달하지 않고 제거된 변수 이름만 기록한다.
+
+검증은 fake/local process와 OS temp Git repository만 사용했다. Windows `taskkill /PID
+<integer> /T` 뒤 `/F` fallback은 argument injection을 막고 descendant test 결과를
+기록하지만 handle-pinned Job Object가 아니며 PID reuse를 제거하지 못한다. Node `lstat`
+reparse 거부와 Runner 전후 diff 검사는 race-free filesystem sandbox가 아니다. Codex
+config에 network restricted 값을 명시해도 OS-level network deny 증거는 아니다.
+
+OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-process app-server
+초기화 access-denied로 종료했다. 따라서 network, filesystem과 strict process containment
+상태는 계속 `BLOCKED_ENVIRONMENT`이며 실제 Pilot은 새 per-run Owner approval 뒤에도
+모든 환경 Gate가 별도로 충족되기 전까지 실행할 수 없다.

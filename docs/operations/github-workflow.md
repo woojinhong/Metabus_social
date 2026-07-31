@@ -158,6 +158,11 @@ control-plane GitHub access. Node `cwd`, child-process timeout and environment
 filtering alone must not be represented as filesystem, network or descendant
 process isolation.
 
+Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows
+`taskkill /PID <integer> /T` fallback tests. It does not implement a strict
+Job Object or OS network deny, and its temp read-only smoke is environment-blocked;
+therefore it does not unlock an actual Pilot.
+
 ## 7. Validation gate
 
 Before commit:

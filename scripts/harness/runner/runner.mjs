@@ -102,6 +102,7 @@ function assertWorkerUsage(result, budget, aggregate) {
     || usage.cost < 0
     || !Number.isInteger(usage.external_calls)
     || usage.external_calls < 0
+    || usage.verified === false
   ) {
     throw Object.assign(new Error("Worker did not return verifiable budget usage"), {
       code: "RUNNER_WORKER_USAGE_MISSING",

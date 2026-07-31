@@ -8,8 +8,10 @@ import {
   parseJsonStrict,
   serializeJcs,
 } from "../canonical-json.mjs";
+import { createCodexWorkerAdapter } from "./codex-worker-adapter.mjs";
 import { runLightweightRunner } from "./runner.mjs";
 import { createRunnerErrorRecord } from "./runner-error.mjs";
+import { validateApprovedWorkerPolicy } from "./worker-policy.mjs";
 
 function usage() {
   return [
@@ -23,9 +25,14 @@ function usage() {
     "    --worktree-root <absolute-path>",
     "    [--max-concurrency <1..3>]",
     "    [--prepare-only | --execute-and-publish]",
+    "    [--real-codex-worker",
+    "      --codex-executable <absolute-path>",
+    "      --worker-sandbox <read-only|workspace-write>",
+    "      --worker-approval <never>]",
     "",
-    "Default mode is --prepare-only. Execution requires a verified injected",
-    "Codex Worker adapter and exact Owner publication approval.",
+    "Default mode is --prepare-only with the unavailable Worker adapter.",
+    "Real Codex execution requires all explicit Worker flags, an exact approved",
+    "worker_policy record, and independently verified containment evidence.",
   ].join("\n");
 }
 
@@ -38,8 +45,15 @@ export function parseRunnerArgs(args) {
     "--repository",
     "--worktree-root",
     "--max-concurrency",
+    "--codex-executable",
+    "--worker-sandbox",
+    "--worker-approval",
   ]);
-  const booleanFlags = new Set(["--prepare-only", "--execute-and-publish"]);
+  const booleanFlags = new Set([
+    "--prepare-only",
+    "--execute-and-publish",
+    "--real-codex-worker",
+  ]);
   const parsed = {};
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
@@ -67,10 +81,31 @@ export function parseRunnerArgs(args) {
   if (!isAbsolute(parsed["--repository"]) || !isAbsolute(parsed["--worktree-root"])) {
     throw new TypeError("--repository and --worktree-root must be absolute paths");
   }
+  const workerValues = [
+    "--codex-executable",
+    "--worker-sandbox",
+    "--worker-approval",
+  ];
+  if (parsed["--real-codex-worker"]) {
+    if (!parsed["--execute-and-publish"]) {
+      throw new TypeError("--real-codex-worker requires --execute-and-publish");
+    }
+    for (const flag of workerValues) {
+      if (!parsed[flag]) throw new TypeError(`${flag} is required for --real-codex-worker`);
+    }
+    if (!isAbsolute(parsed["--codex-executable"])) {
+      throw new TypeError("--codex-executable must be absolute");
+    }
+  } else if (workerValues.some((flag) => parsed[flag])) {
+    throw new TypeError("Codex Worker options require --real-codex-worker");
+  }
   return parsed;
 }
 
-export async function runCli(args, { runner = runLightweightRunner } = {}) {
+export async function runCli(args, {
+  runner = runLightweightRunner,
+  codexAdapterFactory = createCodexWorkerAdapter,
+} = {}) {
   const parsed = parseRunnerArgs(args);
   const repository = resolve(parsed["--repository"]);
   const repositorySha = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -78,9 +113,30 @@ export async function runCli(args, { runner = runLightweightRunner } = {}) {
     encoding: "utf8",
     windowsHide: true,
   }).trim();
+  const dryRun = parseJsonStrict(readFileSync(resolve(parsed["--dry-run"]), "utf8"));
+  const approval = parseJsonStrict(readFileSync(resolve(parsed["--approval"]), "utf8"));
+  let adapters = {};
+  if (parsed["--real-codex-worker"]) {
+    const configuration = {
+      executable: resolve(parsed["--codex-executable"]),
+      sandbox: parsed["--worker-sandbox"],
+      approvalMode: parsed["--worker-approval"],
+    };
+    validateApprovedWorkerPolicy(approval, configuration);
+    adapters = {
+      worker: codexAdapterFactory({
+        ...configuration,
+        isolationEvidence: {
+          network: false,
+          filesystem: false,
+          processTree: false,
+        },
+      }),
+    };
+  }
   const result = await runner({
-    dryRun: parseJsonStrict(readFileSync(resolve(parsed["--dry-run"]), "utf8")),
-    approval: parseJsonStrict(readFileSync(resolve(parsed["--approval"]), "utf8")),
+    dryRun,
+    approval,
     approvalRecordHash: parsed["--approval-hash"],
     selectedWorkPackageIds: parsed["--work-packages"].split(","),
     repositorySha,
@@ -90,6 +146,7 @@ export async function runCli(args, { runner = runLightweightRunner } = {}) {
     worktreeRoot: resolve(parsed["--worktree-root"]),
     repository,
     prepareOnly: !parsed["--execute-and-publish"],
+    adapters,
   });
   process.stdout.write(`${serializeJcs(result)}\n`);
   return 0;
