@@ -1,0 +1,15 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/error.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "HARNESS_ERROR",
+  "error_id": "ERR-77777777-7777-5777-8777-777777777777",
+  "code": "UNKNOWN_ERROR_CODE",
+  "severity": "ERROR",
+  "message": "Unknown error codes fail closed.",
+  "result": "DRY_RUN_REJECTED",
+  "automatic_fix": false,
+  "owner_intervention": true,
+  "blocks_dry_run": true,
+  "source": null,
+  "details": {}
+}

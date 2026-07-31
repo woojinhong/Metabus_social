@@ -1,39 +1,39 @@
 ---
 title: Autonomous Harness Authority and Canonical Identity Approval Plan
-document_type: implementation approval plan
-classification: proposal
-status: READY_FOR_OWNER_APPROVAL
+document_type: automation foundation decision
+classification: user decision
+status: Approved for AH-P0-02 machine schema foundation; runtime and product execution not granted
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/requirement-schema.md","../operations/automation/work-package-and-issue-schema.md","../operations/automation/workgraph-state-lock-schema.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md"]
-decision_authority: Issue #46 authorizes this Owner-review documentation package only; no Harness execution, GitHub mutation, product implementation or merge authority
+related_documents: ["../operations/autonomous-harness-readiness-audit-2026-07-31.md","../../schemas/automation/requirement.schema.json","../operations/automation/requirement-schema.md","../operations/automation/work-package-and-issue-schema.md","../operations/automation/workgraph-state-lock-schema.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md"]
+decision_authority: explicit Owner instruction on 2026-07-31 approves the PR #47 baseline and authorizes Issue #48 AH-P0-02 machine schemas and deterministic contract tests only
 ---
 
 # 자율형 Harness 권한과 Canonical Identity 승인 계획
 
 ## 1. 목적과 권위
 
-이 문서는 AH-P0-01의 Owner-review proposal이다. 같은 pinned 입력에서 같은 공식 ID,
-digest와 plan을 만들기 위한 권고 baseline을 한곳에 모은다. 근거는
+이 문서는 AH-P0-01의 Owner-approved bounded foundation이다. 같은 pinned 입력에서 같은 공식
+ID, digest와 plan을 만들기 위한 baseline을 한곳에 모은다. 근거는
 [준비도 감사](../operations/autonomous-harness-readiness-audit-2026-07-31.md)와 네
-automation 계약이다. 이 문서와 Issue #46은 Owner Decision, Execution Grant,
-machine schema 또는 실행 코드를 만들지 않는다.
+automation 계약이다. PR #47 merge와 2026-07-31 Owner 지시는 AH-P0-02 machine schema와
+deterministic contract test만 승인하며 Planner/runtime/product Execution Grant는 아니다.
 
-## 2. 승인 요청 baseline
+## 2. 승인 baseline
 
-| 결정 영역 | 권고안 | 승인 전 상태 |
+| 결정 영역 | 승인 baseline | 현재 상태 |
 | --- | --- | --- |
-| Canonical repository | `https://github.com/woojinhong/metabus_social` | PROPOSED |
-| Stable namespace | RFC 4122 URL namespace에서 repository URI로 만든 project UUIDv5 | PROPOSED |
-| Canonical JSON | schema normalization 뒤 RFC 8785 JCS bytes, SHA-256 | PROPOSED |
-| Schema version | SemVer; 현재 `1.0.0-proposal`, 승인 뒤 첫 machine schema `1.0.0` | PROPOSED |
-| Semantic authority | LLM은 Candidate만; Owner/reviewer-pinned Requirement만 Compiler 입력 | PROPOSED |
-| Runtime authority | 단일 local Dispatcher가 쓰는 SQLite Ledger | PROPOSED |
-| GitHub 역할 | Issue/Project/Label/Check/PR은 Ledger projection | PROPOSED |
-| AH-P0-02 | machine schema와 canonicalization fixture만; 실행·mutation 없음 | BLOCKED_BY_OWNER |
+| Canonical repository | `https://github.com/woojinhong/metabus_social` | APPROVED |
+| Stable namespace | RFC 4122 URL namespace에서 repository URI로 만든 project UUIDv5 | APPROVED |
+| Canonical JSON | schema normalization 뒤 RFC 8785 JCS bytes, SHA-256 | APPROVED |
+| Schema version | SemVer; 첫 machine schema `1.0.0` | APPROVED |
+| Semantic authority | LLM은 Candidate만; Owner/reviewer-pinned Requirement만 Compiler 입력 | APPROVED |
+| Runtime authority | 단일 local Dispatcher가 쓰는 SQLite Ledger | APPROVED_DESIGN_ONLY |
+| GitHub 역할 | Issue/Project/Label/Check/PR은 Ledger projection | APPROVED_DESIGN_ONLY |
+| AH-P0-02 | machine schema와 canonicalization fixture만; 실행·mutation 없음 | AUTHORIZED_SCHEMA_ONLY |
 
-Owner가 명시 승인하기 전 모든 행은 권고안이며 실제 ID/digest를 authoritative하게
-발행하지 않는다.
+Machine Schema foundation은 공식 ID/digest algorithm을 검증할 수 있지만 Planner,
+Dispatcher, Ledger 또는 Writer가 authoritative runtime record를 발행할 권한은 없다.
 
 ## 3. Canonical repository와 ID
 
@@ -74,9 +74,8 @@ hashing은 서로 다른 단계이며 둘 다 golden fixture로 고정한다.
 
 ## 5. Schema version과 호환성
 
-모든 automation record는 `schema_id`와 SemVer `schema_version`을 가진다. 이 proposal의
-통일 version은 `1.0.0-proposal`이다. Owner 승인과 AH-P0-02 merge 뒤 첫 machine schema는
-`1.0.0`이며 proposal record를 실행 입력으로 재사용하지 않는다.
+모든 automation record는 `schema_id`와 SemVer `schema_version`을 가진다. AH-P0-02 machine
+schema의 통일 version은 `1.0.0`이다. 기존 prerelease record는 실행 입력으로 재사용하지 않는다.
 
 - Major: field 의미/type/requiredness, canonicalization 또는 ID input의 incompatible 변경.
 - Minor: 새 optional field처럼 새 reader가 같은 major의 이전 record를 읽는
@@ -138,18 +137,19 @@ lease와 fence는 같은 Node의 중복 Worker와 stale publication을 막고, o
 projection 재시도를 담당한다. 이 효과는 AH-P0-02/P4 구현과 검증 뒤에만 성립하며 현재는
 설계 목표다.
 
-## 10. Owner 승인 항목
+## 10. Owner 승인 결과
 
 Owner는 canonical repository URI/UUIDv5, JCS+SHA-256, SemVer 호환성, Candidate-only LLM,
-pinned Requirement Compiler input, SQLite authority, GitHub projection-only와 AH-P0-02
-범위를 함께 승인·수정·거절해야 한다. 일부만 승인하면 나머지는 OPEN이고 실제 ID/digest,
-schema promotion과 Planner 구현은 계속 BLOCKED다.
+pinned Requirement Compiler input, SQLite authority design, GitHub projection-only와
+AH-P0-02 schema-only 범위를 승인했다. Planner/Dispatcher/Ledger/Writer/Worker 구현,
+GitHub mutation과 제품 실행은 승인하지 않았고 계속 별도 Gate다.
 
 ## 11. AH-P0-02 exact follow-up
 
-새 파일 후보는 `schemas/automation/{common,requirement,work-package,workgraph,dry-run,error}.schema.json`,
+Issue #48은 `schemas/automation/{common,requirement,work-package,workgraph,dry-run,error}.schema.json`,
 `scripts/harness/{canonical-json,canonical-json.test,schema-contract.test}.mjs`,
-`scripts/harness/fixtures/schema/{valid,invalid}/**`다. 제품 source, database/migration,
+`scripts/harness/{canonical-identity,canonical-identity.test}.mjs`와
+`scripts/harness/fixtures/{schema,canonical,identity}/**`를 구현한다. 제품 source, database/migration,
 GitHub writer와 third-party dependency는 제외한다.
 
 Acceptance는 (1) 모든 schema JSON parse와 `$id`/version/ref 고정, (2) valid/invalid fixture,
@@ -164,6 +164,6 @@ GitHub Project/field/option ID, GitHub App permission, branch protection 설정,
 fence overflow, PR/concurrency/token/cost 숫자, full JSON Schema engine과 Graph migration
 구현은 후속 Gate다. 이 문서는 그 값을 추측하지 않는다.
 
-AH-P0-01은 Owner-review 문서가 검증되어 Draft PR에 도달하면 완료다. Owner 승인·merge 전
-상태는 `READY_FOR_OWNER_APPROVAL`, `implementation_ready: false`이며 AH-P0-02와 모든
-runtime 구현은 시작하지 않는다.
+AH-P0-01은 PR #47 merge와 Owner 승인으로 완료됐다. AH-P0-02는 Issue #48의 Machine Schema
+foundation만 구현하며 `implementation_ready: false`를 유지한다. Full JSON Schema engine,
+AH-P1-01 Read-only Planner와 모든 runtime 구현은 별도 Owner Gate 전 시작하지 않는다.

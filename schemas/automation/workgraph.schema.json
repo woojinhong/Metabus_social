@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/woojinhong/metabus_social/schemas/automation/workgraph.schema.json",
+  "title": "Propscans Canonical WorkGraph Plan",
+  "x-schema-version": "1.0.0",
+  "x-canonicalization": {
+    "excluded_paths": [
+      "/graph_status",
+      "/validation_result",
+      "/workgraph_plan_digest",
+      "/created_at",
+      "/generated_by"
+    ],
+    "set_like": [
+      {
+        "path": "/entrypoints",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes",
+        "key": "node_id"
+      },
+      {
+        "path": "/edges",
+        "key": "edge_id"
+      },
+      {
+        "path": "/nodes/*/dependencies",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/soft_dependencies",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/approval_dependencies",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/evidence_dependencies",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/validation_dependencies",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/resource_locks",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/module_locks",
+        "key": "$value"
+      },
+      {
+        "path": "/nodes/*/path_locks",
+        "key": "$value"
+      }
+    ]
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "record_kind",
+    "graph_id",
+    "graph_revision",
+    "title",
+    "source_snapshot",
+    "graph_status",
+    "entrypoints",
+    "nodes",
+    "edges",
+    "graph_policy",
+    "validation_result",
+    "workgraph_plan_digest",
+    "created_at",
+    "generated_by"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "https://github.com/woojinhong/metabus_social/schemas/automation/workgraph.schema.json"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "record_kind": {
+      "const": "CANONICAL_WORKGRAPH_PLAN"
+    },
+    "graph_id": {
+      "$ref": "common.schema.json#/$defs/graphId"
+    },
+    "graph_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "$ref": "common.schema.json#/$defs/nonEmptyString"
+    },
+    "source_snapshot": {
+      "$ref": "#/$defs/graphSource"
+    },
+    "graph_status": {
+      "enum": [
+        "PROPOSED",
+        "VALIDATING",
+        "BLOCKED",
+        "STALE"
+      ]
+    },
+    "entrypoints": {
+      "$ref": "#/$defs/nodeIds"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "graph_policy": {
+      "$ref": "#/$defs/graphPolicy"
+    },
+    "validation_result": {
+      "$ref": "#/$defs/plannerValidation"
+    },
+    "workgraph_plan_digest": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/rfc3339"
+    },
+    "generated_by": {
+      "$ref": "common.schema.json#/$defs/nonEmptyString"
+    }
+  },
+  "$defs": {
+    "graphSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "repository_sha",
+        "requirement_set_digest",
+        "work_package_set_digest",
+        "policy_version"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "common.schema.json#/$defs/canonicalRepository"
+        },
+        "repository_sha": {
+          "$ref": "common.schema.json#/$defs/gitSha"
+        },
+        "requirement_set_digest": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "work_package_set_digest": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "policy_version": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "nodeIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/nodeId"
+      },
+      "uniqueItems": true
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "work_package_id",
+        "work_package_revision",
+        "work_package_plan_digest",
+        "node_type",
+        "target_node",
+        "priority",
+        "execution_order",
+        "entrypoint",
+        "terminal",
+        "dependencies",
+        "soft_dependencies",
+        "approval_dependencies",
+        "evidence_dependencies",
+        "validation_dependencies",
+        "resource_locks",
+        "module_locks",
+        "path_locks",
+        "node_contract",
+        "provenance"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "common.schema.json#/$defs/nodeId"
+        },
+        "work_package_id": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/workPackageId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "work_package_revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "work_package_plan_digest": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_type": {
+          "enum": [
+            "WORK",
+            "REVIEW",
+            "CI_VERIFICATION",
+            "SECURITY_REVIEW",
+            "ARCHITECTURE_REVIEW",
+            "EVIDENCE",
+            "HUMAN_APPROVAL",
+            "INTEGRATION",
+            "ROLLBACK"
+          ]
+        },
+        "target_node": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "execution_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "entrypoint": {
+          "type": "boolean"
+        },
+        "terminal": {
+          "type": "boolean"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/nodeIds"
+        },
+        "soft_dependencies": {
+          "$ref": "#/$defs/nodeIds"
+        },
+        "approval_dependencies": {
+          "$ref": "#/$defs/nodeIds"
+        },
+        "evidence_dependencies": {
+          "$ref": "#/$defs/nodeIds"
+        },
+        "validation_dependencies": {
+          "$ref": "#/$defs/nodeIds"
+        },
+        "resource_locks": {
+          "$ref": "#/$defs/lockIds"
+        },
+        "module_locks": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/nonEmptyString"
+          },
+          "uniqueItems": true
+        },
+        "path_locks": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/posixPath"
+          },
+          "uniqueItems": true
+        },
+        "node_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "approval_record_id": {
+              "type": "string"
+            },
+            "approval_type": {
+              "enum": [
+                "EXECUTION_APPROVAL",
+                "REVIEW_ACCEPTANCE",
+                "MERGE_APPROVAL",
+                "FOLLOW_UP_UNLOCK",
+                "HIGH_RISK_DECISION",
+                "EXTERNAL_EVIDENCE_ACCEPTANCE"
+              ]
+            },
+            "evidence_id": {
+              "type": "string"
+            },
+            "check_id": {
+              "type": "string"
+            },
+            "rollback_target": {
+              "$ref": "common.schema.json#/$defs/nodeId"
+            }
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id",
+        "from",
+        "to",
+        "type",
+        "condition",
+        "required",
+        "target_node",
+        "provenance"
+      ],
+      "properties": {
+        "edge_id": {
+          "$ref": "common.schema.json#/$defs/edgeId"
+        },
+        "from": {
+          "$ref": "common.schema.json#/$defs/nodeId"
+        },
+        "to": {
+          "$ref": "common.schema.json#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "REQUIRES",
+            "BLOCKS",
+            "SOFT_REQUIRES",
+            "VALIDATES",
+            "APPROVES",
+            "PRODUCES_EVIDENCE_FOR",
+            "SUPERSEDES",
+            "ROLLBACK_OF"
+          ]
+        },
+        "condition": {
+          "enum": [
+            "COMPLETED",
+            "GRANTED",
+            "ACCEPTED",
+            "SUCCESS",
+            "RESOLVED"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "target_node": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_wp",
+        "source_field",
+        "policy_rule_id"
+      ],
+      "properties": {
+        "source_wp": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/workPackageId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_field": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "policy_rule_id": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "graphPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_nodes",
+        "max_parallel_nodes",
+        "max_parallel_write_nodes",
+        "failure_strategy",
+        "cancellation_strategy",
+        "stale_strategy"
+      ],
+      "properties": {
+        "max_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_parallel_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_parallel_write_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failure_strategy": {
+          "enum": [
+            "BLOCK_DESCENDANTS",
+            "PAUSE_GRAPH"
+          ]
+        },
+        "cancellation_strategy": {
+          "enum": [
+            "BLOCK_DESCENDANTS",
+            "CANCEL_DESCENDANTS",
+            "PAUSE_GRAPH"
+          ]
+        },
+        "stale_strategy": {
+          "const": "REPLAN_REQUIRED"
+        }
+      }
+    },
+    "lockIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/lockId"
+      },
+      "uniqueItems": true
+    },
+    "plannedLock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lock_id",
+        "node_id",
+        "lock_type",
+        "resource",
+        "mode",
+        "scope",
+        "hold_until"
+      ],
+      "properties": {
+        "lock_id": {
+          "$ref": "common.schema.json#/$defs/lockId"
+        },
+        "node_id": {
+          "$ref": "common.schema.json#/$defs/nodeId"
+        },
+        "lock_type": {
+          "enum": [
+            "MODULE",
+            "PATH",
+            "SHARED_RESOURCE",
+            "BUILD_SYSTEM",
+            "WORKFLOW",
+            "MIGRATION_NAMESPACE",
+            "API_SCHEMA",
+            "DOCUMENT_INDEX"
+          ]
+        },
+        "resource": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "mode": {
+          "enum": [
+            "READ",
+            "WRITE",
+            "EXCLUSIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "common.schema.json#/$defs/nonEmptyString"
+        },
+        "hold_until": {
+          "enum": [
+            "ATTEMPT_END",
+            "EVIDENCE_PINNED",
+            "PR_MERGED"
+          ]
+        }
+      }
+    },
+    "lockAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_locks",
+        "conflicts",
+        "safe_parallel_groups",
+        "serialized_groups",
+        "integration_hold_required"
+      ],
+      "properties": {
+        "required_locks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/plannedLock"
+          }
+        },
+        "conflicts": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        },
+        "safe_parallel_groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nodeIds"
+          }
+        },
+        "serialized_groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nodeIds"
+          }
+        },
+        "integration_hold_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "plannerValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_status",
+        "findings"
+      ],
+      "properties": {
+        "planner_status": {
+          "enum": [
+            "PROPOSED",
+            "VALIDATING",
+            "READY_FOR_OWNER_REVIEW",
+            "BLOCKED",
+            "STALE",
+            "REJECTED"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/finding"
+          }
+        }
+      }
+    }
+  }
+}

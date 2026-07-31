@@ -2,11 +2,11 @@
 title: WorkGraph State and Lock Schema Proposal
 document_type: automation specification proposal
 classification: proposal
-status: Draft for owner review; no graph execution, claim or integration authority
+status: Machine schema foundation implemented; no graph execution, claim or integration authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","../README.md","../github-workflow.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
-decision_authority: H-session owner instruction authorizes this proposal documentation only; graph execution, runtime state, claims, GitHub mutation, merge and follow-up unlock remain separately gated
+related_documents: ["../../../schemas/automation/workgraph.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","../README.md","../github-workflow.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
+decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; graph execution, runtime state, claims, GitHub mutation, merge and follow-up unlock remain separately gated
 ---
 
 # WorkGraph State and Lock Schema Proposal
@@ -20,7 +20,7 @@ Node는 immutable `work_package_id+revision+digest`를 고정하고 Work Package
 
 ```yaml
 {
-schema_version: "1.0.0-proposal", graph_id: "WG-<uuidv5>", graph_revision: 1, title: "",
+schema_id: "https://github.com/woojinhong/metabus_social/schemas/automation/workgraph.schema.json", schema_version: "1.0.0", graph_id: "WG-<uuidv5>", graph_revision: 1, title: "",
 source_snapshot: {repository: "", repository_sha: "", requirement_set_digest: "sha256:", work_package_set_digest: "sha256:", policy_version: ""},
 graph_status: PROPOSED, workgraph_plan_digest: "sha256:", entrypoints: [],
 nodes: [{
@@ -149,7 +149,7 @@ integration_hold: {hold_id: "", source_attempt: "", integration_node: "", protec
 ```yaml
 {
 example_mode: abbreviated, omitted_fields_follow_schema_defaults: true,
-graph_id: "WG-<calculated-uuidv5>", graph_revision: 1, source_snapshot: {repository: "https://github.com/woojinhong/Metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, requirement_set_digest: "sha256:<placeholder>", work_package_set_digest: "sha256:<placeholder>", policy_version: "workgraph@1.0.0-proposal"},
+graph_id: "WG-<calculated-uuidv5>", graph_revision: 1, source_snapshot: {repository: "https://github.com/woojinhong/metabus_social", repository_sha: ce168d5381015e46171a13c2a3b2b80509c299b1, requirement_set_digest: "sha256:<placeholder>", work_package_set_digest: "sha256:<placeholder>", policy_version: "workgraph@1.0.0"},
 entrypoints: [execution-approval], workgraph_plan_digest: "sha256:<placeholder>",
 nodes: [{node_id: execution-approval, node_type: HUMAN_APPROVAL, node_contract: {approval_record_id: APR-35-EXEC, approval_type: EXECUTION_APPROVAL}, execution_state: COMPLETED, execution_order: 0, entrypoint: true}, {node_id: wp-a, node_type: WORK, work_package_id: "WP-<bootstrap>", work_package_revision: 1, work_package_plan_digest: "sha256:<placeholder>", execution_state: READY, execution_order: 1, module_locks: [product-bootstrap], resource_locks: [BUILD_SYSTEM, WORKFLOW]}, {node_id: architecture-review, node_type: ARCHITECTURE_REVIEW, target_node: wp-a, execution_state: BLOCKED, execution_order: 2}, {node_id: ci, node_type: CI_VERIFICATION, target_node: wp-a, execution_state: BLOCKED, execution_order: 2}, {node_id: integration, node_type: INTEGRATION, target_node: wp-a, execution_state: BLOCKED, execution_order: 3}, {node_id: owner-merge, node_type: HUMAN_APPROVAL, target_node: wp-a, node_contract: {approval_record_id: APR-35-MERGE, approval_type: MERGE_APPROVAL}, execution_state: BLOCKED, execution_order: 4}, {node_id: merge-observed, node_type: EVIDENCE, target_node: wp-a, execution_state: BLOCKED, execution_order: 5}, {node_id: pr-b-unlock, node_type: HUMAN_APPROVAL, target_node: wp-a, node_contract: {approval_record_id: APR-35-UNLOCK, approval_type: FOLLOW_UP_UNLOCK}, execution_state: BLOCKED, execution_order: 6, terminal: true}],
 edges: [{edge_id: E1, from: execution-approval, to: wp-a, type: REQUIRES}, {edge_id: E2, from: wp-a, to: architecture-review, type: VALIDATES}, {edge_id: E3, from: wp-a, to: ci, type: VALIDATES}, {edge_id: E4, from: architecture-review, to: integration, type: REQUIRES}, {edge_id: E5, from: ci, to: integration, type: REQUIRES}, {edge_id: E6, from: integration, to: owner-merge, type: REQUIRES}, {edge_id: E7, from: owner-merge, to: merge-observed, type: APPROVES}, {edge_id: E8, from: merge-observed, to: pr-b-unlock, type: PRODUCES_EVIDENCE_FOR}],
@@ -166,4 +166,4 @@ graph_policy: {max_parallel_nodes: 2, max_parallel_write_nodes: 1, failure_strat
 
 [RECOMMENDED] Validator는 필드/enum, set/plan digest handoff, pinned WP ID/revision/plan digest, canonical target, graph reachability, Human path, approval/evidence mapping, resource lock/Attempt fence, atomic Publication, Integration Hold/merge event, STALE, terminal mutation, Issue drift, parallel safety와 auto Merge 금지를 검사한다. 실패는 위 차단 수준을 적용하고 authority나 transition을 만들지 않는다.
 
-[CONFIRMED] 이번 단계는 계약만 문서화하며 Validator, Runtime Ledger, Dispatcher, outbox를 구현하거나 저장 기술을 확정하지 않는다. [OWNER REVIEW] [AH-P0-01](../../discovery/autonomous-harness-foundation-approval-plan.md)은 canonical JSON/UUID/version과 single-Dispatcher SQLite Ledger/GitHub projection을 권고한다. 승인 전에는 모두 OPEN이며 heartbeat/lease, fence overflow, SOFT_REQUIRES와 Graph migration은 후속 Gate다.
+[IMPLEMENTED FOUNDATION] [WorkGraph machine schema](../../../schemas/automation/workgraph.schema.json)는 read-only plan과 planned lock만 `1.0.0`으로 고정하고 Attempt/Lease/heartbeat/fence/runtime ref를 제외한다. Runtime Ledger, Dispatcher, outbox, Claim과 Integration 실행은 미구현이며 heartbeat/lease, fence overflow, SOFT_REQUIRES와 Graph migration은 후속 Gate다.

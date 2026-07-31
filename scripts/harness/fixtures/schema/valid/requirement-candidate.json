@@ -1,0 +1,28 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANDIDATE",
+  "candidate_ref": "run-48-candidate-1",
+  "candidate_status": "NEEDS_REVIEW",
+  "requirement_kind": "POLICY",
+  "title": "Candidate-only authority",
+  "statement": "Only an Owner-pinned record may enter the deterministic compiler.",
+  "rationale": null,
+  "source": {
+    "repository": "https://github.com/woojinhong/metabus_social",
+    "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "identity_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+    "document_blob_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "section_anchor": "llm-owner와-compiler-경계",
+    "line_range": {
+      "start": 92,
+      "end": 105
+    },
+    "source_text_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "previous_locations": []
+  },
+  "acceptance_intent": [
+    "Candidate output has no official Requirement ID or execution grant."
+  ]
+}

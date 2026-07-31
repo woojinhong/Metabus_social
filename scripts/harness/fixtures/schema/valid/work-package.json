@@ -1,0 +1,243 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/work-package.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANONICAL_WORK_PACKAGE",
+  "work_package_id": "WP-22222222-2222-5222-8222-222222222222",
+  "work_package_revision": 1,
+  "title": "Machine schema foundation",
+  "type": "DOCUMENTATION",
+  "workstream": "autonomous-harness",
+  "vertical_slice": null,
+  "source_snapshot": {
+    "repository": "https://github.com/woojinhong/metabus_social",
+    "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "requirement_set_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy_version": "automation-contract@1.0.0"
+  },
+  "source_requirements": [
+    {
+      "requirement_id": "REQ-11111111-1111-5111-8111-111111111111",
+      "requirement_record_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "authority_status": "APPROVED",
+      "lifecycle": "APPROVED",
+      "execution_grant": "NOT_GRANTED",
+      "evidence_state": "NOT_REQUIRED"
+    }
+  ],
+  "source_documents": [
+    {
+      "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+      "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "section_anchor": "ah-p0-02-exact-follow-up",
+      "line_start": 148,
+      "line_end": 159
+    }
+  ],
+  "authority_status": {
+    "source_authority": "APPROVED",
+    "execution_grant": "NOT_GRANTED",
+    "evidence_readiness": "NOT_REQUIRED",
+    "package_status": "PROPOSED"
+  },
+  "objective": "Define the read-only machine schema foundation.",
+  "scope": [
+    "schemas/automation",
+    "scripts/harness"
+  ],
+  "out_of_scope": [
+    "planner execution",
+    "runtime ledger"
+  ],
+  "dependencies": [],
+  "blocks": [],
+  "owned_modules": [
+    "harness-contract"
+  ],
+  "path_policy": {
+    "allowed_paths": [
+      {
+        "path": "schemas/automation",
+        "match": "SUBTREE"
+      }
+    ],
+    "forbidden_paths": [],
+    "shared_paths": [],
+    "required_paths": [],
+    "approved_exceptions": []
+  },
+  "expected_changes": [
+    {
+      "path": "schemas/automation/requirement.schema.json",
+      "operation": "CREATE"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "criterion_id": "AC-33333333-3333-5333-8333-333333333333",
+      "source_requirements": [
+        "REQ-11111111-1111-5111-8111-111111111111"
+      ],
+      "statement": "All schemas parse and every reference resolves.",
+      "verification_method": "node scripts/harness/schema-contract.test.mjs",
+      "required_evidence": [
+        "test result"
+      ]
+    }
+  ],
+  "required_tests": [
+    "schema-contract"
+  ],
+  "required_checks": [
+    "docs-validation"
+  ],
+  "required_evidence": [
+    "scoped diff"
+  ],
+  "risk": {
+    "level": "LOW",
+    "factors": [
+      "authority contract"
+    ],
+    "mitigations": [
+      "read-only foundation"
+    ]
+  },
+  "agent_profile": {
+    "role": "contract-author",
+    "capabilities": [
+      "READ_REPOSITORY"
+    ],
+    "denied_capabilities": [
+      "MERGE_PR"
+    ],
+    "network_policy": "DENY_BY_DEFAULT",
+    "secret_policy": "NONE"
+  },
+  "execution_mode": "READ_ONLY",
+  "retry_policy": {
+    "max_retries": 0,
+    "retryable_errors": [],
+    "non_retryable_errors": [
+      "AUTHORITY_MISMATCH"
+    ],
+    "backoff": "NONE",
+    "same_error_limit": 1,
+    "new_attempt": true
+  },
+  "timeout_policy": {
+    "claim_seconds": 0,
+    "worker_seconds": 0,
+    "ci_seconds": 0,
+    "review_seconds": 0,
+    "human_approval_seconds": null
+  },
+  "budget": {
+    "max_execution_seconds": 0,
+    "max_tokens": 0,
+    "max_cost": 0,
+    "currency": "USD",
+    "max_external_calls": 0
+  },
+  "human_approval": {
+    "execution": {
+      "approval_record_id": "APR-48-EXEC",
+      "approval_type": "EXECUTION_APPROVAL",
+      "state": "REQUIRED",
+      "required_actor_role": "owner",
+      "source": {
+        "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+        "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "source_approval_record_id": null,
+      "scope": [
+        "AH-P0-02"
+      ],
+      "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decided_by": null,
+      "decided_at": null,
+      "valid_until": null
+    },
+    "review": {
+      "approval_record_id": "APR-48-REVIEW",
+      "approval_type": "REVIEW_ACCEPTANCE",
+      "state": "REQUIRED",
+      "required_actor_role": "owner",
+      "source": {
+        "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+        "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "source_approval_record_id": null,
+      "scope": [
+        "AH-P0-02"
+      ],
+      "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decided_by": null,
+      "decided_at": null,
+      "valid_until": null
+    },
+    "merge": {
+      "approval_record_id": "APR-48-MERGE",
+      "approval_type": "MERGE_APPROVAL",
+      "state": "REQUIRED",
+      "required_actor_role": "owner",
+      "source": {
+        "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+        "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "source_approval_record_id": null,
+      "scope": [
+        "AH-P0-02"
+      ],
+      "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decided_by": null,
+      "decided_at": null,
+      "valid_until": null
+    },
+    "follow_up_unlock": {
+      "approval_record_id": "APR-48-UNLOCK",
+      "approval_type": "FOLLOW_UP_UNLOCK",
+      "state": "REQUIRED",
+      "required_actor_role": "owner",
+      "source": {
+        "path": "docs/discovery/autonomous-harness-foundation-approval-plan.md",
+        "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "source_approval_record_id": null,
+      "scope": [
+        "AH-P1-01"
+      ],
+      "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decided_by": null,
+      "decided_at": null,
+      "valid_until": null
+    }
+  },
+  "external_evidence_gate": {
+    "requirement_ids": [],
+    "required_evidence": [],
+    "acceptor": null,
+    "state": "NOT_REQUIRED",
+    "expires_at": null,
+    "conflicts": [],
+    "blocks_execution": false
+  },
+  "lock_requirements": {
+    "modules": [],
+    "paths": [],
+    "shared_resources": []
+  },
+  "rollback_or_recovery": [],
+  "completion_definition": [
+    "All contract tests pass."
+  ],
+  "issue_mapping": {
+    "title": "AH-P0-02 machine schemas",
+    "labels": [],
+    "milestone": null,
+    "parent_issue": null,
+    "existing_issue": 48
+  },
+  "work_package_plan_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "created_at": "2026-07-31T00:00:00Z",
+  "generated_by": "ah-p0-02-fixture"
+}

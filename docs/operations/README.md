@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -20,8 +20,8 @@ decision_authority: decisions.md and approved operations policies
 - [AI runtime](ai-runtime.md) records current repository execution guidance.
 - [Initial backlog](github-initial-backlog.md) is a reconciled historical/candidate register; it does not override the approved GitHub workflow.
 - [Content operations](content-operations.md), [session operations](session-operations.md), [trust/safety operations](trust-safety-operations.md) and [vendor operations](vendor-operations.md) remain procedure drafts where they conflict with current decisions.
-- [Requirement extraction schema](automation/requirement-schema.md) is the proposal-only
-  entry point for deterministic Requirement extraction.
+- [Requirement extraction schema](automation/requirement-schema.md) retains the
+  semantic proposal while its Candidate/canonical machine structure is implemented.
 - [Work Package and GitHub Issue schema](automation/work-package-and-issue-schema.md)
   is the second proposal-only contract. It specifies bounded task records and
   Issue projection without creating an Issue or granting Agent execution.
@@ -32,14 +32,15 @@ decision_authority: decisions.md and approved operations policies
   fourth proposal-only contract. It defines a read-only Plan Proposal and
   historical Pilot interface without modifying the repository or GitHub.
 - [Autonomous Harness readiness audit](autonomous-harness-readiness-audit-2026-07-31.md)
-  records the current evidence and [AH-P0-01 approval plan](../discovery/autonomous-harness-foundation-approval-plan.md)
-  proposes canonical identity, authority and projection choices for Owner review.
+  records the historical evidence and [AH-P0-01 foundation](../discovery/autonomous-harness-foundation-approval-plan.md)
+  records the approved canonical identity, authority and projection boundary.
+- [Machine schemas](../../schemas/automation/requirement.schema.json) and
+  `scripts/harness` golden contract tests implement AH-P0-02 without a Planner.
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
-  Dry-run Planner Contract, audit, then AH-P0-01. No Planner implementation,
-  Dispatcher or Runtime Ledger exists, and Hermes and Slack are not connected;
-  these proposals grant no implementation authority. AH-P0-02 remains blocked
-  until explicit Owner approval.
+  Dry-run Planner Contract, audit, then AH-P0-01 and the machine schemas. No
+  Extractor, Planner, Dispatcher, Runtime Ledger, Writer or Worker exists;
+  AH-P0-02 grants no product or runtime execution authority.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 

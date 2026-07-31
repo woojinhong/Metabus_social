@@ -1,0 +1,68 @@
+{
+  "input": {
+    "title": "Cafe\u0301\r\nowner",
+    "source": {
+      "path": "docs\\spec\\example.md"
+    },
+    "tags": [
+      "zeta",
+      "alpha"
+    ],
+    "requirements": [
+      {
+        "requirement_id": "REQ-b",
+        "statement": "Second"
+      },
+      {
+        "requirement_id": "REQ-a",
+        "statement": "First"
+      }
+    ],
+    "steps": [
+      "second",
+      "first"
+    ],
+    "optional_null": null,
+    "generated_at": "2026-07-31T00:00:00Z"
+  },
+  "options": {
+    "pathPaths": [
+      "/source/path"
+    ],
+    "setLike": [
+      {
+        "path": "/tags",
+        "key": "$value"
+      },
+      {
+        "path": "/requirements",
+        "key": "requirement_id"
+      }
+    ],
+    "excludedPaths": [
+      "/generated_at"
+    ],
+    "allowedKeys": {
+      "": [
+        "title",
+        "source",
+        "tags",
+        "requirements",
+        "steps",
+        "optional_null",
+        "generated_at"
+      ],
+      "/source": [
+        "path"
+      ],
+      "/requirements/*": [
+        "requirement_id",
+        "statement"
+      ]
+    }
+  },
+  "expected": {
+    "canonical_json": "{\"optional_null\":null,\"requirements\":[{\"requirement_id\":\"REQ-a\",\"statement\":\"First\"},{\"requirement_id\":\"REQ-b\",\"statement\":\"Second\"}],\"source\":{\"path\":\"docs/spec/example.md\"},\"steps\":[\"second\",\"first\"],\"tags\":[\"alpha\",\"zeta\"],\"title\":\"Café\\nowner\"}",
+    "digest": "sha256:6af6579443c631de85d32e2b6ad0138232c7af0d038876472d95cc9cd761be93"
+  }
+}

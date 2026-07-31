@@ -1,0 +1,22 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/error.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "HARNESS_ERROR",
+  "error_id": "ERR-77777777-7777-5777-8777-777777777777",
+  "code": "DRP_REQUIREMENT_NOT_EXECUTABLE",
+  "severity": "WARNING",
+  "message": "Requirement is retained as a non-executable candidate.",
+  "result": "DRY_RUN_VALID_WITH_WARNINGS",
+  "automatic_fix": true,
+  "owner_intervention": true,
+  "blocks_dry_run": false,
+  "source": null,
+  "details": {
+    "field": "implementation_gate.state",
+    "expected": "GRANTED",
+    "actual": "NOT_GRANTED",
+    "related_ids": [
+      "REQ-11111111-1111-5111-8111-111111111111"
+    ]
+  }
+}

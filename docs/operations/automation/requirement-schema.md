@@ -2,11 +2,11 @@
 title: Requirement Extraction Schema Proposal
 document_type: automation specification proposal
 classification: proposal
-status: Draft for owner review; no product or agent execution authority
+status: Machine schema foundation implemented; no product or agent execution authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
-decision_authority: H-session owner instruction authorizes this proposal documentation only; every product and agent execution grant remains separate
+related_documents: ["../../../schemas/automation/requirement.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
+decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; every product and agent execution grant remains separate
 ---
 
 # Requirement Extraction Schema Proposal
@@ -18,7 +18,7 @@ decision_authority: H-session owner instruction authorizes this proposal documen
 
 ```yaml
 source_snapshot:
-  repository: https://github.com/woojinhong/Metabus_social
+  repository: https://github.com/woojinhong/metabus_social
   repository_sha: 40-character commit SHA
   document_path: repository-relative Git path
   document_blob_sha: Git blob SHA
@@ -31,7 +31,8 @@ source_snapshot:
 ## 3. Requirement Schema
 
 ```yaml
-schema_version: "1.0.0-proposal"
+schema_id: "https://github.com/woojinhong/metabus_social/schemas/automation/requirement.schema.json"
+schema_version: "1.0.0"
 requirement_id: FR-... | REQ-<uuidv5>
 requirement_kind: FUNCTIONAL | UX | SAFETY | NON_FUNCTIONAL | POLICY | ARCHITECTURE | EXECUTION_CONSTRAINT
 stable_aliases: []
@@ -187,4 +188,4 @@ Source/identity 오류는 `REQ_SOURCE_SHA_MISSING|REQ_LINE_ID_FORBIDDEN|REQ_ID_C
 Conflict 오류는 미해결 상태의 `REQ_CONFLICT_UNRESOLVED`, decision record가 없는 `REQ_CONFLICT_RESOLUTION_MISSING`, actor/source SHA/scope 권위가 불일치한 `REQ_CONFLICT_AUTHORITY_INVALID`다. 모두 Work Package 후보의 실행 가능 판정과 `READY`를 차단한다.
 ## 17. 검증 규칙
 
-[RECOMMENDED] 미래 Validator 계약은 (1) 필수 필드·enum·RFC3339·hash 형식, (2) repository commit/path/blob/anchor/range와 source text, (3) UUIDv5·content/record와 sorted record set의 `requirement_set_digest`, (4) 중복 ID·typed conflict·resolution authority·Parent/supersede, (5) OPEN·proposal·superseded 실행, evidence 우회, Grant 누락·scope/SHA stale을 검사한다. 오류는 record/Requirement set을 실행 불가로 만들며 자동 권위 결정을 하지 않는다. [OWNER REVIEW] [AH-P0-01](../../discovery/autonomous-harness-foundation-approval-plan.md)은 canonical JSON/UUID/version과 Candidate-only Extractor 경계를 권고하지만 승인 전에는 OPEN이다. [CONFIRMED] 이번 단계는 계약만 문서화하며 Validator 코드는 구현하지 않는다.
+[IMPLEMENTED FOUNDATION] [Requirement machine schema](../../../schemas/automation/requirement.schema.json)는 Candidate와 canonical record, 필수 필드·enum·nullability·format과 proposal 승격 차단을 `1.0.0`으로 고정한다. `scripts/harness/schema-contract.test.mjs`는 dependency 없는 structural subset만 검증하며 full JSON Schema engine은 별도 dependency Gate다. Extractor, semantic approval, Planner, Runtime Validator와 제품 실행은 구현·승인하지 않는다.

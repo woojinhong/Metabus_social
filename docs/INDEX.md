@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -33,8 +33,10 @@ operation remain separately gated.
 9. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
 
 For Harness work, read the [readiness audit](operations/autonomous-harness-readiness-audit-2026-07-31.md)
-and [AH-P0-01 approval plan](discovery/autonomous-harness-foundation-approval-plan.md)
-after the operations index. They grant no implementation authority.
+and [AH-P0-01 foundation](discovery/autonomous-harness-foundation-approval-plan.md),
+then the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json)
+after the operations index. The foundation authorizes schema-only contracts,
+not Planner, runtime, GitHub mutation or product implementation.
 
 ## Authority and promotion
 
@@ -82,6 +84,8 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/research | External evidence and limitations |
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
+| schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
+| scripts/harness | Deterministic canonicalization, identity and structural contract tests |
 
 ## Stable IDs and document rules
 

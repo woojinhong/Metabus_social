@@ -1,0 +1,63 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/workgraph.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "CANONICAL_WORKGRAPH_PLAN",
+  "graph_id": "WG-44444444-4444-5444-8444-444444444444",
+  "graph_revision": 1,
+  "title": "AH-P0-02 read-only graph plan",
+  "source_snapshot": {
+    "repository": "https://github.com/woojinhong/metabus_social",
+    "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "requirement_set_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "work_package_set_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policy_version": "workgraph@1.0.0"
+  },
+  "graph_status": "PROPOSED",
+  "entrypoints": [
+    "N-55555555-5555-5555-8555-555555555555"
+  ],
+  "nodes": [
+    {
+      "node_id": "N-55555555-5555-5555-8555-555555555555",
+      "work_package_id": "WP-22222222-2222-5222-8222-222222222222",
+      "work_package_revision": 1,
+      "work_package_plan_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "node_type": "WORK",
+      "target_node": null,
+      "priority": 0,
+      "execution_order": 0,
+      "entrypoint": true,
+      "terminal": true,
+      "dependencies": [],
+      "soft_dependencies": [],
+      "approval_dependencies": [],
+      "evidence_dependencies": [],
+      "validation_dependencies": [],
+      "resource_locks": [],
+      "module_locks": [],
+      "path_locks": [],
+      "node_contract": {},
+      "provenance": {
+        "source_wp": "WP-22222222-2222-5222-8222-222222222222",
+        "source_field": "objective",
+        "policy_rule_id": "AH-P0-02-READ-ONLY"
+      }
+    }
+  ],
+  "edges": [],
+  "graph_policy": {
+    "max_nodes": 1,
+    "max_parallel_nodes": 1,
+    "max_parallel_write_nodes": 1,
+    "failure_strategy": "BLOCK_DESCENDANTS",
+    "cancellation_strategy": "BLOCK_DESCENDANTS",
+    "stale_strategy": "REPLAN_REQUIRED"
+  },
+  "validation_result": {
+    "planner_status": "READY_FOR_OWNER_REVIEW",
+    "findings": []
+  },
+  "workgraph_plan_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "created_at": "2026-07-31T00:00:00Z",
+  "generated_by": "ah-p0-02-fixture"
+}

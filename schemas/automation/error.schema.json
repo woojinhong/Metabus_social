@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/woojinhong/metabus_social/schemas/automation/error.schema.json",
+  "title": "Propscans Harness Error Record",
+  "x-schema-version": "1.0.0",
+  "x-canonicalization": {
+    "excluded_paths": [],
+    "set_like": []
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "record_kind",
+    "error_id",
+    "code",
+    "severity",
+    "message",
+    "result",
+    "automatic_fix",
+    "owner_intervention",
+    "blocks_dry_run",
+    "source",
+    "details"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "https://github.com/woojinhong/metabus_social/schemas/automation/error.schema.json"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schemaVersion"
+    },
+    "record_kind": {
+      "const": "HARNESS_ERROR"
+    },
+    "error_id": {
+      "type": "string",
+      "pattern": "^ERR-[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "code": {
+      "enum": [
+        "DRP_INPUT_SHA_MISSING",
+        "DRP_SOURCE_NOT_FOUND",
+        "DRP_SOURCE_BLOB_MISMATCH",
+        "DRP_SOURCE_TEXT_HASH_MISMATCH",
+        "DRP_SOURCE_STALE",
+        "DRP_POLICY_VERSION_MISSING",
+        "DRP_REQUIREMENT_EXTRACTION_FAILED",
+        "DRP_REQUIREMENT_NON_ATOMIC",
+        "DRP_REQUIREMENT_CONFLICT_UNRESOLVED",
+        "DRP_REQUIREMENT_NOT_EXECUTABLE",
+        "DRP_REQUIREMENT_SET_DIGEST_MISMATCH",
+        "DRP_WORK_PACKAGE_SCOPE_UNBOUNDED",
+        "DRP_WORK_PACKAGE_PATH_POLICY_INVALID",
+        "DRP_WORK_PACKAGE_ACCEPTANCE_INVALID",
+        "DRP_WORK_PACKAGE_GRANT_MISSING",
+        "DRP_WORK_PACKAGE_EVIDENCE_UNMET",
+        "DRP_WORK_PACKAGE_SET_DIGEST_MISMATCH",
+        "DRP_GRAPH_DEPENDENCY_MISSING",
+        "DRP_GRAPH_HARD_CYCLE",
+        "DRP_GRAPH_ORPHAN_NODE",
+        "DRP_GRAPH_LOCK_CONFLICT",
+        "DRP_GRAPH_PLAN_DIGEST_MISMATCH",
+        "DRP_DUPLICATE_ACTIVE_ISSUE",
+        "DRP_EXISTING_ISSUE_AMBIGUOUS",
+        "DRP_RISK_POLICY_EXCEEDED",
+        "DRP_HUMAN_DECISION_REQUIRED",
+        "DRP_EXTERNAL_EVIDENCE_REQUIRED",
+        "DRP_LIMIT_EXCEEDED"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "WARNING",
+        "ERROR"
+      ]
+    },
+    "message": {
+      "$ref": "common.schema.json#/$defs/nonEmptyString"
+    },
+    "result": {
+      "enum": [
+        "DRY_RUN_VALID_WITH_WARNINGS",
+        "DRY_RUN_BLOCKED",
+        "DRY_RUN_STALE",
+        "DRY_RUN_REJECTED"
+      ]
+    },
+    "automatic_fix": {
+      "type": "boolean"
+    },
+    "owner_intervention": {
+      "type": "boolean"
+    },
+    "blocks_dry_run": {
+      "type": "boolean"
+    },
+    "source": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/sourceLocator"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "actual": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "related_ids": {
+          "$ref": "common.schema.json#/$defs/stringSet"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "severity": {
+            "const": "WARNING"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "const": "DRY_RUN_VALID_WITH_WARNINGS"
+          },
+          "blocks_dry_run": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "blocks_dry_run": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "enum": [
+              "DRY_RUN_BLOCKED",
+              "DRY_RUN_STALE",
+              "DRY_RUN_REJECTED"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "schema_id": "https://github.com/woojinhong/metabus_social/schemas/automation/dry-run.schema.json",
+  "schema_version": "1.0.0",
+  "record_kind": "READ_ONLY_DRY_RUN",
+  "dry_run_id": "DR-66666666-6666-5666-8666-666666666666",
+  "generated_at": "2026-07-31T00:00:00Z",
+  "generated_by": "ah-p0-02-fixture",
+  "input_snapshot": {
+    "repository": {
+      "canonical_uri": "https://github.com/woojinhong/metabus_social",
+      "repository_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "default_branch": "master"
+    },
+    "planning_scope": {
+      "vertical_slice": null,
+      "workstream": "autonomous-harness",
+      "modules": [],
+      "source_documents": [],
+      "source_requirement_ids": []
+    },
+    "policy": {
+      "policy_version": "dry-run@1.0.0",
+      "allowed_work_package_types": [
+        "DOCUMENTATION"
+      ],
+      "allowed_risk_levels": [
+        "LOW"
+      ],
+      "max_work_packages": 1,
+      "max_graph_nodes": 1,
+      "max_parallel_nodes": 1,
+      "allow_product_code_change": false,
+      "allow_infrastructure_change": false,
+      "allow_external_access": false
+    },
+    "execution_authority": {
+      "approval_record_ids": [],
+      "approval_records": [],
+      "allowed_scopes": []
+    },
+    "external_evidence_context": {
+      "accepted_evidence_ids": [],
+      "accepted_evidence_records": []
+    },
+    "existing_state": {
+      "snapshot": {
+        "source": "owner-reviewed empty state",
+        "as_of": "2026-07-31T00:00:00Z",
+        "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "record_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "open_issues": [],
+      "completed_work_packages": [],
+      "active_work_packages": [],
+      "existing_graphs": []
+    }
+  },
+  "requirements": [],
+  "requirement_set_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "work_packages": [],
+  "work_package_set_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "workgraph": null,
+  "issue_drafts": [],
+  "lock_analysis": {
+    "required_locks": [],
+    "conflicts": [],
+    "safe_parallel_groups": [],
+    "serialized_groups": [],
+    "integration_hold_required": false
+  },
+  "risk_summary": {
+    "highest_level": "LOW",
+    "factors": [],
+    "blocked": true
+  },
+  "human_decisions": [],
+  "external_evidence_gaps": [],
+  "warnings": [],
+  "errors": [],
+  "blocked_reasons": [
+    "NO_PINNED_REQUIREMENTS"
+  ],
+  "execution_summary": {
+    "executable_nodes": [],
+    "blocked_nodes": [],
+    "human_nodes": [],
+    "evidence_nodes": [],
+    "review_nodes": []
+  },
+  "result": "DRY_RUN_BLOCKED",
+  "result_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}
