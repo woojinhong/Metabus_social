@@ -4,8 +4,8 @@ document_type: automation specification proposal
 classification: proposal
 status: Draft for owner review; no planner execution or GitHub mutation authority
 implementation_ready: false
-last_verified: 2026-07-30
-related_documents: ["requirement-schema.md","work-package-and-issue-schema.md","workgraph-state-lock-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
+last_verified: 2026-07-31
+related_documents: ["../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","workgraph-state-lock-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
 decision_authority: H-session owner instruction authorizes this proposal documentation only; implementation, execution and GitHub mutation remain separately gated
 ---
 
@@ -178,7 +178,7 @@ dry_run:
 
 ## 9. 결정성, 보안, 저장과 Pilot
 
-입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. 같은 입력의 두 실행은 display timestamp를 제외하고 같은 논리 결과여야 한다. `[BLOCKED]` canonical JSON bytes와 UUID namespace URI의 Owner Decision 전에는 실제 digest/ID 계산기 구현에 진입하지 않는다.
+입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. 같은 입력의 두 실행은 display timestamp를 제외하고 같은 논리 결과여야 한다. `[OWNER REVIEW]` [AH-P0-01](../../discovery/autonomous-harness-foundation-approval-plan.md)은 schema normalization 뒤 RFC 8785 JCS bytes와 repository UUIDv5를 권고하며 승인 전 실제 digest/ID 계산기 구현은 BLOCKED다.
 
 Planner는 read-only Git object와 기존 Issue/PR 조회, stdout·OS temp 출력만 허용한다. 저장소/index/branch/worktree/GitHub/label/secret/Production/vendor mutation과 Worker 실행은 금지한다. Prompt는 경계가 아니며 sandbox, tool allowlist와 read-only token이 경계다.
 
@@ -190,8 +190,8 @@ Planner는 read-only Git object와 기존 Issue/PR 조회, stdout·OS temp 출�
 | Markdown report | [RECOMMENDED] JSON의 사람용 Projection |
 | GitHub PR attachment | [NOT-RECOMMENDED] 권위 원본 아님; 별도 업로드 권한 필요 |
 
-Runtime Ledger 등록은 Owner 승인 뒤, Issue 생성은 승인된 Dry-run의 별도 단계다. 저장 기술은 이번 단계에서 확정하지 않는다.
+Runtime Ledger 등록은 Owner 승인 뒤, Issue 생성은 승인된 Dry-run의 별도 단계다. AH-P0-01은 single-host SQLite authority와 GitHub projection을 권고하지만 승인·별도 구현 Grant 전에는 저장 기술이 확정되지 않는다.
 
 [CONFIRMED] 첫 Pilot은 D-009를 primary approved Source, Slice 1 Product Implementation Approval Plan을 proposal decomposition/supporting Source, Issue #35를 bounded Execution Grant record, PR #36을 immutable historical completion evidence로 고정한 Product Bootstrap이다. 외부 Evidence·Production·Secret·Migration 없이 완료 결과와 비교하며 재실행하지 않는다. 예상 topology는 `WORK→{Architecture Review, CI Verification}→Integration→Owner Merge Approval→merge-observed EVIDENCE→후속 PR B Unlock`의 병렬 fan-out/fan-in이며 Requirement 후보, Work Package 1개, Issue 초안 1개, Lock 요구, Risk Summary, warning과 plan digest를 출력한다.
 
-[REVISIT-WHEN] Owner가 이 계약과 canonicalization 결정을 승인하면 Pilot 구현 계획을 별도 Proposal로 작성할 수 있다. 이번 단계는 Extractor, Validator, Planner, Runtime Ledger, Dispatcher, Hermes, Slack 또는 Issue 생성기를 구현하지 않는다.
+[REVISIT-WHEN] Owner가 이 계약과 AH-P0-01 canonicalization/authority 결정을 승인하면 AH-P0-02 machine schema 계획을 별도 실행할 수 있다. 이번 단계는 Extractor, Validator, Planner, Runtime Ledger, Dispatcher, Hermes, Slack 또는 Issue 생성기를 구현하지 않는다.

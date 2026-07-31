@@ -4,8 +4,8 @@ document_type: automation specification proposal
 classification: proposal
 status: Draft for owner review; no product or agent execution authority
 implementation_ready: false
-last_verified: 2026-07-30
-related_documents: ["../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
+last_verified: 2026-07-31
+related_documents: ["../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
 decision_authority: H-session owner instruction authorizes this proposal documentation only; every product and agent execution grant remains separate
 ---
 
@@ -31,7 +31,7 @@ source_snapshot:
 ## 3. Requirement Schema
 
 ```yaml
-schema_version: "1.0"
+schema_version: "1.0.0-proposal"
 requirement_id: FR-... | REQ-<uuidv5>
 requirement_kind: FUNCTIONAL | UX | SAFETY | NON_FUNCTIONAL | POLICY | ARCHITECTURE | EXECUTION_CONSTRAINT
 stable_aliases: []
@@ -187,4 +187,4 @@ Source/identity 오류는 `REQ_SOURCE_SHA_MISSING|REQ_LINE_ID_FORBIDDEN|REQ_ID_C
 Conflict 오류는 미해결 상태의 `REQ_CONFLICT_UNRESOLVED`, decision record가 없는 `REQ_CONFLICT_RESOLUTION_MISSING`, actor/source SHA/scope 권위가 불일치한 `REQ_CONFLICT_AUTHORITY_INVALID`다. 모두 Work Package 후보의 실행 가능 판정과 `READY`를 차단한다.
 ## 17. 검증 규칙
 
-[RECOMMENDED] 미래 Validator 계약은 (1) 필수 필드·enum·RFC3339·hash 형식, (2) repository commit/path/blob/anchor/range와 source text, (3) UUIDv5·content/record와 sorted record set의 `requirement_set_digest`, (4) 중복 ID·typed conflict·resolution authority·Parent/supersede, (5) OPEN·proposal·superseded 실행, evidence 우회, Grant 누락·scope/SHA stale을 검사한다. 오류는 record/Requirement set을 실행 불가로 만들며 자동 권위 결정을 하지 않는다. [CONFIRMED] 이번 단계는 계약만 문서화하며 Validator 코드는 구현하지 않는다.
+[RECOMMENDED] 미래 Validator 계약은 (1) 필수 필드·enum·RFC3339·hash 형식, (2) repository commit/path/blob/anchor/range와 source text, (3) UUIDv5·content/record와 sorted record set의 `requirement_set_digest`, (4) 중복 ID·typed conflict·resolution authority·Parent/supersede, (5) OPEN·proposal·superseded 실행, evidence 우회, Grant 누락·scope/SHA stale을 검사한다. 오류는 record/Requirement set을 실행 불가로 만들며 자동 권위 결정을 하지 않는다. [OWNER REVIEW] [AH-P0-01](../../discovery/autonomous-harness-foundation-approval-plan.md)은 canonical JSON/UUID/version과 Candidate-only Extractor 경계를 권고하지만 승인 전에는 OPEN이다. [CONFIRMED] 이번 단계는 계약만 문서화하며 Validator 코드는 구현하지 않는다.
