@@ -2,14 +2,28 @@
 title: Slice 01 Product Implementation Approval Plan
 document_type: implementation approval plan
 classification: proposal
-status: READY_FOR_OWNER_APPROVAL
+status: PARTIALLY_SUPERSEDED_HISTORICAL_PLAN
 implementation_ready: false
-last_verified: 2026-07-29
-related_documents: ["slice-01-account-session-authorization-plan.md","slice-01-session-concurrency-validation.md","../reviews/slice-01-session-postgresql-spike-results.md","../spec/api/slice-01-account-session-executable-contract.md","../adr/ADR-001-modular-monolith-managed-rtc.md","../adr/ADR-004-postgresql-primary-store.md","../operations/github-workflow.md"]
-decision_authority: Issue #33 proposes a bounded implementation sequence; product source, DDL, migrations and APIs require explicit Owner approval
+last_verified: 2026-07-31
+related_documents: ["slice-01-current-authority.md","slice-01-account-session-authorization-plan.md","slice-01-session-concurrency-validation.md","../reviews/slice-01-session-postgresql-spike-results.md","../spec/api/slice-01-account-session-executable-contract.md","../adr/ADR-001-modular-monolith-managed-rtc.md","../adr/ADR-004-postgresql-primary-store.md","../operations/github-workflow.md"]
+decision_authority: Historical Issue #33 proposal; current authority is recorded in slice-01-current-authority.md
 ---
 
 # Slice 01 제품 구현 승인 계획
+
+## 현재 상태와 역사적 경계
+
+[현재 구현 권한 SOT](slice-01-current-authority.md)가 이 문서의 current-state 해석을
+통제한다. PR A는 PR #36, PR B는 PR #38과 gate follow-up PR #42로 bounded complete다.
+현재 선택은 Spring Data JPA, Flyway, PostgreSQL과 정확한 V1–V6이다. PR C/D, V7+,
+API/Realtime/Production Frontend 및 운영은 별도 승인 대상이다.
+
+이하 2026-07-29 계획은 PR #34 시점의 **historical proposal**이다. 당시의
+`READY_FOR_OWNER_APPROVAL`, Spring JDBC 우선/JPA 별도 근거, “PR A 파일 없음” 문구는
+PR A/B에 한해 merge evidence로 superseded됐다. Issue #37 승인 원문은 Git 이력에서
+확인할 수 없어 **Unknown / Owner confirmation required**이며 추측하지 않는다.
+`implementation_ready: false`는 proposal contract의 broad production promotion을
+막지만 이미 병합된 bounded PR A/B 결과를 부정하지 않는다.
 
 ## 1. 목적과 비목적
 
@@ -27,7 +41,7 @@ Kubernetes, microservice, 분산 lock은 Slice 1에 추가하지 않는다.
 | --- | --- | --- |
 | Runtime | OpenJDK 25 LTS, Spring Boot 4.1, Gradle Kotlin DSL | patch와 dependency lock은 PR A에서 review |
 | 구조 | 단일 modular monolith, base package `metabus.social` 후보 | 개인/미확정 회사 domain 금지 |
-| Database | PostgreSQL, Flyway, Spring JDBC 우선 | JPA 도입은 별도 근거 전 금지 |
+| Database | PostgreSQL, Flyway, Spring JDBC 우선 | Historical proposal; merged PR B selected JPA |
 | Session | Spring Session JDBC row만 HTTP 인증 Session 현재 권위 | mutable Domain Authentication Session 원장 금지 |
 | Security | Spring Security session auth, CSRF, fixation protection | Cookie/CSRF 배포 값은 Product Gate |
 | 품질 | Spotless+Google Java Format, SpotBugs, Spring Modulith, JUnit 5 | Checkstyle/PMD/Error Prone 추가 금지 |
@@ -144,12 +158,12 @@ Spike source의 `java.util.UUID`는 Java 25 Gradle `compileTestJava`에서 성�
 | Modulith·SpotBugs product 효과 | PARTIALLY_READY | PR A 실제 `src/main` evidence |
 | Product implementation | READY_FOR_OWNER_APPROVAL | Owner가 PR A~D 범위를 명시 승인 |
 
-## 10. Owner 결정과 승인 상태
+## 10. 역사적 Owner 결정 요청과 현재 잔여 Gate
 
 Owner는 (1) PR A~D 범위와 순서, (2) base package, (3) JPA 없이 Spring JDBC로 시작할지,
 (4) Cookie/CSRF 환경 Gate의 시점, (5) Password/recovery 별도 승인, (6) HMAC/reference와
 Audit 보존, (7) 각 PR의 구현 권한을 결정해야 한다.
 
-이 문서 상태는 `READY_FOR_OWNER_APPROVAL` 제안이다. Owner가 Issue #33 또는 후속 결정에
-제품 구현 권한을 명시하기 전까지 `implementation_ready: false`이며 PR A의 파일 하나도
-작성하지 않는다.
+2026-07-29 당시 이 문서 상태는 `READY_FOR_OWNER_APPROVAL` 제안이었고 PR A 파일 작성
+전이었다. 현재는 PR A/B에 한해 merge history가 이 문구를 supersede한다. PR C/D와
+broad production promotion은 여전히 명시적 Owner 승인이 필요하다.

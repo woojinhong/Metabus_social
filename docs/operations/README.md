@@ -3,8 +3,8 @@ title: Operations Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-30
-related_documents: ["../discovery/decisions.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+last_verified: 2026-07-31
+related_documents: ["../discovery/decisions.md","../discovery/slice-01-current-authority.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -45,6 +45,8 @@ Update procedure drafts after the relevant approval and before live Pilot.
 Moderator staffing/training, live coverage, break-glass, incident tabletop,
 NICE/RTC/notification/vendor operations, deletion verification and real-device
 evidence must pass before real participants. D-024 is satisfied only for the
-approved UX baseline and prototype. No vendor account, credential, cloud
-resource or paid service is created by these documents.
+approved UX baseline and prototype. PR A/B and V1–V6 are bounded merged facts;
+PR C/D, V7+, API/realtime/Production Frontend and operational expansion remain
+separately gated. No vendor account, credential, cloud resource or paid service
+is created by these documents.
 

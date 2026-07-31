@@ -11,6 +11,11 @@ tests, and Java CI. It intentionally contains no controller, login/logout,
 Spring Security configuration, Spring Session runtime configuration, session
 epoch request guard, or administrative command.
 
+The [Slice 1 current authority](docs/discovery/slice-01-current-authority.md)
+records this as the bounded merged PR A/B baseline. PR C Authentication, PR D
+Security Commands, V7+ or other new migrations, API/realtime/Production
+Frontend, deployment and live operation require separate approval.
+
 ## Toolchain
 
 - Java toolchain: Eclipse Temurin 25; CI pins `25.0.4`

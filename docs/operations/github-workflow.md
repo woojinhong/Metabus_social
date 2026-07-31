@@ -3,7 +3,7 @@ title: GitHub Documentation Workflow
 document_type: operations
 classification: user decision
 status: Approved operating policy
-last_verified: 2026-07-28
+last_verified: 2026-07-31
 related_documents:
   - ../../AGENTS.md
   - ../INDEX.md
@@ -52,8 +52,10 @@ It may not generate or promote:
 - vendor integration, cloud resources, credentials, spend or deployment;
 - Pilot or production operation.
 
-Implementation Contract work remains blocked until separately approved. D-024
-closure and the Accepted ADRs do not bypass that gate.
+The bounded PR A/B baseline is already merged; this documentation workflow does
+not grant changes to it. PR C/D, V7+ or new migrations, authoritative contracts
+and other production work remain separately gated. D-024 closure, existing
+files and Accepted ADRs do not bypass those gates.
 
 ## 3. When a new Issue and Draft PR are required
 

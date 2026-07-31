@@ -3,9 +3,10 @@ title: Traceability Index
 document_type: specification traceability
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-28
+last_verified: 2026-07-31
 related_documents:
   - ../discovery/decisions.md
+  - ../discovery/slice-01-current-authority.md
   - traceability-implementation.md
   - ux/README.md
 decision_authority: decisions.md
@@ -32,8 +33,9 @@ and pending implementation gates without promoting drafts.
 | Product/MVP/session boundary | Approved by D-001 through D-007 |
 | Platform, data technology and Pilot vendors | Approved by D-008 through D-017 and Accepted ADRs |
 | Retention and moderation principles | Approved by D-018 and D-019 |
-| High-level API, real-time and data capabilities | Approved boundary only; contract promotion pending after D-024 |
+| High-level API, real-time and data capabilities | Approved boundary only; D-024 is satisfied but authoritative contract promotion remains separately gated |
 | Information architecture, screens and wireflows | D-024 approved UX baseline; implementation authority absent |
+| Slice 1 implementation | PR A/B bounded complete, including V1–V6; PR C/D and broader production promotion not granted |
 | External research | Evidence only; procurement/legal revalidation still required |
 | Validation result | Evidence, not automatic approval |
 
@@ -48,8 +50,8 @@ and pending implementation gates without promoting drafts.
 | Disclosure/progression | [disclosure](progressive-disclosure.md), [matching](matching-and-progression.md) | [security](../architecture/security-privacy.md) | Contract promotion |
 | Admission | [security](security/identity-admission-and-invitations.md) | [identity ADR](../adr/ADR-009-adult-eligibility.md) | Contract promotion and procurement |
 | Moderation | [safety](trust-safety-moderation.md) | [operations](../operations/moderation-sanctions-and-appeals.md) | Contract promotion and operations readiness |
-| Data | [data proposals](data/README.md) | [PostgreSQL ADR](../adr/ADR-004-postgresql-primary-store.md) | Contract promotion before schema |
-| API/events | [capability proposals](api/README.md) | [application boundary](../architecture/domain-capability-map.md) | Contract promotion pending |
+| Data | [data proposals](data/README.md) | [PostgreSQL ADR](../adr/ADR-004-postgresql-primary-store.md) | PR B V1–V6 bounded baseline exists; additional schema/migrations require approval |
+| API/events | [capability proposals](api/README.md) | [application boundary](../architecture/domain-capability-map.md) | Authoritative contract promotion pending; PR A/B do not grant it |
 | Vendors/deployment | [NFRs](non-functional-requirements.md) | [selected services](../architecture/external-services-selected.md) | Legal/procurement/provisioning |
 
 ## Stable-ID ownership
