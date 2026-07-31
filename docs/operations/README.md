@@ -37,8 +37,10 @@ decision_authority: decisions.md and approved operations policies
 - [AH-P1-01 authority](../discovery/autonomous-harness-readonly-planner-authority.md)
   approved deterministic read-only Proposal generation; PR #53 implemented it.
 - [AH-P2-01 authority](../discovery/autonomous-harness-lightweight-worktree-runner-authority.md)
-  approves a future bounded Runner implementation after authority merge. Each actual
-  run still needs Owner-approved Planner digest and selected READY Package IDs.
+  approved the bounded Runner foundation implemented in Issue #56 Draft PR. The
+  implementation uses prepare-only by default and fake adapters for validation;
+  each actual run still needs an exact Owner-approved Planner digest, selected
+  READY Package IDs and a separate per-run approval record.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical
@@ -46,9 +48,10 @@ decision_authority: decisions.md and approved operations policies
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
   Dry-run Planner Contract, audit, then AH-P0-01/AH-P1-01 authority and machine
-  schemas. The Planner is merged and remains non-executing. The Runner authority
-  is documented but Runner code does not exist. No Extractor, Project writer,
-  Dispatcher, Runtime Ledger or Critic exists, and product execution remains gated.
+  schemas. The Planner is merged and remains non-executing. Issue #56 implements
+  the Runner foundation without running a Pilot; real Codex/GitHub execution is
+  not validated in that PR. No Extractor, Project writer, Dispatcher, Runtime
+  Ledger or Critic exists, and product execution remains gated.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 

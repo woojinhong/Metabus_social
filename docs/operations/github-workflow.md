@@ -142,6 +142,22 @@ The first Pilot is limited to `docs/**` and `scripts/harness/**`, defaults to at
 most two concurrent Packages and has an absolute Owner-approved ceiling of
 three. Full rules are in the [AH-P2-01 authority](../discovery/autonomous-harness-lightweight-worktree-runner-authority.md).
 
+Issue #56 implements this as a dependency-free foundation with a default
+`prepare-only` CLI. Worktree, Worker, required-test and publication operations
+are adapter-separated. Its implementation verification uses OS temporary Git
+repositories and fake Worker/GitHub adapters only; it does not run an actual
+Pilot or invoke Runner publication. 모든 Package의 collision-free preparation이
+성공한 뒤 발생한 Worker/test failure는 다른 독립 Package를 취소하지 않지만 전체 run은
+`FAILED`로 끝난다. Preparation conflict는 Worker 시작 전에 전체 run을 `BLOCKED`로
+중단한다. 모든 failed worktree, manifest와 diagnostic log는 사람의 판단을 위해 보존한다.
+
+The first actual Pilot additionally requires verified Codex and required-test
+sandboxes with network deny, filesystem isolation and process-tree containment,
+an exact per-run Owner approval plus its out-of-band expected hash, and pre-authenticated Runner
+control-plane GitHub access. Node `cwd`, child-process timeout and environment
+filtering alone must not be represented as filesystem, network or descendant
+process isolation.
+
 ## 7. Validation gate
 
 Before commit:
