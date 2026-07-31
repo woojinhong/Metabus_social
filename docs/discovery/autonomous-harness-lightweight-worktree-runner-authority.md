@@ -2,7 +2,7 @@
 title: AH-P2-01 Lightweight Worktree Runner Pilot Authority
 document_type: automation implementation authority
 classification: user decision
-status: Owner-approved bounded implementation scope; effective from merge to master
+status: Owner-approved scope; foundation implemented in Issue #56 Draft PR, actual Pilot not run
 last_verified: 2026-07-31
 related_documents: ["autonomous-harness-foundation-approval-plan.md","autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md","../operations/README.md","../INDEX.md"]
 decision_authority: explicit Owner instruction on 2026-07-31 and Issue #54
@@ -14,8 +14,8 @@ decision_authority: explicit Owner instruction on 2026-07-31 and Issue #54
 
 Owner는 AH-P1-01의 검증된 출력만 소비하는 AH-P2-01 Lightweight Worktree Runner의
 bounded 구현을 승인한다. 이 문서와 상위 문서 정합화가 `master`에 병합된 뒤 별도 Harness
-Issue에서 구현할 수 있다. 이번 Issue #54와 Draft PR은 문서만 바꾸며 Runner를 구현하거나
-실행하지 않는다.
+Issue에서 구현할 수 있다. [HISTORICAL] Issue #54와 그 Draft PR은 문서만 바꿨고 Runner를
+구현하거나 실행하지 않았다. 후속 Issue #56이 아래 bounded foundation을 구현한다.
 
 이 권한은 Work Package 1~3개를 격리된 branch/worktree에서 실행할 수 있는 Pilot
 capability의 구현 경계다. 실제 run마다 별도 Owner approval record가 필요하다. Runner
@@ -145,3 +145,27 @@ Issue 종료와 cleanup 결정은 사람만 수행한다.
 
 구현 검증 완료 뒤에도 실제 Pilot run은 Owner-approved Dry-run digest, selected WP IDs와
 per-run approval record 없이는 시작할 수 없다.
+
+## 11. Issue #56 구현 결과와 남은 Gate
+
+Issue #56의 Draft PR은 `scripts/harness/runner/**`, Runner fixture와
+`scripts/harness/runner.test.mjs`로 dependency-free foundation을 구현한다. 입력 loader는
+schema-valid `READ_ONLY_DRY_RUN`, 재계산한 Planner digest, exact selected `READY` Package,
+source SHA와 Owner approval hash/pin을 fail closed로 검증한다. OS 임시 manifest는 동일
+`run_id` 덮어쓰기를 거부하고 위 상태만 기록하며 Ledger, crash recovery와 multi-host
+authority를 주장하지 않는다.
+
+Worktree, Worker process, required test와 GitHub publication은 adapter 경계로 분리했다.
+검증은 OS 임시 Git repository와 fake Worker/GitHub adapter만 사용하며 실제 branch,
+worktree, Codex Worker, push 또는 PR을 Runner로 실행하지 않는다. 기본 CLI mode는
+`prepare-only`다. 현재 구현 환경에서 `codex` CLI가 PATH에 없어 실제 sandbox/network
+flag, filesystem isolation과 Windows process-tree containment를 검증하지 않았으므로
+Worker와 required-test 실행 adapter 활성화는 첫 Pilot의 별도 환경·승인 Gate다.
+
+첫 실제 Pilot은 exact `dry_run_id`, `result_digest`, source SHA, 1~3개 selected Package의
+ID/revision/plan digest, exact allowed path scope, max concurrency, budget, absolute worktree
+root와 Draft-only publication policy를 pin한 Owner run approval record와 별도 전달되는
+out-of-band expected record hash가 필요하다. 이는 record mutation을 탐지하지만 Owner
+전자서명이나 Runtime Ledger 인증을 주장하지 않는다.
+제품 code, schema/migration, dependency/workflow, Dispatcher/Ledger/Critic, merge/Ready/close와
+cleanup 권한은 계속 없다.

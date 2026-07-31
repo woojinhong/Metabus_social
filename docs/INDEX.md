@@ -37,9 +37,10 @@ and [AH-P0-01 foundation](discovery/autonomous-harness-foundation-approval-plan.
 then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authority.md)
 and [AH-P2-01 authority](discovery/autonomous-harness-lightweight-worktree-runner-authority.md),
 then the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
-PR #53 implements the non-executing Planner. AH-P2-01 authorizes only a future
-bounded Runner implementation after its authority merges; each run still needs
-an exact Owner-approved Planner digest and selected READY Package IDs.
+PR #53 implements the non-executing Planner. Issue #56 Draft PR implements the
+AH-P2-01 bounded Runner foundation with prepare-only and fake-adapter validation;
+it does not run a Pilot. Each real run still needs an exact Owner-approved
+Planner digest, selected READY Package IDs and a per-run approval record.
 
 ## Authority and promotion
 
@@ -88,7 +89,7 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
 | schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic canonicalization, identity, structural contracts and merged read-only Planner; Runner not implemented |
+| scripts/harness | Deterministic canonicalization, identity, structural contracts, merged read-only Planner and Issue #56 bounded Runner foundation; no actual Pilot |
 
 ## Stable IDs and document rules
 

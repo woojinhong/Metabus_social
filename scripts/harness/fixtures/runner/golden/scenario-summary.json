@@ -1,0 +1,13 @@
+{
+  "default_concurrency": 2,
+  "maximum_concurrency": 3,
+  "prepare_only_state": "APPROVED",
+  "terminal_states": [
+    "BLOCKED",
+    "CANCELLED",
+    "COMPLETED",
+    "FAILED"
+  ],
+  "failure_policy": "After all preparation succeeds, independent packages continue; failed packages are preserved and the overall run is FAILED. Any preparation conflict blocks the run before Workers start.",
+  "publication_limit": "DRAFT_PR_ONLY"
+}
