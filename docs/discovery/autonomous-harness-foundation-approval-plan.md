@@ -2,11 +2,11 @@
 title: Autonomous Harness Authority and Canonical Identity Approval Plan
 document_type: automation foundation decision
 classification: user decision
-status: Approved through bounded AH-P1-01 planning implementation; runtime and product execution not granted
+status: Bounded AH-P1-01 implemented for Owner review; runtime and product execution not granted
 implementation_ready: false
 last_verified: 2026-07-31
 related_documents: ["autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../../schemas/automation/requirement.schema.json","../operations/automation/requirement-schema.md","../operations/automation/work-package-and-issue-schema.md","../operations/automation/workgraph-state-lock-schema.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md"]
-decision_authority: explicit Owner instructions on 2026-07-31 authorize AH-P0-02 and the bounded Issue #50 AH-P1-01 implementation scope
+decision_authority: explicit Owner instructions on 2026-07-31 authorize AH-P0-02 and the bounded Issue #50/#52 AH-P1-01 implementation scope
 ---
 
 # 자율형 Harness 권한과 Canonical Identity 승인 계획
@@ -32,10 +32,10 @@ product Execution Grant는 아니다.
 | Runtime authority | 단일 local Dispatcher가 쓰는 SQLite Ledger | APPROVED_DESIGN_ONLY |
 | GitHub 역할 | Issue/Project/Label/Check/PR은 Ledger projection | APPROVED_DESIGN_ONLY |
 | AH-P0-02 | machine schema와 canonicalization fixture만; 실행·mutation 없음 | AUTHORIZED_SCHEMA_ONLY |
-| AH-P1-01 | pinned canonical Requirement→deterministic dry-run Proposal | AUTHORIZED_READ_ONLY_IMPLEMENTATION |
+| AH-P1-01 | pinned canonical Requirement→deterministic dry-run Proposal | IMPLEMENTED_FOR_OWNER_REVIEW |
 
-Machine Schema foundation은 공식 ID/digest algorithm을 검증할 수 있지만 Planner,
-Dispatcher, Ledger 또는 Writer가 authoritative runtime record를 발행할 권한은 없다.
+Machine Schema foundation과 Planner는 공식 ID/digest와 Proposal을 검증·생성할 수 있지만
+Dispatcher, Ledger 또는 Writer처럼 authoritative runtime record를 발행할 권한은 없다.
 
 ## 3. Canonical repository와 ID
 
@@ -123,7 +123,7 @@ COMPLETED를 만들지 않는다. Webhook과 polling reconciliation은 projectio
 | --- | --- | --- |
 | AH-P0-01 | Markdown audit/proposal/contract 정합화 | code/schema/dependency/runtime/GitHub Project 설정 |
 | AH-P0-02 | machine JSON Schema, canonical fixtures, read-only contract tests | Planner/Dispatcher/Ledger/Worker/mutation |
-| AH-P1-01 | Owner-pinned canonical Requirement compile, Dry-run Proposal | extraction, Issue/Project/branch/code/PR mutation |
+| AH-P1-01 | Owner-pinned canonical Requirement compile, Dry-run Proposal | extraction, Planner의 Issue/Project/branch/tracked-file/PR mutation |
 | Writer Pilot | 별도 Grant 뒤 Issue/Project projection과 Draft PR | merge/Issue close/Ready/direct push |
 | Worker Pilot | 별도 product/Harness Grant와 sandbox 뒤 bounded worktree | scope 확대, secret, deploy, vendor, production |
 
@@ -144,10 +144,11 @@ projection 재시도를 담당한다. 이 효과는 AH-P0-02/P4 구현과 검증
 Owner는 canonical repository URI/UUIDv5, JCS+SHA-256, SemVer 호환성, Candidate-only LLM,
 pinned Requirement Compiler input, SQLite authority design, GitHub projection-only와
 AH-P0-02 schema-only 범위와 AH-P1-01 bounded read-only Planner 구현을 승인했다.
-Planner 출력은 Proposal이고 Candidate 입력, Dispatcher/Ledger/Writer/Worker, GitHub
-mutation과 제품 실행은 승인하지 않았으며 계속 별도 Gate다.
+Issue #52 구현은 그 경계에서 Planner, golden fixture와 tests만 추가한다. Planner 출력은
+Proposal이고 Candidate 입력, Dispatcher/Ledger/Writer/Worker, GitHub mutation과 제품
+실행은 승인하지 않았으며 계속 별도 Gate다.
 
-## 11. AH-P0-02 exact follow-up
+## 11. AH-P0-02 완료 근거
 
 Issue #48은 `schemas/automation/{common,requirement,work-package,workgraph,dry-run,error}.schema.json`,
 `scripts/harness/{canonical-json,canonical-json.test,schema-contract.test}.mjs`,
@@ -167,6 +168,8 @@ GitHub Project/field/option ID, GitHub App permission, branch protection 설정,
 fence overflow, PR/concurrency/token/cost 숫자, full JSON Schema engine과 Graph migration
 구현은 후속 Gate다. 이 문서는 그 값을 추측하지 않는다.
 
-AH-P0-01은 PR #47, AH-P0-02는 PR #49로 완료됐다. AH-P1-01은 별도 승인 기록이
-`master`에 병합된 뒤 bounded read-only 구현을 시작할 수 있다. Full JSON Schema engine은
-필요하지 않으며 향후 dependency, AH-P2와 모든 runtime/mutation 구현은 별도 Owner Gate다.
+AH-P0-01은 PR #47, AH-P0-02는 PR #49로 완료됐다. AH-P1-01 승인 기록은 PR #51로
+`master`에 병합됐고 Issue #52의 bounded 구현은 Owner review 대상이다. Full JSON Schema
+engine은 필요하지 않아 dependency를 추가하지 않았다. Spec 자동 추출, Issue/Kanban
+writer, Worktree runner, Dispatcher/Ledger/Critic/Worker, 제품 코드 자동 수정과 AH-P2는
+미구현·미승인이며 각각 별도 Owner Gate, pinned input, mutation 계약과 검증이 필요하다.

@@ -1,0 +1,44 @@
+{
+  "renderer_version": "issue-template@1.0.0",
+  "single": {
+    "result": "DRY_RUN_VALID",
+    "work_packages": 1,
+    "issue_drafts": 1
+  },
+  "independent": {
+    "result": "DRY_RUN_VALID",
+    "work_packages": 2,
+    "safe_parallel_work_nodes": 2
+  },
+  "blocked_owner": {
+    "result": "DRY_RUN_BLOCKED",
+    "gate_prefix": "BLOCKED_OWNER:"
+  },
+  "blocked_dependency": {
+    "result": "DRY_RUN_BLOCKED",
+    "gate_prefix": "BLOCKED_DEPENDENCY:"
+  },
+  "conflict": {
+    "result": "DRY_RUN_VALID_WITH_WARNINGS",
+    "warning_code": "DRP_GRAPH_LOCK_CONFLICT"
+  },
+  "cycle": {
+    "result": "DRY_RUN_REJECTED",
+    "error_code": "DRP_GRAPH_HARD_CYCLE"
+  },
+  "candidate": {
+    "error_code": "DRP_REQUIREMENT_EXTRACTION_FAILED"
+  },
+  "unapproved": {
+    "result": "DRY_RUN_BLOCKED",
+    "gate_prefix": "BLOCKED_OWNER:"
+  },
+  "stale": {
+    "error_code": "DRP_SOURCE_STALE"
+  },
+  "no_op": {
+    "work_packages": 0,
+    "issue_drafts": 0,
+    "workgraph": null
+  }
+}

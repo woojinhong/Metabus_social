@@ -1,15 +1,15 @@
 ---
-title: Dry-run Planner Contract Proposal
+title: Dry-run Planner Contract and Bounded Implementation
 document_type: automation specification proposal
 classification: proposal
-status: Bounded AH-P1-01 implementation authorized; no execution or GitHub mutation authority
+status: Bounded AH-P1-01 implemented for Owner review; no execution or GitHub mutation authority
 implementation_ready: false
 last_verified: 2026-07-31
 related_documents: ["../../../schemas/automation/dry-run.schema.json","../../../schemas/automation/error.schema.json","../../discovery/autonomous-harness-readonly-planner-authority.md","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","workgraph-state-lock-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
 decision_authority: explicit Owner instruction on 2026-07-31 and Issue #50 authorize bounded read-only Planner implementation only
 ---
 
-# Dry-run Planner Contract Proposal
+# Dry-run Planner Contract and Bounded Implementation
 
 ## 1. 목적, 역할과 권위 경계
 
@@ -179,7 +179,7 @@ dry_run:
 
 ## 9. 결정성, 보안, 저장과 Pilot
 
-입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. `generated_at`을 포함한 모든 출력 필드는 pinned input 또는 고정 Planner version에서 파생하며 같은 입력의 두 실행은 byte-identical JSON과 동일 digest를 만들어야 한다. [IMPLEMENTED FOUNDATION] `scripts/harness/canonical-json.mjs`와 `canonical-identity.mjs`가 approved normalization, JCS-compatible bytes, SHA-256와 repository UUIDv5 golden contract를 구현하지만 Planner는 아직 구현하지 않는다.
+입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. `generated_at`을 포함한 모든 출력 필드는 pinned input 또는 고정 Planner version에서 파생하며 같은 입력의 두 실행은 byte-identical JSON과 동일 digest를 만들어야 한다. [IMPLEMENTED FOUNDATION] `scripts/harness/canonical-json.mjs`, `canonical-identity.mjs`와 `planner/**`가 approved normalization, JCS-compatible bytes, SHA-256, repository UUIDv5, deterministic compile과 schema-valid dry-run 출력을 구현한다.
 
 Planner는 read-only Git object와 기존 Issue/PR 조회, stdout·OS temp 출력만 허용한다. 저장소/index/branch/worktree/GitHub/label/secret/Production/vendor mutation과 Worker 실행은 금지한다. Prompt는 경계가 아니며 sandbox, tool allowlist와 read-only token이 경계다.
 
@@ -195,4 +195,6 @@ Runtime Ledger 등록과 Issue 생성은 별도 단계다. AH-P0-01은 single-ho
 
 [CONFIRMED] 첫 Pilot은 D-009를 primary approved Source, Slice 1 Product Implementation Approval Plan을 proposal decomposition/supporting Source, Issue #35를 bounded Execution Grant record, PR #36을 immutable historical completion evidence로 고정한 Product Bootstrap이다. 외부 Evidence·Production·Secret·Migration 없이 완료 결과와 비교하며 재실행하지 않는다. 예상 topology는 `WORK→{Architecture Review, CI Verification}→Integration→Owner Merge Approval→merge-observed EVIDENCE→후속 PR B Unlock`의 병렬 fan-out/fan-in이며 검증된 canonical Requirement projection, Work Package 1개, Issue 초안 1개, Lock 요구, Risk Summary, warning과 plan digest를 출력한다.
 
-[AUTHORIZED NEXT IMPLEMENTATION] [Dry-run](../../../schemas/automation/dry-run.schema.json), [Error](../../../schemas/automation/error.schema.json)와 dependency-free structural validator는 PR #49에 존재한다. AH-P1-01은 [별도 권한 기록](../../discovery/autonomous-harness-readonly-planner-authority.md)이 `master`에 병합된 뒤 구현할 수 있다. Full JSON Schema engine은 필요하지 않으며 Extractor, Runtime Ledger, Dispatcher, Critic, Worker와 Issue/PR writer는 미구현·미승인이다.
+[IMPLEMENTED FOR OWNER REVIEW] [Dry-run](../../../schemas/automation/dry-run.schema.json), [Error](../../../schemas/automation/error.schema.json), dependency-free structural validator와 `scripts/harness/planner/**`가 AH-P1-01 bounded foundation을 구현한다. CLI는 stdout 또는 새 OS 임시 파일만 쓰고 GitHub API, branch/worktree, tracked file, Codex/Worker나 외부 mutation을 호출하지 않는다. Full JSON Schema engine은 필요하지 않아 dependency를 추가하지 않았다. Extractor, Runtime Ledger, Dispatcher, Critic, Worker, Issue/Project/PR writer와 제품 코드 자동 수정은 미구현·미승인이다.
+
+[IMPLEMENTED RULES] 입력 envelope는 `input_snapshot`, `requirements`, `requirement_set_digest`만 허용하고 canonical Requirement/UUIDv5/digest/source pin을 fail closed로 검증한다. Requirement 1개당 Work Package 1개, `parent_requirement`만 hard predecessor, exact completed ID/revision/digest는 NO_OP다. 미완료 parent는 `BLOCKED_DEPENDENCY`, Grant/policy/scope 부재는 `BLOCKED_OWNER`, 나머지는 `READY` Proposal이다. WORK+REVIEW와 필요한 HUMAN_APPROVAL/EVIDENCE Node, 미획득 lock 후보, overlapping path warning/직렬화, `Refs`만 쓰는 fixed Issue draft를 만든다. CLI는 `node scripts/harness/planner/cli.mjs --requirements <input.json> --repository-sha <sha> [--output <new-os-temp-file>]`이며 같은 pinned input과 Requirement/set-like 순서 변화는 byte-identical JSON과 같은 digest를 만든다.

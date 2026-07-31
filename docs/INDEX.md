@@ -37,7 +37,8 @@ and [AH-P0-01 foundation](discovery/autonomous-harness-foundation-approval-plan.
 then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authority.md)
 and the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
 AH-P1-01 authorizes deterministic read-only Proposal generation after its
-approval record merges, not runtime, GitHub mutation or product implementation.
+approval record merges. The bounded Planner implementation is under Owner review;
+it grants no runtime, GitHub mutation or product implementation authority.
 
 ## Authority and promotion
 
@@ -86,7 +87,7 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
 | schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic canonicalization, identity and structural contract tests; bounded Planner pending |
+| scripts/harness | Deterministic canonicalization, identity, structural contracts and bounded read-only Planner |
 
 ## Stable IDs and document rules
 
