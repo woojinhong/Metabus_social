@@ -4,20 +4,20 @@ document_type: readiness audit
 classification: research finding
 status: Historical pre-AH-P0/AH-P1 snapshot; no decision authority
 last_verified: 2026-07-31
-related_documents: ["../INDEX.md","../discovery/autonomous-harness-readonly-planner-authority.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md","github-workflow.md","../discovery/slice-01-current-authority.md"]
+related_documents: ["../INDEX.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md","github-workflow.md","../discovery/slice-01-current-authority.md"]
 decision_authority: none; read-only repository and GitHub settings audit at origin/master 1416aad
 ---
 
 # Propscans 자율형 개발 Harness 준비도 감사
 
-판정 표기: **E** Evidence, **I** Inference, **U** Unknown. 파일 근거는 `path:line`이다. Live GitHub 설정은 2026-07-31 API snapshot이다. 이 감사의 “권한 없음” 판정은 당시 snapshot이며, 후속 AH-P0-02 완료와 [AH-P1-01 승인](../discovery/autonomous-harness-readonly-planner-authority.md)이 현재 권한을 정한다.
+판정 표기: **E** Evidence, **I** Inference, **U** Unknown. 파일 근거는 `path:line`이다. Live GitHub 설정은 2026-07-31 API snapshot이다. 이 감사의 “권한 없음”과 phase ID는 당시 snapshot이다. 후속 AH-P0-02, PR #53 AH-P1-01과 [AH-P2-01 권한](../discovery/autonomous-harness-lightweight-worktree-runner-authority.md)이 현재 경계를 정한다.
 
 # 1. 결론
 
 1. **E/High:** 최신 기준은 PR #45 merge `origin/master@1416aad`; 최초 working tree는 clean, 단일 worktree였으나 branch는 `decision/44...@b1f1cea`, local `master`는 2 commits 뒤였다. 두 tree hash는 `d3405ad`로 같아 최신 파일 내용으로 감사했다.
-2. **E/High:** Requirement, Work Package, WorkGraph, Dry-run Planner는 상세한 Markdown Proposal일 뿐 모두 `implementation_ready: false`이며 실행 권한이 없다(`automation/*.md:2-9`).
-3. **E/High:** 저장소가 Planner, Validator, Dispatcher, Runtime Ledger, Issue generator 미구현을 직접 명시한다(`docs/operations/README.md:23-39`, `automation/dry-run-planner-contract.md:197`).
-4. **I/High:** 즉시 가능한 것은 수동 read-only 분석과 기존 validator/CI 실행뿐이다. 목표 A–R workflow의 안전한 자율 실행은 바로 구현·운영할 수 없다.
+2. **E/High, historical:** 당시 Requirement, Work Package, WorkGraph와 Planner는 Proposal뿐이었고 실행 권한이 없었다. PR #53이 Planner만 후속 구현했다.
+3. **E/High, historical:** 당시 Planner, Dispatcher, Ledger와 worktree manager는 미구현이었다. 현재도 Runner/Dispatcher/Ledger는 없으며 Issue #54는 문서 authority만 다룬다.
+4. **I/High:** AH-P2-01도 merged authority와 별도 구현·검증, per-run Owner approval 전에는 실행할 수 없다.
 5. **E/High:** 문서 Gate는 강하지만 live `master` branch protection/ruleset이 없어 금지가 기술적으로 강제되지 않는다.
 6. **I/High:** 첫 MVP도 canonical identity/schema와 bounded Harness 실행 Grant가 먼저 필요하며, 제품 코드 자동 수정·merge·deploy는 제외해야 한다.
 7. **I/High:** 권장 구조는 Node Dispatcher + SQLite Ledger + Codex worktree Worker + GitHub Project projection + GitHub Actions validation의 혼합형이다.
@@ -31,7 +31,7 @@ decision_authority: none; read-only repository and GitHub settings audit at orig
 | Schema만 존재 | Requirement/WP/Graph/Planner의 YAML-like Markdown record 예시는 있으나 `*.schema.json`/machine validator는 0개(`automation/*.md`). |
 | 계약 문서만 존재 | source snapshot, Grant, path policy, risk, state, lock, lease, fence, stale/recovery, Issue projection 계약은 상세(`requirement-schema.md:17-190`, `work-package...:17-197`, `workgraph...:17-169`, `dry-run...:20-197`). |
 | 제안만 존재 | 모든 automation contract가 `classification: proposal`, Owner review 상태이며 authority를 만들지 않음. |
-| 미구현 | Extractor, deterministic Compiler/Planner, apply writer, Dispatcher, Ledger, outbox, worktree manager, Critic gate, lesson store, Project projector. |
+| 후속 상태 | Planner는 PR #53으로 구현; Extractor, Runner, apply writer, Dispatcher, Ledger, outbox, Critic, lesson store와 Project projector는 미구현. |
 | Owner 승인 대기 | canonicalization 및 Harness implementation/apply Pilot; PR C/D, V7+, API/realtime/frontend/deploy는 별도 `NOT_GRANTED`(`slice-01-current-authority.md:20-33,52-60`). |
 | 외부 시스템 의존 | GitHub Issues/PR/Checks/Project, Codex CLI, Docker/Testcontainers; Project ID/field/option은 현 token의 `read:project` 부재로 U. |
 | 현재 권한상 금지 | 자동 merge/Issue close/direct protected-branch push/force/reset/clean, production/vendor/provisioning 및 bounded PR A/B 밖 제품 구현(`AGENTS.md:50-58,92-105`). |
@@ -78,7 +78,7 @@ decision_authority: none; read-only repository and GitHub settings audit at orig
 
 # 5. Planner Gap
 
-**E:** source commit/blob/anchor, atomic split, primary/supporting dedupe, typed conflicts, Gate, cycle/orphan, declared path locks, stale propagation, dry-run/apply 금지는 비교적 성숙하다(`requirement-schema.md:17-180`, `workgraph...:74-144`, `dry-run...:73-142`). **E:** actual JSON Schema/code는 없고 Requirement `1.0`, WP/Graph `1.0-proposal`, Planner `1.0.0-proposal` 사이 compatibility rule도 없다. **U:** canonical bytes, namespace URI, graph migration, ledger/storage, lease/fence 값, PR size가 OPEN(`workgraph...:165-169`). **I:** 현재 계약으로 기술적으로 가능한 첫 구현은 owner-pinned Requirement JSON을 입력받는 read-only deterministic compiler와 static DAG/lock analyzer뿐이나, 현재 authority상 그것도 별도 Grant 전 시작 불가다. LLM Extractor는 candidate만 만들고 Owner/reviewer가 canonical Requirement set을 pin한 뒤 Compiler가 소비해야 한다.
+**E, historical:** source commit/blob/anchor, typed conflicts, Gate, cycle/orphan, path locks와 stale propagation 계약은 비교적 성숙했지만 당시 machine schema와 code는 없었다. PR #49/#53이 schema와 read-only Planner를 후속 구현했다. **U:** graph migration, Ledger, lease/fence와 broader runtime 값은 여전히 OPEN이다. **I:** AH-P2-01은 Owner-approved Planner output을 재해석 없이 소비하는 bounded Runner만 후속 후보이며 LLM Extractor는 계속 Candidate만 만든다.
 
 # 6. GitHub Issue·Kanban Gap
 
@@ -146,7 +146,7 @@ Codex CLI 단독은 한 번에 하나의 scoped worktree에서 edit/test/Draft P
 | AH-P0-01 Authority & Canonical Identity | OPEN decision을 owner-review package로 고정; 4 contracts→approved choices, 실행 없음 | M automation docs; N `docs/discovery/autonomous-harness-foundation-approval-plan.md` | canonical bytes/URI+UUID/version/Extractor-Compiler boundary/ledger projection 명시; docs tests | none→P0-02/N/Y/High/`decision/<n>-harness-foundation`, 1 docs PR, S |
 | AH-P0-02 Machine Schemas | prose→Requirement/WP/Graph/DryRun/error JSON Schema+golden fixtures | M contracts; N `schemas/automation/*.schema.json`,`scripts/harness/schema-validator.mjs`,`test/fixtures` | positive/negative/version/digest fixtures deterministic | P0-01→P1/P2/N/Y/High/`harness/<n>-machine-schemas`, M |
 | AH-P1-01 Read-only Planner | pinned Requirement set→WP/Issue draft; no mutation | N `scripts/harness/{cli,compiler,renderer}.mjs`,`test/planner` | byte-identical golden, Gate fail-closed, stdout/temp only | P0-02→P2/Y/Y/High/`harness/<n>-readonly-planner`, L |
-| AH-P2-01 Dry-run WorkGraph | WP→DAG/cycle/lock/parallel/report | N `scripts/harness/{workgraph,lock-analyzer,dry-run}.mjs`,`test/workgraph` | cycle/orphan/conflict/stale/result enums | P0-02,P1→P3/P with P1 renderer/Y/High/`harness/<n>-dry-run-graph`, L |
+| Historical Dry-run WorkGraph candidate | 당시 `AH-P2-01` 표기는 superseded; 현재 ID는 Lightweight Worktree Runner authority가 소유 | PR #53 Planner가 bounded graph/report 구현 | 현재 단계는 별도 authority 문서 참조 | historical only; no implementation authority |
 | AH-P3-01 GitHub Issue/Kanban Writer | approved dry-run→idempotent Issue/Project projection | M templates; N `scripts/harness/github/*`,`test/github-contract` | mock API/outbox/rate-limit/drift; no close/merge | P2+Project/auth decision→P4/N/Y/Critical/`harness/<n>-github-writer`, L |
 | AH-P4-01 Dispatcher/Ledger | graph→atomic claims/events/projections/outbox | N `harness/ledger/*.sql`,`scripts/harness/{dispatcher,reconciler}.mjs`,`test/runtime` | crash/restart/duplicate/zombie/CAS/fence tests | P2; P3 adapter parallel→P5/N/Y/Critical/`harness/<n>-runtime-ledger`, XL |
 | AH-P5-01 Worktree Worker | claim→owned worktree/verified commit | N `scripts/harness/{worktree,worker-policy}.mjs`,`test/worktree` | path escape, stale upstream, orphan, conflict, cancel | P4→P6/N/Y/Critical/`harness/<n>-worker-isolation`, XL |
