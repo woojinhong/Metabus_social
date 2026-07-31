@@ -2,20 +2,20 @@
 title: Dry-run Planner Contract Proposal
 document_type: automation specification proposal
 classification: proposal
-status: Machine schema foundation implemented; no planner execution or GitHub mutation authority
+status: Bounded AH-P1-01 implementation authorized; no execution or GitHub mutation authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../../schemas/automation/dry-run.schema.json","../../../schemas/automation/error.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","workgraph-state-lock-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
-decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; Planner execution and GitHub mutation remain separately gated
+related_documents: ["../../../schemas/automation/dry-run.schema.json","../../../schemas/automation/error.schema.json","../../discovery/autonomous-harness-readonly-planner-authority.md","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","workgraph-state-lock-schema.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
+decision_authority: explicit Owner instruction on 2026-07-31 and Issue #50 authorize bounded read-only Planner implementation only
 ---
 
 # Dry-run Planner Contract Proposal
 
 ## 1. 목적, 역할과 권위 경계
 
-[RECOMMENDED] 이 문서는 승인된 Source Snapshot에서 Requirement, Work Package, WorkGraph와 GitHub Issue 초안을 생성하는 Dry-run Planner의 입력·출력·검증 계약을 정의한다. 출력은 검토 가능한 Plan Proposal이며 실행 명령이 아니다. 이 문서만으로 Issue·Branch·Worktree 생성, Agent 실행, 파일·코드 수정, Commit·Push·PR·Merge 또는 후속 Node 해제 권한을 부여하지 않는다.
+[OWNER-APPROVED BOUNDARY] 이 문서는 Owner-pinned canonical Requirement에서 Work Package, WorkGraph와 GitHub Issue 초안을 생성하는 Dry-run Planner의 입력·출력·검증 계약을 정의한다. 출력은 검토 가능한 Plan Proposal이며 실행 명령이 아니다. 이 문서만으로 Issue·Branch·Worktree 생성, Agent 실행, 파일·코드 수정, Commit·Push·PR·Merge 또는 후속 Node 해제 권한을 부여하지 않는다.
 
-Planner는 snapshot 읽기, atomic Requirement 후보 추출, 세 Schema 검증, Work Package/WorkGraph/Issue 초안 생성과 충돌·누락·위험·차단 보고만 한다. Requirement 승인, `[OPEN]` 확정, Execution Grant 발급, Evidence 수용, Human Approval 완료와 저장소·GitHub mutation은 할 수 없다. `[CONFIRMED]` 입력 계약은 [Requirement](requirement-schema.md), [Work Package](work-package-and-issue-schema.md), [WorkGraph](workgraph-state-lock-schema.md) Proposal을 그대로 참조하며 권위를 승격하지 않는다.
+Planner는 pinned snapshot과 `CANONICAL_REQUIREMENT` 검증, Work Package/WorkGraph/Issue 초안 생성과 충돌·누락·위험·차단 보고만 한다. Candidate 추출, Requirement 승인, `[OPEN]` 확정, Execution Grant 발급, Evidence 수용, Human Approval 완료와 저장소·GitHub mutation은 할 수 없다. 입력·출력은 [Requirement](requirement-schema.md), [Work Package](work-package-and-issue-schema.md), [WorkGraph](workgraph-state-lock-schema.md) machine schema를 따르며 권위를 승격하지 않는다.
 
 ## 2. 입력 Schema
 
@@ -71,18 +71,18 @@ existing_state: {snapshot: {source: "", as_of: "", source_sha: "", record_hash: 
 
 ID 목록과 pinned records는 일대일이어야 하며 Planner는 여러 record의 scope를 합치지 않는다. Grant는 `GRANTED`+type/actor/scope/source SHA/유효기간/lineage, Evidence는 `ACCEPTED`+acceptor/scope/source SHA/재검증일/conflict 없음과 record hash가 모두 맞아야 한다. unavailable/stale/revoked/expired record는 각각 Grant/Evidence 오류로 차단한다. Runtime Ledger가 없는 현재 단계에서는 `existing_state`를 explicit empty arrays가 포함된 승인 문서/GitHub snapshot으로 고정하며 source/as-of/SHA/hash가 없거나 open/active/graph freshness를 판정할 수 없으면 차단한다. Issue·Label은 runtime 권위가 아니다.
 
-## 3. Source Snapshot과 Requirement 추출
+## 3. Source Snapshot과 canonical Requirement 검증
 
 Branch/working tree가 아니라 canonical URI+commit SHA+path+blob SHA+anchor+text hash+policy version을 고정한다. SHA/path 부재는 reject, blob 불일치는 reject, text 변화나 planning 중 변경은 `STALE`이며 자동 보정하지 않는다. 최신 `master`와 다른 SHA는 명시적 historical 또는 unmerged-source approval record가 있을 때만 허용하고, proposal을 승인 Source로 사용하면 reject한다.
 
-순서는 `Source Authority→atomic 분리→Stable ID/UUIDv5→requirement_record_hash→중복→Conflict→Lifecycle→Execution Grant→Evidence Readiness`다. 기존 atomic `FR/UX/SR/NFR` ID를 우선하고 다른 ID는 alias, 동일 의미의 낮은 권위 Source는 supporting snapshot이다. Parent/related/supersede 이력을 보존하며 Agent는 lineage나 conflict를 해결하지 않는다. 미해결 conflict, `OPEN`, evidence 미충족과 proposal-only Source는 실행 후보를 차단하고 추출 오류가 하나라도 있으면 Work Package compile을 금지한다.
+순서는 `schema identity/version→canonical bytes/hash→Source Authority/approval lineage→source pin/freshness→Requirement ID/record hash→set digest/duplicate→Conflict→Lifecycle→Execution Grant→Evidence Readiness`다. Planner는 ID를 새로 만들거나 atomic 분리·병합·alias 선택을 하지 않고 입력의 Parent/related/supersede 이력을 보존한다. 미해결 conflict, `OPEN`, evidence 미충족과 proposal-only Source는 실행 후보를 차단하고 검증 오류가 하나라도 있으면 Work Package compile을 금지한다.
 
 ```yaml
 requirements: [{requirement_id: "", requirement_record_hash: "", requirement_kind: "", title: "", statement: "", source: {}, authority: {}, lifecycle: "", implementation_gate: {}, external_evidence: {}, conflicts: [], validation_result: {status: "", errors: []}}]
 requirement_set_digest: "sha256:"
 ```
 
-ID/hash와 sorted `(requirement_id, requirement_record_hash)` 집합의 `requirement_set_digest`는 Requirement Schema를 따른다. 추출은 승인이나 Grant가 아니며 unresolved conflict record를 삭제하지 않는다.
+ID/hash와 sorted `(requirement_id, requirement_record_hash)` 집합의 `requirement_set_digest`는 Requirement Schema를 따른다. 입력 검증은 승인이나 Grant가 아니며 unresolved conflict record를 삭제하지 않는다.
 
 ## 4. Work Package compile과 출력
 
@@ -127,10 +127,10 @@ dry_run:
    workgraph: {}, issue_drafts: [], lock_analysis: {}, risk_summary: {}, human_decisions: [],
    external_evidence_gaps: [], warnings: [], errors: [], blocked_reasons: [],
    execution_summary: {executable_nodes: [], blocked_nodes: [], human_nodes: [], evidence_nodes: [], review_nodes: []},
-   result: DRY_RUN_BLOCKED, result_digest: "sha256:<pending-canonical-bytes>"}
+   result: DRY_RUN_BLOCKED, result_digest: "sha256:<64-hex>"}
 ```
 
-`result_digest` 논리 입력은 schema/input snapshot, Requirement records/set digest, Package normative records/set digest, Graph normative structure/plan digest, Issue `renderer_version+canonical_fields`, lock/risk/gate/gap/finding codes와 판정이다. rendered title/body, 설명 prose, labels 표시 순서, `generated_at`, 출력 경로, Markdown formatting, 조회 시각과 generator display version은 제외한다. `[OPEN]` canonical JSON byte 규칙을 확정하기 전에는 실제 digest를 authoritative로 발행하지 않고 placeholder와 `DRY_RUN_BLOCKED`를 사용한다.
+`result_digest` 논리 입력은 schema/input snapshot, Requirement records/set digest, Package normative records/set digest, Graph normative structure/plan digest, Issue `renderer_version+canonical_fields`, lock/risk/gate/gap/finding codes와 판정이다. rendered title/body, 설명 prose, labels 표시 순서, `generated_at`, 출력 경로, Markdown formatting과 generator display version은 제외한다. `generated_at`은 input의 `existing_state.snapshot.as_of`, `generated_by`는 고정된 Planner version에서 결정적으로 파생한다. 승인된 canonical JSON bytes로 실제 digest를 발행하며 placeholder digest는 거부한다.
 
 | 판정 | 조건 |
 | --- | --- |
@@ -154,8 +154,8 @@ dry_run:
 | `DRP_SOURCE_TEXT_HASH_MISMATCH` | section bytes hash 불일치 | E | `DRY_RUN_STALE` | N/Y/Y |
 | `DRP_SOURCE_STALE` | planning 중 source/policy/state 변경 | E | `DRY_RUN_STALE` | N/Y/Y |
 | `DRP_POLICY_VERSION_MISSING` | policy 누락/미승인 | E | `DRY_RUN_REJECTED` | N/Y/Y |
-| `DRP_REQUIREMENT_EXTRACTION_FAILED` | source를 record로 만들 수 없음 | E | `DRY_RUN_REJECTED` | N/Y/Y |
-| `DRP_REQUIREMENT_NON_ATOMIC` | 독립 규범 혼합 | E | `DRY_RUN_BLOCKED` | Y/Y/Y |
+| `DRP_REQUIREMENT_EXTRACTION_FAILED` | canonical Requirement load/schema/hash 검증 실패 | E | `DRY_RUN_REJECTED` | N/Y/Y |
+| `DRP_REQUIREMENT_NON_ATOMIC` | pinned record가 독립 규범 혼합으로 표시됨; Planner는 분리하지 않음 | E | `DRY_RUN_BLOCKED` | N/Y/Y |
 | `DRP_REQUIREMENT_CONFLICT_UNRESOLVED` | conflict state≠RESOLVED | E | `DRY_RUN_BLOCKED` | N/Y/Y |
 | `DRP_REQUIREMENT_NOT_EXECUTABLE` | non-exec Package로 안전 변환됨 | W | `DRY_RUN_VALID_WITH_WARNINGS` | Y/Y/N |
 | `DRP_REQUIREMENT_SET_DIGEST_MISMATCH` | sorted set 재계산 불일치 | E | `DRY_RUN_REJECTED` | Y/N/Y |
@@ -179,7 +179,7 @@ dry_run:
 
 ## 9. 결정성, 보안, 저장과 Pilot
 
-입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. 같은 입력의 두 실행은 display timestamp를 제외하고 같은 논리 결과여야 한다. [IMPLEMENTED FOUNDATION] `scripts/harness/canonical-json.mjs`와 `canonical-identity.mjs`가 approved normalization, JCS-compatible bytes, SHA-256와 repository UUIDv5 golden contract를 구현하지만 Planner는 구현하지 않는다.
+입력/Set은 ID·digest 순, path는 root-relative POSIX/NFC와 case-fold 비교, text/title은 NFC+LF+trim+공백 정규화, JSON key는 lexical, null과 `[]`은 구분하고 숫자/문자열 type을 보존한다. 랜덤 값과 모델 자유문은 ID/digest 입력에서 금지하며 제목·Issue body는 canonical template로 만들고 설명용 prose는 digest에서 제외한다. `dry_run_id`는 repository URI+SHA+scope+policy version UUIDv5다. `generated_at`을 포함한 모든 출력 필드는 pinned input 또는 고정 Planner version에서 파생하며 같은 입력의 두 실행은 byte-identical JSON과 동일 digest를 만들어야 한다. [IMPLEMENTED FOUNDATION] `scripts/harness/canonical-json.mjs`와 `canonical-identity.mjs`가 approved normalization, JCS-compatible bytes, SHA-256와 repository UUIDv5 golden contract를 구현하지만 Planner는 아직 구현하지 않는다.
 
 Planner는 read-only Git object와 기존 Issue/PR 조회, stdout·OS temp 출력만 허용한다. 저장소/index/branch/worktree/GitHub/label/secret/Production/vendor mutation과 Worker 실행은 금지한다. Prompt는 경계가 아니며 sandbox, tool allowlist와 read-only token이 경계다.
 
@@ -193,6 +193,6 @@ Planner는 read-only Git object와 기존 Issue/PR 조회, stdout·OS temp 출�
 
 Runtime Ledger 등록과 Issue 생성은 별도 단계다. AH-P0-01은 single-host SQLite authority와 GitHub projection을 승인된 design boundary로 두지만 별도 구현 Grant 전에는 저장 파일/table/API를 만들지 않는다.
 
-[CONFIRMED] 첫 Pilot은 D-009를 primary approved Source, Slice 1 Product Implementation Approval Plan을 proposal decomposition/supporting Source, Issue #35를 bounded Execution Grant record, PR #36을 immutable historical completion evidence로 고정한 Product Bootstrap이다. 외부 Evidence·Production·Secret·Migration 없이 완료 결과와 비교하며 재실행하지 않는다. 예상 topology는 `WORK→{Architecture Review, CI Verification}→Integration→Owner Merge Approval→merge-observed EVIDENCE→후속 PR B Unlock`의 병렬 fan-out/fan-in이며 Requirement 후보, Work Package 1개, Issue 초안 1개, Lock 요구, Risk Summary, warning과 plan digest를 출력한다.
+[CONFIRMED] 첫 Pilot은 D-009를 primary approved Source, Slice 1 Product Implementation Approval Plan을 proposal decomposition/supporting Source, Issue #35를 bounded Execution Grant record, PR #36을 immutable historical completion evidence로 고정한 Product Bootstrap이다. 외부 Evidence·Production·Secret·Migration 없이 완료 결과와 비교하며 재실행하지 않는다. 예상 topology는 `WORK→{Architecture Review, CI Verification}→Integration→Owner Merge Approval→merge-observed EVIDENCE→후속 PR B Unlock`의 병렬 fan-out/fan-in이며 검증된 canonical Requirement projection, Work Package 1개, Issue 초안 1개, Lock 요구, Risk Summary, warning과 plan digest를 출력한다.
 
-[IMPLEMENTED FOUNDATION] [Dry-run](../../../schemas/automation/dry-run.schema.json)과 [Error](../../../schemas/automation/error.schema.json) machine schema 및 structural contract test를 Issue #48에서 구현한다. Full JSON Schema engine, Extractor, semantic Validator, Planner, Runtime Ledger, Dispatcher, Hermes, Slack과 Issue 생성기는 미구현이다.
+[AUTHORIZED NEXT IMPLEMENTATION] [Dry-run](../../../schemas/automation/dry-run.schema.json), [Error](../../../schemas/automation/error.schema.json)와 dependency-free structural validator는 PR #49에 존재한다. AH-P1-01은 [별도 권한 기록](../../discovery/autonomous-harness-readonly-planner-authority.md)이 `master`에 병합된 뒤 구현할 수 있다. Full JSON Schema engine은 필요하지 않으며 Extractor, Runtime Ledger, Dispatcher, Critic, Worker와 Issue/PR writer는 미구현·미승인이다.

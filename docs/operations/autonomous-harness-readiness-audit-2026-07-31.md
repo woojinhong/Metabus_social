@@ -2,15 +2,15 @@
 title: Autonomous Development Harness Readiness Audit
 document_type: readiness audit
 classification: research finding
-status: Current snapshot; no implementation authority
+status: Historical pre-AH-P0/AH-P1 snapshot; no decision authority
 last_verified: 2026-07-31
-related_documents: ["../INDEX.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md","github-workflow.md","../discovery/slice-01-current-authority.md"]
+related_documents: ["../INDEX.md","../discovery/autonomous-harness-readonly-planner-authority.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md","github-workflow.md","../discovery/slice-01-current-authority.md"]
 decision_authority: none; read-only repository and GitHub settings audit at origin/master 1416aad
 ---
 
 # Propscans 자율형 개발 Harness 준비도 감사
 
-판정 표기: **E** Evidence, **I** Inference, **U** Unknown. 파일 근거는 `path:line`이다. Live GitHub 설정은 2026-07-31 API snapshot이다.
+판정 표기: **E** Evidence, **I** Inference, **U** Unknown. 파일 근거는 `path:line`이다. Live GitHub 설정은 2026-07-31 API snapshot이다. 이 감사의 “권한 없음” 판정은 당시 snapshot이며, 후속 AH-P0-02 완료와 [AH-P1-01 승인](../discovery/autonomous-harness-readonly-planner-authority.md)이 현재 권한을 정한다.
 
 # 1. 결론
 

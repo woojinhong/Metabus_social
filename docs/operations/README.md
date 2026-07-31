@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-07-31
-related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -34,13 +34,16 @@ decision_authority: decisions.md and approved operations policies
 - [Autonomous Harness readiness audit](autonomous-harness-readiness-audit-2026-07-31.md)
   records the historical evidence and [AH-P0-01 foundation](../discovery/autonomous-harness-foundation-approval-plan.md)
   records the approved canonical identity, authority and projection boundary.
+- [AH-P1-01 authority](../discovery/autonomous-harness-readonly-planner-authority.md)
+  approves deterministic read-only Proposal generation after merge, without execution or mutation.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` golden contract tests implement AH-P0-02 without a Planner.
 - Read these after the repository authority sources in this order: Requirement
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
-  Dry-run Planner Contract, audit, then AH-P0-01 and the machine schemas. No
-  Extractor, Planner, Dispatcher, Runtime Ledger, Writer or Worker exists;
-  AH-P0-02 grants no product or runtime execution authority.
+  Dry-run Planner Contract, audit, then AH-P0-01/AH-P1-01 authority and machine
+  schemas. Planner implementation is authorized but not yet present. No Extractor,
+  Dispatcher, Runtime Ledger, Writer or Worker exists, and no product or runtime
+  execution authority is granted.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
