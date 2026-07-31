@@ -633,6 +633,26 @@ test("Worker usage beyond the pinned token budget blocks publication", async (t)
   assert.equal(fixture.publisher.publishCalls.length, 0);
 });
 
+test("unverified Worker usage blocks publication even when numeric fields are present", async (t) => {
+  const worker = fakeWorker({
+    onRun: () => ({
+      usage: {
+        tokens: 0,
+        cost: 0,
+        external_calls: 0,
+        verified: false,
+      },
+    }),
+  });
+  const fixture = await executeFixture(t, { worker });
+  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(
+    fixture.result.packages[0].error_code,
+    "RUNNER_WORKER_USAGE_MISSING",
+  );
+  assert.equal(fixture.publisher.publishCalls.length, 0);
+});
+
 test("default required-test adapter refuses unverified network/process-tree isolation", async () => {
   await assert.rejects(
     createTestRunner().assertAvailable(),
