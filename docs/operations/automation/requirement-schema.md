@@ -5,8 +5,8 @@ classification: proposal
 status: Machine schema foundation implemented; no product or agent execution authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../../schemas/automation/requirement.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
-decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; every product and agent execution grant remains separate
+related_documents: ["../../../schemas/automation/requirement.schema.json","../../discovery/autonomous-harness-readonly-planner-authority.md","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","../../INDEX.md","../README.md","../github-workflow.md","../../discovery/decisions.md","../../spec/traceability-implementation.md","../../discovery/slice-01-product-implementation-approval-plan.md"]
+decision_authority: Owner instructions on 2026-07-31 authorize the machine schema and bounded read-only Planner consumption; product and agent execution remain separate
 ---
 
 # Requirement Extraction Schema Proposal
@@ -188,4 +188,4 @@ Source/identity 오류는 `REQ_SOURCE_SHA_MISSING|REQ_LINE_ID_FORBIDDEN|REQ_ID_C
 Conflict 오류는 미해결 상태의 `REQ_CONFLICT_UNRESOLVED`, decision record가 없는 `REQ_CONFLICT_RESOLUTION_MISSING`, actor/source SHA/scope 권위가 불일치한 `REQ_CONFLICT_AUTHORITY_INVALID`다. 모두 Work Package 후보의 실행 가능 판정과 `READY`를 차단한다.
 ## 17. 검증 규칙
 
-[IMPLEMENTED FOUNDATION] [Requirement machine schema](../../../schemas/automation/requirement.schema.json)는 Candidate와 canonical record, 필수 필드·enum·nullability·format과 proposal 승격 차단을 `1.0.0`으로 고정한다. `scripts/harness/schema-contract.test.mjs`는 dependency 없는 structural subset만 검증하며 full JSON Schema engine은 별도 dependency Gate다. Extractor, semantic approval, Planner, Runtime Validator와 제품 실행은 구현·승인하지 않는다.
+[IMPLEMENTED FOUNDATION] [Requirement machine schema](../../../schemas/automation/requirement.schema.json)는 Candidate와 canonical record, 필수 필드·enum·nullability·format과 proposal 승격 차단을 `1.0.0`으로 고정한다. `scripts/harness/schema-contract.test.mjs`의 dependency 없는 structural subset은 AH-P1-01에 충분하고 full JSON Schema engine은 별도 dependency Gate다. [AH-P1-01](../../discovery/autonomous-harness-readonly-planner-authority.md)은 Owner-pinned canonical record 소비만 승인하며 Extractor, semantic approval, Runtime Validator와 제품 실행은 미구현·미승인이다.

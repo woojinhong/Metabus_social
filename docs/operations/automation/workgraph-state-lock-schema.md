@@ -5,8 +5,8 @@ classification: proposal
 status: Machine schema foundation implemented; no graph execution, claim or integration authority
 implementation_ready: false
 last_verified: 2026-07-31
-related_documents: ["../../../schemas/automation/workgraph.schema.json","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","../README.md","../github-workflow.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
-decision_authority: explicit Owner instruction on 2026-07-31 authorizes Issue #48 machine schema and deterministic contract tests only; graph execution, runtime state, claims, GitHub mutation, merge and follow-up unlock remain separately gated
+related_documents: ["../../../schemas/automation/workgraph.schema.json","../../discovery/autonomous-harness-readonly-planner-authority.md","../../discovery/autonomous-harness-foundation-approval-plan.md","../autonomous-harness-readiness-audit-2026-07-31.md","requirement-schema.md","work-package-and-issue-schema.md","../README.md","../github-workflow.md","../../discovery/slice-01-product-implementation-approval-plan.md","../../spec/traceability-implementation.md"]
+decision_authority: Owner instructions on 2026-07-31 authorize machine schema and bounded non-executing WorkGraph compilation only; runtime state, claims, GitHub mutation, merge and follow-up unlock remain separately gated
 ---
 
 # WorkGraph State and Lock Schema Proposal
