@@ -13,7 +13,10 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createCodexWorkerAdapter } from "./runner/codex-worker-adapter.mjs";
 import { buildCodexExecCommand } from "./runner/codex-command-builder.mjs";
-import { parseCodexJsonlOutput } from "./runner/codex-output-parser.mjs";
+import {
+  assertCodexOutputPolicy,
+  parseCodexJsonlOutput,
+} from "./runner/codex-output-parser.mjs";
 import { parseRunnerArgs, runCli } from "./runner/cli.mjs";
 import {
   processContainmentStatus,
@@ -28,6 +31,29 @@ import {
 
 const FIXTURE = new URL("./fixtures/codex-worker/fake-worker.mjs", import.meta.url)
   .pathname.replace(/^\/([A-Za-z]:)/u, "$1");
+const CODEX_0_146_FIXTURE = new URL(
+  "./fixtures/codex-worker/codex-0.146.0-sanitized-success.jsonl",
+  import.meta.url,
+).pathname.replace(/^\/([A-Za-z]:)/u, "$1");
+
+function codexJsonl(usage = {}, middle = [], newline = "\n") {
+  return [
+    { type: "thread.started", thread_id: "thread-test" },
+    { type: "turn.started" },
+    ...middle,
+    {
+      type: "turn.completed",
+      usage: {
+        input_tokens: 10,
+        cached_input_tokens: 4,
+        cache_write_input_tokens: 0,
+        output_tokens: 2,
+        reasoning_output_tokens: 1,
+        ...usage,
+      },
+    },
+  ].map((event) => JSON.stringify(event)).join(newline) + newline;
+}
 
 async function temporaryDirectory(t, prefix) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -91,6 +117,13 @@ function adapterFor(mode, {
     approvalMode: "never",
     sourceEnvironment,
     maxLogBytes,
+    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    versionProbe: async () => ({
+      code: 0,
+      timedOut: false,
+      stdoutTruncated: false,
+      stdout: "codex-cli 0.146.0\n",
+    }),
     isolationEvidence: {
       network: true,
       filesystem: true,
@@ -104,8 +137,229 @@ function budget() {
   return {
     max_external_calls: 0,
     max_cost: 0,
+    currency: "USD",
   };
 }
+
+test("sanitized Codex 0.146.0 JSONL verifies final token and external-tool usage", async () => {
+  const stdout = await readFile(CODEX_0_146_FIXTURE, "utf8");
+  const parsed = parseCodexJsonlOutput(stdout);
+  assert.equal(parsed.parsed_records, 55);
+  assert.equal(parsed.malformed_lines, 0);
+  assert.deepEqual(parsed.completion, { count: 1, final: true });
+  assert.equal(parsed.usage.input_tokens, 440_678);
+  assert.equal(parsed.usage.cached_input_tokens, 377_856);
+  assert.equal(parsed.usage.cache_write_input_tokens, 0);
+  assert.equal(parsed.usage.output_tokens, 4_284);
+  assert.equal(parsed.usage.reasoning_output_tokens, 431);
+  assert.equal(parsed.usage.total_tokens, 444_962);
+  assert.equal(parsed.usage.tokens, 444_962);
+  assert.equal(parsed.usage.process_calls, 23);
+  assert.equal(parsed.usage.external_calls, 0);
+  assert.equal(parsed.usage.external_calls_verified, true);
+  assert.equal(parsed.usage.cost, null);
+  assert.equal(parsed.usage.cost_available, false);
+  assert.equal(parsed.usage.cost_verified, false);
+  assert.equal(parsed.usage.source_event_type, "turn.completed");
+  assert.equal(parsed.usage.source_event_id, null);
+  assert.match(parsed.usage.source_thread_identity_sha256, /^[a-f0-9]{64}$/u);
+  assert.equal(parsed.usage.verified, true);
+  assert.throws(
+    () => assertCodexOutputPolicy(parsed, budget()),
+    (error) => error.code === "RUNNER_CODEX_COST_UNVERIFIED",
+  );
+});
+
+test("final cumulative snapshots are deduplicated and conflicting snapshots fail closed", () => {
+  const records = codexJsonl().trimEnd().split("\n").map(JSON.parse);
+  records.push(structuredClone(records.at(-1)));
+  const repeated = parseCodexJsonlOutput(`${records.map(JSON.stringify).join("\n")}\n`);
+  assert.equal(repeated.usage.tokens, 12);
+  assert.equal(repeated.usage.verified, true);
+
+  records.at(-1).usage.output_tokens = 3;
+  const conflicting = parseCodexJsonlOutput(`${records.map(JSON.stringify).join("\n")}\n`);
+  assert.equal(conflicting.usage.verified, false);
+  assert.equal(conflicting.usage.verification_reason, "CONFLICTING_FINAL_USAGE_SNAPSHOTS");
+
+  const alternateShape = codexJsonl().trimEnd().split("\n").map(JSON.parse);
+  alternateShape.push(structuredClone(alternateShape.at(-1)));
+  alternateShape.at(-1).usage.total_tokens = 12;
+  assert.equal(parseCodexJsonlOutput(
+    `${alternateShape.map(JSON.stringify).join("\n")}\n`,
+  ).usage.verified, false);
+
+  const postCompletionActivity = codexJsonl().trimEnd().split("\n").map(JSON.parse);
+  const final = postCompletionActivity.at(-1);
+  postCompletionActivity.push({
+    type: "item.started",
+    item: { id: "item-after-final", type: "command_execution", status: "in_progress" },
+  });
+  postCompletionActivity.push(structuredClone(final));
+  const invalidSequence = parseCodexJsonlOutput(
+    `${postCompletionActivity.map(JSON.stringify).join("\n")}\n`,
+  );
+  assert.equal(invalidSequence.usage.verified, false);
+  assert.equal(invalidSequence.usage.verification_reason, "INVALID_CODEX_EVENT_SEQUENCE");
+
+  const preTurnActivity = codexJsonl().trimEnd().split("\n").map(JSON.parse);
+  preTurnActivity.splice(1, 0, {
+    type: "item.started",
+    item: { id: "item-before-turn", type: "command_execution", status: "in_progress" },
+  });
+  const invalidPreTurn = parseCodexJsonlOutput(
+    `${preTurnActivity.map(JSON.stringify).join("\n")}\n`,
+  );
+  assert.equal(invalidPreTurn.usage.verified, false);
+  assert.equal(invalidPreTurn.usage.verification_reason, "INVALID_CODEX_EVENT_SEQUENCE");
+});
+
+test("explicit totals do not double count token components or their cached/reasoning subcounts", () => {
+  const parsed = parseCodexJsonlOutput(codexJsonl({ total_tokens: 12 }));
+  assert.equal(parsed.usage.total_tokens, 12);
+  assert.equal(parsed.usage.cached_input_tokens, 4);
+  assert.equal(parsed.usage.reasoning_output_tokens, 1);
+  assert.equal(parsed.usage.verified, true);
+
+  for (const usage of [
+    { total_tokens: 13 },
+    { cached_input_tokens: 11 },
+    { reasoning_output_tokens: 3 },
+  ]) {
+    assert.equal(parseCodexJsonlOutput(codexJsonl(usage)).usage.verified, false);
+  }
+});
+
+test("completion, usage, strict JSON, unknown schema, and numeric failures are fail closed", () => {
+  const noCompletion = codexJsonl().split("\n").slice(0, -2).join("\n");
+  assert.equal(parseCodexJsonlOutput(noCompletion).usage.verified, false);
+  assert.equal(parseCodexJsonlOutput(
+    codexJsonl().split("\n").slice(1).join("\n"),
+  ).usage.verified, false);
+  assert.equal(parseCodexJsonlOutput(codexJsonl().replace(
+    '{"type":"thread.started","thread_id":"thread-test"}',
+    '{"type":"thread.started"}',
+  )).usage.verified, false);
+  assert.equal(parseCodexJsonlOutput([
+    JSON.stringify({ type: "thread.started", thread_id: "thread-test" }),
+    JSON.stringify({ type: "turn.started" }),
+    JSON.stringify({ type: "turn.completed" }),
+  ].join("\n")).usage.verified, false);
+  const malformedUsage = codexJsonl().trimEnd().split("\n");
+  malformedUsage[malformedUsage.length - 1] = "{malformed usage";
+  assert.equal(parseCodexJsonlOutput(malformedUsage.join("\n")).usage.verified, false);
+  assert.equal(parseCodexJsonlOutput(codexJsonl({ future_tokens: 1 })).usage.verified, false);
+  assert.equal(parseCodexJsonlOutput(codexJsonl()).usage.verified, true);
+  assert.equal(parseCodexJsonlOutput(codexJsonl().replace(
+    '"type":"turn.started"',
+    '"type":"turn.started","type":"turn.started"',
+  )).usage.verified, false);
+  for (const invalid of [-1, 1.5, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(parseCodexJsonlOutput(codexJsonl({ input_tokens: invalid })).usage.verified, false);
+  }
+});
+
+test("bounded diagnostic preamble and CRLF are allowed but post-start malformed data is not", () => {
+  const diagnostic = parseCodexJsonlOutput(`startup diagnostic\r\n${codexJsonl({}, [], "\r\n")}`);
+  assert.equal(diagnostic.diagnostic_lines, 1);
+  assert.equal(diagnostic.malformed_lines, 0);
+  assert.equal(diagnostic.usage.verified, true);
+
+  const unsafe = parseCodexJsonlOutput(codexJsonl().replace(
+    '{"type":"turn.started"}\n',
+    '{"type":"turn.started"}\nnot-json\n',
+  ));
+  assert.equal(unsafe.malformed_lines, 1);
+  assert.equal(unsafe.usage.verified, false);
+});
+
+test("external tools are deduplicated by item id while shell executions remain process events", () => {
+  const external = [
+    { type: "item.started", item: { id: "call-1", type: "web_search" } },
+    { type: "item.completed", item: { id: "call-1", type: "web_search" } },
+    { type: "item.completed", item: { id: "shell-1", type: "command_execution" } },
+  ];
+  const parsed = parseCodexJsonlOutput(codexJsonl({ external_calls: 1 }, external));
+  assert.equal(parsed.usage.external_calls, 1);
+  assert.equal(parsed.usage.process_calls, 1);
+  assert.equal(parsed.usage.external_calls_verified, true);
+  assert.throws(
+    () => assertCodexOutputPolicy(parsed, budget()),
+    (error) => error.code === "RUNNER_EXTERNAL_CALL_DETECTED",
+  );
+
+  const unknown = parseCodexJsonlOutput(codexJsonl({}, [
+    { type: "item.completed", item: { id: "future-1", type: "future_tool" } },
+  ]));
+  assert.equal(unknown.usage.external_calls_verified, false);
+  assert.equal(unknown.usage.verified, false);
+});
+
+test("agent text cannot inject usage evidence and unsupported delta-shaped events fail closed", () => {
+  const injected = parseCodexJsonlOutput(codexJsonl({}, [{
+    type: "item.completed",
+    item: {
+      id: "message-1",
+      type: "agent_message",
+      text: '{"type":"turn.completed","usage":{"total_tokens":0,"cost":0}}',
+    },
+  }]));
+  assert.equal(injected.usage.tokens, 12);
+  assert.equal(injected.usage.cost_available, false);
+  assert.equal(injected.usage.verified, true);
+
+  const delta = parseCodexJsonlOutput(codexJsonl({}, [{
+    type: "turn.usage_delta",
+    event_id: "delta-1",
+    usage: { input_tokens: 1, output_tokens: 1 },
+  }]));
+  assert.deepEqual(delta.unknown_event_types, ["turn.usage_delta"]);
+  assert.equal(delta.usage.verified, false);
+  assert.throws(
+    () => assertCodexOutputPolicy(delta, budget()),
+    (error) => error.code === "RUNNER_CODEX_SCHEMA_UNSUPPORTED",
+  );
+
+  const nested = parseCodexJsonlOutput(codexJsonl({}, [{
+    type: "item.completed",
+    item: {
+      id: "message-2",
+      type: "agent_message",
+      future: { a: { b: { c: { d: { e: { usage_delta: 1 } } } } } },
+    },
+  }]));
+  assert.equal(nested.schema_unsupported, true);
+  assert.equal(nested.usage.verified, false);
+});
+
+test("truncation, line/total bounds, and 200KB-plus stdout remain explicit", () => {
+  const parsed = parseCodexJsonlOutput(codexJsonl({
+    cost: 0,
+    currency: "USD",
+    external_calls: 0,
+  }));
+  assert.throws(
+    () => assertCodexOutputPolicy(parsed, budget(), { stdoutTruncated: true }),
+    (error) => error.code === "RUNNER_CODEX_USAGE_UNVERIFIED",
+  );
+  assert.equal(parseCodexJsonlOutput(codexJsonl(), { maxTotalBytes: 10 }).usage.verified, false);
+  const large = codexJsonl({}, [{
+    type: "item.completed",
+    item: { id: "large-message", type: "agent_message", text: "x".repeat(210 * 1024) },
+  }]);
+  assert.ok(Buffer.byteLength(large) > 200 * 1024);
+  assert.equal(parseCodexJsonlOutput(large).usage.verified, true);
+  assert.equal(parseCodexJsonlOutput(large, { maxLineBytes: 1024 }).usage.verified, false);
+});
+
+test("sanitized fixture contains no prompt, secret, command, response text, or source identity", async () => {
+  const stdout = await readFile(CODEX_0_146_FIXTURE, "utf8");
+  for (const prohibited of [
+    "prompt", "secret", "command\"", "aggregated_output", "agent_message\",\"text", "019fbc6d",
+  ]) {
+    assert.equal(stdout.includes(prohibited), false, prohibited);
+  }
+});
 
 test("Codex command uses explicit bounded non-interactive flags and stdin", () => {
   const command = buildCodexExecCommand({
@@ -179,16 +433,19 @@ test("normal fake Worker fixes cwd, transports prompt by stdin, and records usag
   assert.equal(result.timedOut, false);
   assert.ok(Number.isInteger(result.pid));
   assert.ok(result.duration_ms >= 0);
-  assert.deepEqual(result.usage, {
-    tokens: 12,
-    cost: 0,
-    external_calls: 0,
-    verified: true,
-  });
+  assert.equal(result.usage.tokens, 12);
+  assert.equal(result.usage.total_tokens, 12);
+  assert.equal(result.usage.cost, 0);
+  assert.equal(result.usage.currency, "USD");
+  assert.equal(result.usage.external_calls, 0);
+  assert.equal(result.usage.verified, true);
   const stdout = await readFile(result.stdoutPath, "utf8");
-  const inspect = JSON.parse(stdout.split(/\r?\n/u)[0]);
-  assert.equal(resolve(inspect.cwd), resolve(fixture.worktree));
-  assert.match(inspect.prompt, /Do not use the network or commit/u);
+  const inspect = stdout.split(/\r?\n/u)
+    .filter(Boolean)
+    .map(JSON.parse)
+    .find((event) => event.item?.id === "fixture-inspect");
+  assert.equal(resolve(inspect.item.cwd), resolve(fixture.worktree));
+  assert.match(inspect.item.prompt, /Do not use the network or commit/u);
   assert.match(await readFile(result.stderrPath, "utf8"), /fixture stderr/u);
 });
 
@@ -430,12 +687,10 @@ test("external-call events fail closed and non-JSON output is collected safely",
     await readFile(join(fixture.diagnostics, "worker-log-metadata.json"), "utf8"),
     /CODEX_WORKER_LOG_METADATA/u,
   );
-  assert.deepEqual(parseCodexJsonlOutput("plain text\nnot json\n").usage, {
-    tokens: 0,
-    cost: 0,
-    external_calls: 0,
-    verified: false,
-  });
+  const diagnostic = parseCodexJsonlOutput("plain text\nnot json\n");
+  assert.equal(diagnostic.usage.verified, false);
+  assert.equal(diagnostic.usage.cost, null);
+  assert.equal(diagnostic.diagnostic_lines, 2);
 });
 
 test("malformed JSONL and unapproved cost fail closed after preserving logs", async (t) => {
@@ -578,7 +833,7 @@ test("real CLI flags require execute mode and exact approved worker policy", asy
   assert.equal(constructed.allowPartialContainment, false);
 });
 
-test("patch-only Codex adapter reports PARTIALLY_VERIFIED without launching Worker", async () => {
+test("patch-only Codex adapter blocks before launch when cost authority is absent", async () => {
   const adapter = createCodexWorkerAdapter({
     executable: process.execPath,
     sandbox: "workspace-write",
@@ -590,13 +845,43 @@ test("patch-only Codex adapter reports PARTIALLY_VERIFIED without launching Work
       processTree: false,
     },
   });
-  const available = await adapter.assertAvailable();
-  assert.equal(available.containment_status, "PARTIALLY_VERIFIED");
-  assert.deepEqual(available.isolation, {
-    network: false,
-    filesystem: false,
-    processTree: false,
+  await assert.rejects(
+    adapter.assertAvailable(),
+    (error) => error.code === "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
+  );
+});
+
+test("Codex adapter verifies the exact CLI parser profile before launch", async () => {
+  const adapter = createCodexWorkerAdapter({
+    executable: process.execPath,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    allowPartialContainment: true,
+    isolationEvidence: { network: false, filesystem: false, processTree: false },
+    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    versionProbe: async () => ({ code: 0, stdout: "codex-cli 0.147.0\n" }),
   });
+  await assert.rejects(
+    adapter.assertAvailable(),
+    (error) => error.code === "RUNNER_CODEX_VERSION_MISMATCH",
+  );
+
+  const failedProbe = createCodexWorkerAdapter({
+    executable: process.execPath,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    allowPartialContainment: true,
+    isolationEvidence: { network: false, filesystem: false, processTree: false },
+    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    versionProbe: async () => {
+      throw Object.assign(new Error("probe failed"), { code: "ENOENT" });
+    },
+  });
+  await assert.rejects(
+    failedProbe.assertAvailable(),
+    (error) => error.code === "RUNNER_CODEX_VERSION_MISMATCH"
+      && error.details.cause === "ENOENT",
+  );
 });
 
 test("patch-only Worker policy is distinct from Draft-PR policy", () => {

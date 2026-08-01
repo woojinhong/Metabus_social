@@ -154,8 +154,8 @@ Pilot or invoke Runner publication. 모든 Package의 collision-free preparation
 Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows `taskkill`
 fallback but no strict Job Object or OS network deny. Issue #60 adds the distinct
 `EXECUTE_PATCH_ONLY` path for one exact `docs/**` file. Issue #62 limits dubious-
-ownership handling to `git -c safe.directory=<verified-source-git-dir> clone`: it never uses
-`*`, changes source ownership, or writes global, system or user Git config.
+ownership handling to `git -c safe.directory=<verified-source-git-dir> clone`: it never uses `*`, changes source ownership, or writes global, system or user Git config.
+Issue #64 parses Codex 0.146.0 final JSONL usage without subcount or snapshot double counting; exact CLI version is probed, unknown schemas fail closed, and absent cost stays `null` behind a pre-execution Owner-authority block.
 
 The approval pins the local source root; its Git config and repository state are
 compared after every clone attempt; destination Git metadata must be independent, with no remote and an empty local

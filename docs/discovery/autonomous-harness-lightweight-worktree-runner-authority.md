@@ -189,6 +189,9 @@ OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-proc
 상태는 계속 `BLOCKED_ENVIRONMENT`이며 실제 Pilot은 새 per-run Owner approval 뒤에도
 모든 환경 Gate가 별도로 충족되기 전까지 실행할 수 없다.
 
+Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.0 final usage를 검증하되,
+제공되지 않은 monetary cost는 별도 Owner authority 전까지 차단한다.
+
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 
 Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. Issue #62는 Owner-approved worktree에서 확인한 real git-dir의 local clone에만 `-c safe.directory=<정규화된 절대 git-dir>`를 적용하며 `*`, global/system/user config 변경과 source 소유권 변경을 금지한다.

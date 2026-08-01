@@ -41,6 +41,8 @@ export function createCodexWorkerAdapter({
   allowPartialContainment = false,
   maxLogBytes = 1024 * 1024,
   run = runProcess,
+  versionProbe = runProcess,
+  costAuthority = null,
   commandBuilder = buildCodexExecCommand,
 } = {}) {
   if (typeof executable !== "string" || !isAbsolute(executable)) {
@@ -76,12 +78,48 @@ export function createCodexWorkerAdapter({
         { isolation: evidence },
       );
     }
+    if (
+      costAuthority?.approved !== true
+      || costAuthority.mode !== "CLI_REPORTED"
+      || costAuthority.currency !== "USD"
+    ) {
+      throw adapterError(
+        "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
+        "Owner-pinned Codex authentication and cost authority is required before execution",
+      );
+    }
+    const versionResult = await versionProbe(executablePath, ["--version"], {
+      env: filterWorkerEnvironment(sourceEnvironment).environment,
+      timeoutMs: 5_000,
+      maxOutputBytes: 4_096,
+    }).catch((cause) => {
+      throw adapterError(
+        "RUNNER_CODEX_VERSION_MISMATCH",
+        "Codex version probe failed for the approved 0.146.0 parser profile",
+        { cause: cause?.code ?? cause?.name ?? "UNKNOWN" },
+      );
+    });
+    const versionOutput = String(versionResult?.stdout ?? "").trim();
+    if (
+      versionResult?.code !== 0
+      || versionResult?.timedOut === true
+      || versionResult?.stdoutTruncated === true
+      || !/^codex(?:-cli)?\s+0\.146\.0$/u.test(versionOutput)
+    ) {
+      throw adapterError(
+        "RUNNER_CODEX_VERSION_MISMATCH",
+        "Codex executable does not match the approved 0.146.0 parser profile",
+        { observed_version: versionOutput || null },
+      );
+    }
     return {
       executable: executablePath,
       sandbox,
       approval: approvalMode,
       isolation: evidence,
       containment_status: fullyVerified ? "VERIFIED" : "PARTIALLY_VERIFIED",
+      parser_profile: "codex-jsonl@0.146.0",
+      cost_authority: { mode: costAuthority.mode, currency: costAuthority.currency },
     };
   };
 
@@ -148,7 +186,10 @@ export function createCodexWorkerAdapter({
       const metadataPath = join(logDirectory, "worker-log-metadata.json");
       await writeFile(stdoutPath, stdout, { encoding: "utf8", flag: "wx" });
       await writeFile(stderrPath, stderr, { encoding: "utf8", flag: "wx" });
-      const parsed = parseCodexJsonlOutput(stdout);
+      const parsed = parseCodexJsonlOutput(stdout, {
+        maxTotalBytes: maxLogBytes,
+        maxLineBytes: Math.min(maxLogBytes, 256 * 1024),
+      });
       const metadata = {
         record_kind: "CODEX_WORKER_LOG_METADATA",
         pid: result.pid,
@@ -164,6 +205,14 @@ export function createCodexWorkerAdapter({
         removed_secret_names: filtered.removedSecretNames,
         parsed_jsonl_records: parsed.parsed_records,
         malformed_jsonl_lines: parsed.malformed_lines,
+        diagnostic_preamble_lines: parsed.diagnostic_lines,
+        oversized_jsonl_lines: parsed.oversized_lines,
+        jsonl_event_type_counts: parsed.event_type_counts,
+        unknown_jsonl_event_types: parsed.unknown_event_types,
+        unknown_jsonl_item_types: parsed.unknown_item_types,
+        usage_verification_reason: parsed.usage.verification_reason,
+        cost_available: parsed.usage.cost_available,
+        external_calls_verified: parsed.usage.external_calls_verified,
         process_termination: result.termination,
         containment_status: (
           evidence.network && evidence.filesystem && evidence.processTree

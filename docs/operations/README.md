@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-08-01
-related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","../discovery/autonomous-harness-codex-jsonl-usage.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -53,6 +53,9 @@ decision_authority: decisions.md and approved operations policies
   source ownership remain unchanged. AH-P2-06
   artifacts stay preserved; a real retry needs a new run ID and Owner approval.
   This does not authorize product-code Pilots.
+- [Codex 0.146.0 JSONL evidence](../discovery/autonomous-harness-codex-jsonl-usage.md)
+  fixes final token and event-level external-tool verification. Monetary cost is
+  absent from JSONL and remains a pre-execution Owner-authority blocker, not zero.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical
