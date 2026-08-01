@@ -415,7 +415,12 @@ test("external-call events fail closed and non-JSON output is collected safely",
       budget: budget(),
       workPackage: fixture.workPackage,
     }),
-    (error) => error.code === "RUNNER_EXTERNAL_CALL_DETECTED",
+    (error) => {
+      assert.equal(error.code, "RUNNER_EXTERNAL_CALL_DETECTED");
+      assert.ok(error.workerResult.usage.external_calls > 0);
+      assert.equal(error.workerResult.policyRejected, true);
+      return true;
+    },
   );
   assert.match(
     await readFile(join(fixture.diagnostics, "worker.stdout.log"), "utf8"),
@@ -506,7 +511,7 @@ test("real CLI flags require execute mode and exact approved worker policy", asy
       "--worker-approval", "never",
       "--prepare-only",
     ]),
-    /requires --execute-and-publish/u,
+    /requires --execute-patch-only or --execute-and-publish/u,
   );
 
   const root = await temporaryDirectory(t, "propscans-codex-cli-");
@@ -570,6 +575,65 @@ test("real CLI flags require execute mode and exact approved worker policy", asy
     filesystem: false,
     processTree: false,
   });
+  assert.equal(constructed.allowPartialContainment, false);
+});
+
+test("patch-only Codex adapter reports PARTIALLY_VERIFIED without launching Worker", async () => {
+  const adapter = createCodexWorkerAdapter({
+    executable: process.execPath,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    allowPartialContainment: true,
+    isolationEvidence: {
+      network: false,
+      filesystem: false,
+      processTree: false,
+    },
+  });
+  const available = await adapter.assertAvailable();
+  assert.equal(available.containment_status, "PARTIALLY_VERIFIED");
+  assert.deepEqual(available.isolation, {
+    network: false,
+    filesystem: false,
+    processTree: false,
+  });
+});
+
+test("patch-only Worker policy is distinct from Draft-PR policy", () => {
+  const approval = {
+    record_kind: "OWNER_RUN_APPROVAL",
+    approved_by: "owner",
+    approved_at: "2026-08-01T00:00:00Z",
+    publication_policy: { mode: "EXECUTE_PATCH_ONLY" },
+    worker_policy: {
+      adapter: "CODEX_CLI_0_146",
+      executable: resolve(process.execPath),
+      sandbox: "workspace-write",
+      approval: "never",
+      network_policy: "CODEX_CONFIG_RESTRICTED",
+      external_calls: 0,
+      filesystem_policy: "DISPOSABLE_CLONE_AND_RUNNER_PATH_VALIDATION",
+      process_containment: "WINDOWS_TASKKILL_TREE_FALLBACK",
+      containment_status: "PARTIALLY_VERIFIED",
+    },
+  };
+  assert.equal(
+    validateApprovedWorkerPolicy(approval, {
+      executable: process.execPath,
+      sandbox: "workspace-write",
+      approvalMode: "never",
+    }).containment_status,
+    "PARTIALLY_VERIFIED",
+  );
+  approval.worker_policy.network_policy = "DENY_REQUIRED";
+  assert.throws(
+    () => validateApprovedWorkerPolicy(approval, {
+      executable: process.execPath,
+      sandbox: "workspace-write",
+      approvalMode: "never",
+    }),
+    (error) => error.code === "RUNNER_WORKER_POLICY_MISMATCH",
+  );
 });
 
 test("current process containment implementation does not claim strict Pilot authority", () => {

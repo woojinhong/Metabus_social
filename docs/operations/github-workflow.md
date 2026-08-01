@@ -3,7 +3,7 @@ title: GitHub Documentation Workflow
 document_type: operations
 classification: user decision
 status: Approved operating policy
-last_verified: 2026-07-31
+last_verified: 2026-08-01
 related_documents:
   - ../../AGENTS.md
   - ../INDEX.md
@@ -151,17 +151,17 @@ Pilot or invoke Runner publication. 모든 Package의 collision-free preparation
 `FAILED`로 끝난다. Preparation conflict는 Worker 시작 전에 전체 run을 `BLOCKED`로
 중단한다. 모든 failed worktree, manifest와 diagnostic log는 사람의 판단을 위해 보존한다.
 
-The first actual Pilot additionally requires verified Codex and required-test
-sandboxes with network deny, filesystem isolation and process-tree containment,
-an exact per-run Owner approval plus its out-of-band expected hash, and pre-authenticated Runner
-control-plane GitHub access. Node `cwd`, child-process timeout and environment
-filtering alone must not be represented as filesystem, network or descendant
-process isolation.
+Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows `taskkill`
+fallback but no strict Job Object or OS network deny. Issue #60 adds the distinct
+`EXECUTE_PATCH_ONLY` path: one exact `docs/**` file in an OS-temp disposable
+clone, required tests and review artifacts, with commit, push, PR and GitHub
+adapter capabilities disabled. It never reuses Draft-PR approval.
 
-Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows
-`taskkill /PID <integer> /T` fallback tests. It does not implement a strict
-Job Object or OS network deny, and its temp read-only smoke is environment-blocked;
-therefore it does not unlock an actual Pilot.
+That path records containment as `PARTIALLY_VERIFIED`; `cwd`, Codex network
+configuration, reparse checks, timeouts and environment filtering do not prove
+OS network deny, a race-free filesystem sandbox or handle-pinned descendants.
+Every actual run needs a fresh hash-pinned Owner approval explicitly accepting
+those exact residual risks. Product-code Pilots remain prohibited.
 
 ## 7. Validation gate
 

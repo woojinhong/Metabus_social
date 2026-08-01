@@ -65,6 +65,14 @@ test("single approved Requirement produces one schema-valid proposal", () => {
   assert.equal(result.work_packages.length, golden.single.work_packages);
   assert.equal(result.issue_drafts.length, golden.single.issue_drafts);
   assert.equal(result.issue_drafts[0].renderer_version, golden.renderer_version);
+  assert.deepEqual(result.work_packages[0].path_policy.allowed_paths, [{
+    path: "docs/test/requirement-1.md",
+    match: "EXACT",
+  }]);
+  assert.deepEqual(
+    result.work_packages[0].path_policy.required_paths,
+    result.work_packages[0].path_policy.allowed_paths,
+  );
   assert.match(result.issue_drafts[0].body, /\nRefs:/);
   assert.doesNotMatch(result.issue_drafts[0].body, /\b(?:Closes|Fixes|Resolves)\b/);
 });

@@ -24,7 +24,7 @@ function usage() {
     "    --repository <absolute-path>",
     "    --worktree-root <absolute-path>",
     "    [--max-concurrency <1..3>]",
-    "    [--prepare-only | --execute-and-publish]",
+    "    [--prepare-only | --execute-patch-only | --execute-and-publish]",
     "    [--real-codex-worker",
     "      --codex-executable <absolute-path>",
     "      --worker-sandbox <read-only|workspace-write>",
@@ -51,6 +51,7 @@ export function parseRunnerArgs(args) {
   ]);
   const booleanFlags = new Set([
     "--prepare-only",
+    "--execute-patch-only",
     "--execute-and-publish",
     "--real-codex-worker",
   ]);
@@ -75,7 +76,12 @@ export function parseRunnerArgs(args) {
   ]) {
     if (!parsed[required]) throw new TypeError(usage());
   }
-  if (parsed["--prepare-only"] && parsed["--execute-and-publish"]) {
+  const selectedModes = [
+    "--prepare-only",
+    "--execute-patch-only",
+    "--execute-and-publish",
+  ].filter((flag) => parsed[flag]);
+  if (selectedModes.length > 1) {
     throw new TypeError("Choose only one Runner mode");
   }
   if (!isAbsolute(parsed["--repository"]) || !isAbsolute(parsed["--worktree-root"])) {
@@ -87,8 +93,10 @@ export function parseRunnerArgs(args) {
     "--worker-approval",
   ];
   if (parsed["--real-codex-worker"]) {
-    if (!parsed["--execute-and-publish"]) {
-      throw new TypeError("--real-codex-worker requires --execute-and-publish");
+    if (!parsed["--execute-and-publish"] && !parsed["--execute-patch-only"]) {
+      throw new TypeError(
+        "--real-codex-worker requires --execute-patch-only or --execute-and-publish",
+      );
     }
     for (const flag of workerValues) {
       if (!parsed[flag]) throw new TypeError(`${flag} is required for --real-codex-worker`);
@@ -126,6 +134,7 @@ export async function runCli(args, {
     adapters = {
       worker: codexAdapterFactory({
         ...configuration,
+        allowPartialContainment: parsed["--execute-patch-only"] === true,
         isolationEvidence: {
           network: false,
           filesystem: false,
@@ -145,7 +154,12 @@ export async function runCli(args, {
       : Number(parsed["--max-concurrency"]),
     worktreeRoot: resolve(parsed["--worktree-root"]),
     repository,
-    prepareOnly: !parsed["--execute-and-publish"],
+    prepareOnly: !parsed["--execute-and-publish"] && !parsed["--execute-patch-only"],
+    executionMode: parsed["--execute-and-publish"]
+      ? "EXECUTE_AND_DRAFT_PR"
+      : parsed["--execute-patch-only"]
+        ? "EXECUTE_PATCH_ONLY"
+        : "PREPARE_ONLY",
     adapters,
   });
   process.stdout.write(`${serializeJcs(result)}\n`);

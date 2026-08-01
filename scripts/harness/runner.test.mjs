@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -41,6 +41,8 @@ import { createWorktreeManager } from "./runner/worktree-manager.mjs";
 import { buildWorkerContext } from "./runner/worker-context-builder.mjs";
 import { runCli } from "./runner/cli.mjs";
 import { createGitPublisher } from "./runner/git-publisher.mjs";
+import { createDisposableCloneManager } from "./runner/disposable-clone-manager.mjs";
+import { createPatchArtifactWriter } from "./runner/patch-artifacts.mjs";
 
 async function temporaryDirectory(t, prefix) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -116,7 +118,7 @@ function fakeWorker({ onRun = null, exitCode = 0 } = {}) {
         const override = await onRun?.(input);
         return {
           code: override?.code ?? exitCode,
-          timedOut: false,
+          timedOut: override?.timedOut ?? false,
           pid: 4000 + calls.length,
           stdoutPath: join(input.logDirectory, "worker.stdout.log"),
           stderrPath: join(input.logDirectory, "worker.stderr.log"),
@@ -208,6 +210,83 @@ function fakePublisher({ changedFiles = null, fingerprints = ["stable", "stable"
   };
 }
 
+function fakePatchArtifactWriter({
+  changedFiles = null,
+  staged = [],
+  head = REPOSITORY_SHA,
+  patch = "fixture patch\n",
+  writeError = null,
+} = {}) {
+  const writes = [];
+  const inspect = async (cwd) => ({
+    head,
+    staged,
+    remotes: [],
+    tracked: changedFiles ?? [
+      `${cwd.split(/[\\/]/u).at(-1) === "repository" ? "docs/allowed.md" : "docs/allowed.md"}`,
+    ],
+    untracked: [],
+    commit_count: head === REPOSITORY_SHA ? 0 : 1,
+    changed_files: changedFiles ?? ["docs/allowed.md"],
+  });
+  return {
+    writes,
+    inspect,
+    assertSafeState(state, sourceSha) {
+      if (state.head !== sourceSha || state.commit_count !== 0) {
+        throw Object.assign(new Error("head changed"), { code: "RUNNER_HEAD_CHANGED" });
+      }
+      if (state.staged.length > 0) {
+        throw Object.assign(new Error("staged"), { code: "RUNNER_PRESTAGED_CHANGE" });
+      }
+      return state;
+    },
+    async assertPinnedHead(cwd, sourceSha) {
+      const state = await inspect(cwd);
+      this.assertSafeState(state, sourceSha);
+      return sourceSha;
+    },
+    async changedFiles(cwd, sourceSha) {
+      const state = await inspect(cwd);
+      this.assertSafeState(state, sourceSha);
+      return state.changed_files;
+    },
+    async changeFingerprint() {
+      return "stable";
+    },
+    async createPatch() {
+      return changedFiles?.length === 0 ? "" : patch;
+    },
+    async writeArtifacts(input) {
+      if (writeError) throw writeError;
+      writes.push(input);
+      return {
+        patch: join(input.outputDirectory, "output.patch"),
+        runResult: join(input.outputDirectory, "run-result.json"),
+      };
+    },
+  };
+}
+
+function fakeDisposableCloneManager() {
+  const prepared = [];
+  return {
+    prepared,
+    async assertSourceReady(_repository, sourceSha) {
+      assert.equal(sourceSha, REPOSITORY_SHA);
+      return { branch: "master", clean: true, head: sourceSha, originMaster: sourceSha };
+    },
+    async prepare(input) {
+      prepared.push(input);
+      await mkdir(input.worktreePath, { recursive: true });
+      return input;
+    },
+    async verifySourceUnchanged() {
+      return true;
+    },
+  };
+}
+
 async function executeFixture(t, {
   specs = [{}],
   approvalOverrides = {},
@@ -216,13 +295,21 @@ async function executeFixture(t, {
   publisher = fakePublisher(),
   worktreeManager = null,
   prepareOnly = false,
+  executionMode = null,
+  patchArtifactWriter = null,
+  disposableCloneManager = null,
 } = {}) {
   const root = await temporaryDirectory(t, "propscans-runner-test-");
   const worktreeRoot = join(root, "worktrees");
   const manifestRoot = join(root, "manifests");
   const diagnosticsRoot = join(root, "diagnostics");
+  const requestedMode = executionMode
+    ?? (prepareOnly ? "PREPARE_ONLY" : "EXECUTE_AND_DRAFT_PR");
   const { dryRun, approval } = makeFixture(specs, worktreeRoot, {
-    publication_mode: prepareOnly ? "PREPARE_ONLY" : "EXECUTE_AND_DRAFT_PR",
+    publication_mode: requestedMode,
+    ...(requestedMode === "EXECUTE_PATCH_ONLY"
+      ? { disposable_clone_root: join(root, "disposable", "repository") }
+      : {}),
     ...approvalOverrides,
   });
   const manager = worktreeManager ?? fakeWorktreeManager();
@@ -236,13 +323,18 @@ async function executeFixture(t, {
     worktreeRoot,
     repository: root,
     prepareOnly,
+    executionMode: requestedMode,
     manifestRoot,
     diagnosticsRoot,
     adapters: {
       worktreeManager: manager,
+      disposableCloneManager:
+        disposableCloneManager ?? fakeDisposableCloneManager(),
       worker,
       testRunner,
       publisher,
+      patchArtifactWriter:
+        patchArtifactWriter ?? fakePatchArtifactWriter(),
     },
   });
   return {
@@ -911,4 +1003,387 @@ test("CLI strict parsing rejects duplicate JSON keys before invoking the Runner"
     (error) => error.code === "DUPLICATE_KEY",
   );
   assert.equal(invoked, false);
+});
+
+async function temporaryGitSource(t, prefix = "propscans-patch-source-") {
+  const root = await temporaryDirectory(t, prefix);
+  const source = join(root, "source");
+  await mkdir(join(source, "docs"), { recursive: true });
+  execFileSync("git", ["init", "-b", "master"], { cwd: source, windowsHide: true });
+  execFileSync("git", ["config", "user.name", "Harness Test"], { cwd: source });
+  execFileSync("git", ["config", "user.email", "harness@example.invalid"], { cwd: source });
+  await writeFile(join(source, "docs", "allowed.md"), "before\n", "utf8");
+  execFileSync("git", ["add", "--", "docs/allowed.md"], { cwd: source });
+  execFileSync("git", ["commit", "-m", "fixture"], { cwd: source, windowsHide: true });
+  execFileSync("git", [
+    "remote", "add", "origin", "https://github.com/woojinhong/Metabus_social.git",
+  ], { cwd: source });
+  const sha = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: source,
+    encoding: "utf8",
+  }).trim();
+  execFileSync("git", ["update-ref", "refs/remotes/origin/master", sha], { cwd: source });
+  return { root, source, sha };
+}
+
+test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publisher", async (t) => {
+  const publisher = fakePublisher();
+  const patchArtifactWriter = fakePatchArtifactWriter({
+    changedFiles: ["docs/allowed.md"],
+  });
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    publisher,
+    patchArtifactWriter,
+  });
+  assert.equal(fixture.result.state, "COMPLETED");
+  assert.equal(fixture.result.packages[0].commit_sha, null);
+  assert.equal(fixture.result.packages[0].draft_pr_url, null);
+  assert.equal(publisher.publishCalls.length, 0);
+  assert.equal(patchArtifactWriter.writes.length, 1);
+  assert.equal(
+    patchArtifactWriter.writes[0].containment.status,
+    "PARTIALLY_VERIFIED",
+  );
+});
+
+test("EXECUTE_PATCH_ONLY fails closed for staged, committed, and forbidden changes", async (t) => {
+  const scenarios = [
+    {
+      writer: fakePatchArtifactWriter({
+        changedFiles: ["docs/allowed.md"],
+        staged: ["docs/allowed.md"],
+      }),
+      code: "RUNNER_PRESTAGED_CHANGE",
+    },
+    {
+      writer: fakePatchArtifactWriter({
+        changedFiles: ["docs/allowed.md"],
+        head: "f".repeat(40),
+      }),
+      code: "RUNNER_HEAD_CHANGED",
+    },
+    {
+      writer: fakePatchArtifactWriter({ changedFiles: ["src/forbidden.java"] }),
+      code: "HARD_PROHIBITED_PATH",
+    },
+  ];
+  for (const scenario of scenarios) {
+    const fixture = await executeFixture(t, {
+      specs: [{ path: "docs/allowed.md" }],
+      executionMode: "EXECUTE_PATCH_ONLY",
+      patchArtifactWriter: scenario.writer,
+    });
+    assert.equal(fixture.result.state, "FAILED");
+    assert.equal(fixture.result.packages[0].error_code, scenario.code);
+    assert.equal(scenario.writer.writes.length, 1);
+  }
+});
+
+test("EXECUTE_PATCH_ONLY reports NO_CHANGE and preserves failed test or timeout artifacts", async (t) => {
+  const noChangeWriter = fakePatchArtifactWriter({ changedFiles: [], patch: "" });
+  const noChange = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    patchArtifactWriter: noChangeWriter,
+  });
+  assert.equal(noChange.result.state, "NO_CHANGE");
+  assert.equal(noChange.result.packages[0].error_code, "RUNNER_NO_CHANGE");
+  assert.equal(noChangeWriter.writes.length, 1);
+
+  const failedTestWriter = fakePatchArtifactWriter({
+    changedFiles: ["docs/allowed.md"],
+  });
+  const failedTest = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    testRunner: fakeTestRunner({ fail: true }),
+    patchArtifactWriter: failedTestWriter,
+  });
+  assert.equal(failedTest.result.state, "FAILED");
+  assert.equal(failedTest.result.packages[0].error_code, "RUNNER_REQUIRED_TEST_FAILED");
+  assert.equal(failedTestWriter.writes.length, 1);
+
+  const timeoutWriter = fakePatchArtifactWriter({
+    changedFiles: ["docs/allowed.md"],
+  });
+  const timeout = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    worker: fakeWorker({ onRun: () => ({ timedOut: true }) }),
+    patchArtifactWriter: timeoutWriter,
+  });
+  assert.equal(timeout.result.state, "FAILED");
+  assert.equal(timeout.result.packages[0].error_code, "RUNNER_WORKER_TIMEOUT");
+  assert.equal(timeoutWriter.writes.length, 1);
+});
+
+test("EXECUTE_PATCH_ONLY rejects malformed and cross-mode approvals", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-patch-approval-");
+  const { dryRun, approval } = makeFixture(
+    [{ path: "docs/allowed.md" }],
+    join(root, "worktrees"),
+    {
+      publication_mode: "EXECUTE_PATCH_ONLY",
+      disposable_clone_root: join(root, "repository"),
+    },
+  );
+  delete approval.containment_acknowledgement;
+  resealApproval(approval);
+  assertCode("RUNNER_INPUT_INVALID", () => validateRunInput({
+    dryRun,
+    approval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+
+  const patchApproval = makeOwnerApproval(dryRun, {
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    disposable_clone_root: join(root, "patch-repository"),
+    worktree_root: join(root, "worktrees"),
+  });
+  await assert.rejects(
+    runLightweightRunner({
+      dryRun,
+      approval: patchApproval,
+      approvalRecordHash: patchApproval.record_hash,
+      repositorySha: REPOSITORY_SHA,
+      repository: root,
+      worktreeRoot: patchApproval.worktree_root,
+      executionMode: "EXECUTE_AND_DRAFT_PR",
+    }),
+    (error) => error.code === "RUNNER_EXECUTION_MODE_MISMATCH",
+  );
+  const publishApproval = makeOwnerApproval(dryRun, {
+    publication_mode: "EXECUTE_AND_DRAFT_PR",
+    worktree_root: join(root, "publish-worktrees"),
+  });
+  await assert.rejects(
+    runLightweightRunner({
+      dryRun,
+      approval: publishApproval,
+      approvalRecordHash: publishApproval.record_hash,
+      repositorySha: REPOSITORY_SHA,
+      repository: root,
+      worktreeRoot: publishApproval.worktree_root,
+      executionMode: "EXECUTE_PATCH_ONLY",
+    }),
+    (error) => error.code === "RUNNER_EXECUTION_MODE_MISMATCH",
+  );
+
+  const subtreeDryRun = makeDryRun([{ path: "docs/allowed.md" }]);
+  subtreeDryRun.work_packages[0].path_policy.allowed_paths = [{
+    path: "docs/allowed.md",
+    match: "SUBTREE",
+  }];
+  resealDryRun(subtreeDryRun);
+  const subtreeApproval = makeOwnerApproval(subtreeDryRun, {
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    disposable_clone_root: join(root, "subtree-repository"),
+    worktree_root: join(root, "subtree-worktrees"),
+  });
+  assertCode("RUNNER_PATCH_ONLY_SCOPE_INVALID", () => validateRunInput({
+    dryRun: subtreeDryRun,
+    approval: subtreeApproval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+
+  const unsafeDryRun = makeDryRun([{ path: "docs/unsafe$name.md" }]);
+  const unsafeApproval = makeOwnerApproval(unsafeDryRun, {
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    disposable_clone_root: join(root, "unsafe-repository"),
+    worktree_root: join(root, "unsafe-worktrees"),
+  });
+  assertCode("RUNNER_PATCH_ONLY_SCOPE_INVALID", () => validateRunInput({
+    dryRun: unsafeDryRun,
+    approval: unsafeApproval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+});
+
+test("Owner selected Work Package pins compare semantically across JSON key order", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-pin-order-");
+  const { dryRun, approval } = makeFixture([{}], join(root, "worktrees"));
+  const pin = approval.selected_work_packages[0];
+  approval.selected_work_packages = [{
+    proposed_branch: pin.proposed_branch,
+    work_package_plan_digest: pin.work_package_plan_digest,
+    work_package_revision: pin.work_package_revision,
+    work_package_id: pin.work_package_id,
+  }];
+  resealApproval(approval);
+  assert.doesNotThrow(() => validateRunInput({
+    dryRun,
+    approval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+  approval.selected_work_packages[0].work_package_revision += 1;
+  resealApproval(approval);
+  assertCode("RUNNER_WORK_PACKAGE_PIN_MISMATCH", () => validateRunInput({
+    dryRun,
+    approval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+});
+
+test("disposable clone removes remote, resets credentials, blocks push, and preserves source refs", async (t) => {
+  const fixture = await temporaryGitSource(t);
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const manager = createDisposableCloneManager();
+  await manager.assertSourceReady(
+    fixture.source,
+    fixture.sha,
+    "https://github.com/woojinhong/Metabus_social",
+  );
+  const beforeRefs = execFileSync("git", ["show-ref"], {
+    cwd: fixture.source,
+    encoding: "utf8",
+  });
+  const beforeWorktrees = execFileSync("git", ["worktree", "list", "--porcelain"], {
+    cwd: fixture.source,
+    encoding: "utf8",
+  });
+  await manager.prepare({
+    repository: fixture.source,
+    sourceSha: fixture.sha,
+    branch: "harness/patch-fixture",
+    worktreePath: clonePath,
+    repositoryUri: "https://github.com/woojinhong/Metabus_social",
+  });
+  assert.equal(execFileSync("git", ["remote"], { cwd: clonePath, encoding: "utf8" }), "");
+  assert.equal(
+    execFileSync("git", ["config", "--local", "--get-all", "credential.helper"], {
+      cwd: clonePath,
+      encoding: "utf8",
+    }),
+    "\n",
+  );
+  assert.notEqual(spawnSync("git", ["push"], { cwd: clonePath }).status, 0);
+  await manager.verifySourceUnchanged(
+    fixture.source,
+    fixture.sha,
+    "https://github.com/woojinhong/Metabus_social",
+  );
+  assert.equal(execFileSync("git", ["show-ref"], {
+    cwd: fixture.source,
+    encoding: "utf8",
+  }), beforeRefs);
+  assert.equal(execFileSync("git", ["worktree", "list", "--porcelain"], {
+    cwd: fixture.source,
+    encoding: "utf8",
+  }), beforeWorktrees);
+  execFileSync("git", ["tag", "unexpected-source-ref"], { cwd: fixture.source });
+  await assert.rejects(
+    manager.verifySourceUnchanged(
+      fixture.source,
+      fixture.sha,
+      "https://github.com/woojinhong/Metabus_social",
+    ),
+    (error) => error.code === "RUNNER_SOURCE_REPOSITORY_MUTATED",
+  );
+});
+
+test("disposable clone rejects an OS-temp junction that resolves outside temp", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-clone-junction-");
+  const junction = join(root, "escape");
+  await symlink(process.cwd(), junction, "junction");
+  const manager = createDisposableCloneManager();
+  await assert.rejects(
+    manager.assertAvailable(process.cwd(), "harness/blocked", join(junction, "blocked-clone")),
+    (error) => error.code === "BLOCKED_CONFLICT",
+  );
+});
+
+test("patch artifact writer renders binary diff and rejects staged or committed state", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-patch-artifacts-");
+  execFileSync("git", ["remote", "remove", "origin"], { cwd: fixture.source });
+  await writeFile(join(fixture.source, "docs", "allowed.md"), "after\n", "utf8");
+  await writeFile(join(fixture.source, "docs", "new-runbook.md"), "new\n", "utf8");
+  const writer = createPatchArtifactWriter();
+  const state = await writer.inspect(fixture.source, fixture.sha);
+  writer.assertSafeState(state, fixture.sha);
+  const patch = await writer.createPatch(fixture.source, fixture.sha, state);
+  assert.match(patch, /diff --git a\/docs\/allowed\.md b\/docs\/allowed\.md/u);
+  assert.match(patch, /diff --git a\/docs\/new-runbook\.md b\/docs\/new-runbook\.md/u);
+  assert.match(patch, /--- \/dev\/null/u);
+  const output = join(fixture.root, "artifacts");
+  const paths = await writer.writeArtifacts({
+    outputDirectory: output,
+    runId: "RUN-PATCH-ARTIFACT",
+    workPackage: { work_package_id: "WP-PATCH" },
+    sourceSha: fixture.sha,
+    state,
+    tests: [],
+    workerResult: null,
+    patch,
+    terminalState: "COMPLETED",
+    containment: { status: "PARTIALLY_VERIFIED" },
+  });
+  assert.equal(await readFile(paths.patch, "utf8"), patch);
+  assert.equal(await readFile(paths.workerStdout, "utf8"), "");
+  assert.equal(await readFile(paths.workerStderr, "utf8"), "");
+  const testRecord = JSON.parse(await readFile(paths.testResults, "utf8"));
+  assert.equal(testRecord.status, "NOT_RUN");
+  assert.equal(testRecord.all_passed, false);
+
+  const failedOutput = join(fixture.root, "failed-artifacts");
+  await assert.rejects(
+    writer.writeArtifacts({
+      outputDirectory: failedOutput,
+      runId: "RUN-PATCH-ARTIFACT-FAILED",
+      workPackage: { work_package_id: "WP-PATCH", required_tests: [] },
+      sourceSha: fixture.sha,
+      state,
+      tests: [],
+      workerResult: {
+        code: 0,
+        timedOut: false,
+        stdoutPath: join(fixture.root, "missing-worker-stdout.log"),
+        stderrPath: join(fixture.root, "missing-worker-stderr.log"),
+        usage: { tokens: 0, cost: 0, external_calls: 0 },
+      },
+      patch,
+      terminalState: "COMPLETED",
+      containment: { status: "PARTIALLY_VERIFIED" },
+    }),
+    (error) => error.code === "ENOENT",
+  );
+  await assert.rejects(
+    readFile(join(failedOutput, "patch-only-artifacts", "run-result.json"), "utf8"),
+    (error) => error.code === "ENOENT",
+  );
+
+  execFileSync("git", ["add", "--", "docs/allowed.md"], { cwd: fixture.source });
+  const staged = await writer.inspect(fixture.source, fixture.sha);
+  assert.throws(
+    () => writer.assertSafeState(staged, fixture.sha),
+    (error) => error.code === "RUNNER_PRESTAGED_CHANGE",
+  );
+
+  execFileSync("git", ["commit", "-m", "forbidden worker commit"], {
+    cwd: fixture.source,
+    windowsHide: true,
+  });
+  const committed = await writer.inspect(fixture.source, fixture.sha);
+  assert.throws(
+    () => writer.assertSafeState(committed, fixture.sha),
+    (error) => error.code === "RUNNER_HEAD_CHANGED",
+  );
+});
+
+test("patch artifact write failure cannot leave a completed package", async (t) => {
+  const writer = fakePatchArtifactWriter({
+    changedFiles: ["docs/allowed.md"],
+    writeError: Object.assign(new Error("artifact write failed"), {
+      code: "RUNNER_ARTIFACT_WRITE_FAILED",
+    }),
+  });
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    patchArtifactWriter: writer,
+  });
+  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(fixture.result.packages[0].state, "FAILED");
+  assert.equal(fixture.result.packages[0].error_code, "RUNNER_ARTIFACT_WRITE_FAILED");
 });

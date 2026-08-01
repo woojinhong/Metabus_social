@@ -48,7 +48,7 @@ function changePaths(requirement, inputSnapshot) {
   );
 }
 
-function pathRules(paths, match = "SUBTREE") {
+function pathRules(paths, match = "EXACT") {
   return paths.map((path) => ({ path, match }));
 }
 

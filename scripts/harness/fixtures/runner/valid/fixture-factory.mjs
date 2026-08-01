@@ -38,6 +38,12 @@ export function makeOwnerApproval(dryRun, overrides = {}) {
       .filter(({ work_package_id }) => selected.includes(work_package_id))
       .flatMap(({ path_policy }) => path_policy.allowed_paths.map(({ path }) => path)),
   )].sort();
+  const prohibitedPaths = [...new Set(
+    dryRun.work_packages
+      .filter(({ work_package_id }) => selected.includes(work_package_id))
+      .flatMap(({ path_policy }) => path_policy.forbidden_paths.map(({ path }) => path)),
+  )].sort();
+  const publicationMode = overrides.publication_mode ?? "PREPARE_ONLY";
   const approval = {
     record_kind: "OWNER_RUN_APPROVAL",
     approval_record_id: "OWNER-RUN-APPROVAL-AH-P2-01-0001",
@@ -49,8 +55,12 @@ export function makeOwnerApproval(dryRun, overrides = {}) {
     selected_work_package_ids: [...selected].sort(),
     selected_work_packages: selectedPackages,
     allowed_paths: allowedPaths,
+    prohibited_paths: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? prohibitedPaths
+      : overrides.prohibited_paths,
     reviewed_warning_ids: dryRun.warnings.map(({ error_id }) => error_id).sort(),
-    max_concurrency: overrides.max_concurrency ?? 2,
+    max_concurrency: overrides.max_concurrency
+      ?? (publicationMode === "EXECUTE_PATCH_ONLY" ? 1 : 2),
     run_id: overrides.run_id ?? RUN_ID,
     execution_budget: {
       wall_clock_seconds: 600,
@@ -64,12 +74,38 @@ export function makeOwnerApproval(dryRun, overrides = {}) {
       max_concurrent_processes: 3,
     },
     worktree_root: overrides.worktree_root ?? "C:/tmp/propscans-worktrees",
+    disposable_clone_root: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? overrides.disposable_clone_root
+      : undefined,
+    publication_mode: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? publicationMode
+      : overrides.publication_mode_pin,
+    commit_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    push_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    pr_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    merge_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    ready_transition_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    issue_close_allowed: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    containment_acknowledgement: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? {
+          status: "PARTIALLY_VERIFIED",
+          residual_risk_accepted: true,
+          limitations: [
+            "HANDLE_PINNED_JOB_OBJECT_UNVERIFIED",
+            "OS_NETWORK_DENY_UNVERIFIED",
+            "RACE_FREE_FILESYSTEM_SANDBOX_UNVERIFIED",
+          ],
+        }
+      : undefined,
     publication_policy: {
-      mode: overrides.publication_mode ?? "PREPARE_ONLY",
-      draft_only: true,
-      allow_push: overrides.publication_mode === "EXECUTE_AND_DRAFT_PR",
+      mode: publicationMode,
+      draft_only: publicationMode !== "EXECUTE_PATCH_ONLY",
+      allow_commit: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+      allow_push: publicationMode === "EXECUTE_AND_DRAFT_PR",
+      allow_pr: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+      allow_github: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
       base_branch: "master",
-      issue_number: 56,
+      issue_number: publicationMode === "EXECUTE_PATCH_ONLY" ? null : 56,
     },
     record_hash: `sha256:${"0".repeat(64)}`,
     ...overrides,

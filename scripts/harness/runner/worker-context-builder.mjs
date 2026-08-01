@@ -47,10 +47,12 @@ export function buildWorkerContext({
     proposed_branch: branch,
     worktree_path: worktreePath,
     publication_limits: {
+      mode: approval.publication_policy.mode,
       worker_may_commit: false,
       worker_may_push: false,
       worker_may_create_pr: false,
-      draft_pr_only: true,
+      patch_only: approval.publication_policy.mode === "EXECUTE_PATCH_ONLY",
+      draft_pr_only: approval.publication_policy.mode === "EXECUTE_AND_DRAFT_PR",
       auto_merge: false,
       issue_close: false,
     },

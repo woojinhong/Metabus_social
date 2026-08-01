@@ -3,7 +3,7 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-31
+last_verified: 2026-08-01
 related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
@@ -38,9 +38,10 @@ then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authorit
 and [AH-P2-01 authority](discovery/autonomous-harness-lightweight-worktree-runner-authority.md),
 then the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
 PR #53 implements the non-executing Planner. Issue #56 implements the AH-P2-01
-bounded Runner foundation. Issue #58 adds an explicit real Codex adapter boundary,
-but its temp smoke and strict containment remain environment-blocked. No Issue
-runs a Pilot; each real run still needs exact pins and separate Owner approval.
+bounded Runner foundation. Issue #58 adds the real Codex adapter boundary and
+Issue #60 adds disposable-clone `EXECUTE_PATCH_ONLY`, without running a Pilot.
+Patch-only containment is `PARTIALLY_VERIFIED`; each real run still needs exact
+pins and separate Owner acceptance of the documented residual risks.
 
 ## Authority and promotion
 
@@ -89,7 +90,7 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
 | schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic contracts, merged read-only Planner, bounded Runner and Issue #58 gated Codex adapter; no actual Pilot |
+| scripts/harness | Deterministic Planner/Runner, gated Codex adapter and Issue #60 patch-only artifacts; no actual Pilot |
 
 ## Stable IDs and document rules
 

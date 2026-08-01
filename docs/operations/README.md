@@ -3,7 +3,7 @@ title: Operations Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-31
+last_verified: 2026-08-01
 related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
@@ -42,6 +42,11 @@ decision_authority: decisions.md and approved operations policies
   Codex adapter boundary and fake/local process tests, but its temp read-only smoke
   is environment-blocked; each actual run still needs exact pins, a separate
   per-run approval and verified network/filesystem/process containment.
+- Issue #60 adds `EXECUTE_PATCH_ONLY` for one exact docs file in a disposable
+  OS-temp clone. It emits patch/log/test/result artifacts with commit, push, PR
+  and GitHub adapters disabled. Its containment remains `PARTIALLY_VERIFIED`,
+  so every actual run needs separate Owner acceptance of the unproved OS
+  network, race-free filesystem and Job Object boundaries.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical
@@ -50,8 +55,8 @@ decision_authority: decisions.md and approved operations policies
   Schema, Work Package and Issue Schema, WorkGraph State and Lock Schema, then
   Dry-run Planner Contract, audit, then AH-P0-01/AH-P1-01 authority and machine
   schemas. The Planner is merged and remains non-executing. Issue #56 implements
-  the Runner foundation without running a Pilot. Issue #58 adds fake/local
-  adapter validation but does not unlock real Codex/GitHub execution. No
+  the Runner foundation without running a Pilot. Issues #58/#60 add fake/local
+  adapter and patch-only validation but run no actual Codex Pilot. No
   Extractor, Project writer, Dispatcher, Runtime
   Ledger or Critic exists, and product execution remains gated.
 
