@@ -189,8 +189,8 @@ OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-proc
 상태는 계속 `BLOCKED_ENVIRONMENT`이며 실제 Pilot은 새 per-run Owner approval 뒤에도
 모든 환경 Gate가 별도로 충족되기 전까지 실행할 수 없다.
 
-Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.0 final usage를 검증하되,
-제공되지 않은 monetary cost는 별도 Owner authority 전까지 차단한다.
+Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.0 usage를 검증한다.
+[AH-P2-11](autonomous-harness-codex-cost-budget-authority.md)은 좁은 cost 예외만 승인하며 Runner wiring과 새 run 승인은 여전히 필요하다.
 
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 

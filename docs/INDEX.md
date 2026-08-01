@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-08-01
-related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -42,8 +42,10 @@ bounded Runner foundation. Issues #58/#60 add the real Codex adapter and
 disposable-clone `EXECUTE_PATCH_ONLY`. Issue #62 confines dubious-ownership
 handling to command-scoped `safe.directory` and leaves persistent Git config
 and source ownership unchanged. [Issue #64 usage evidence](discovery/autonomous-harness-codex-jsonl-usage.md)
-pins Codex 0.146.0 final token/external-tool parsing and the open monetary-cost authority.
-AH-P2-06 artifacts remain preserved. Patch-only
+pins Codex 0.146.0 final token/external-tool parsing. The
+[AH-P2-11 authority](discovery/autonomous-harness-codex-cost-budget-authority.md)
+approves the narrow cost-unavailable exception and post-run token gate; Runner
+support and a fresh approval are still required. AH-P2-06 artifacts remain preserved. Patch-only
 containment is `PARTIALLY_VERIFIED`; a new real run needs a new run ID, exact
 pins and separate residual-risk Owner acceptance.
 
