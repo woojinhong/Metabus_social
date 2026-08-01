@@ -78,10 +78,19 @@ export function createCodexWorkerAdapter({
         { isolation: evidence },
       );
     }
+    const exactAllowedPath = costAuthority?.exact_allowed_path;
     if (
-      costAuthority?.approved !== true
-      || costAuthority.mode !== "CLI_REPORTED"
-      || costAuthority.currency !== "USD"
+      costAuthority?.authentication_mode !== "CHATGPT"
+      || costAuthority.monetary_cost_policy !== "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT"
+      || costAuthority.publication_mode !== "EXECUTE_PATCH_ONLY"
+      || costAuthority.production !== false
+      || costAuthority.commit_allowed !== false
+      || costAuthority.push_allowed !== false
+      || costAuthority.pr_allowed !== false
+      || typeof exactAllowedPath !== "string"
+      || !/^docs\/[A-Za-z0-9._/-]+\.md$/u.test(exactAllowedPath)
+      || exactAllowedPath.includes("//")
+      || exactAllowedPath.split("/").some((segment) => segment === "." || segment === "..")
     ) {
       throw adapterError(
         "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
@@ -119,7 +128,12 @@ export function createCodexWorkerAdapter({
       isolation: evidence,
       containment_status: fullyVerified ? "VERIFIED" : "PARTIALLY_VERIFIED",
       parser_profile: "codex-jsonl@0.146.0",
-      cost_authority: { mode: costAuthority.mode, currency: costAuthority.currency },
+      cost_authority: {
+        authentication_mode: costAuthority.authentication_mode,
+        monetary_cost_policy: costAuthority.monetary_cost_policy,
+        publication_mode: costAuthority.publication_mode,
+        exact_allowed_path: costAuthority.exact_allowed_path,
+      },
     };
   };
 
@@ -226,6 +240,7 @@ export function createCodexWorkerAdapter({
       try {
         usage = assertCodexOutputPolicy(parsed, budget, {
           stdoutTruncated: result.stdoutTruncated,
+          costAuthority,
         });
       } catch (error) {
         error.workerResult = {

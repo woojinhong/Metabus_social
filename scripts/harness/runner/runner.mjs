@@ -43,6 +43,7 @@ function packageRecord(workPackage, worktreeRoot, workspacePath = null) {
     diagnosticsPath: null,
     workerResult: null,
     artifactPaths: null,
+    budgetResult: null,
   };
 }
 
@@ -59,19 +60,25 @@ function manifestPackages(packages) {
     error_code: entry.errorCode,
     diagnostics_path: entry.diagnosticsPath,
     artifact_paths: entry.artifactPaths,
+    usage_budget: entry.budgetResult,
   }));
 }
 
 function captureFailure(entry, error, fallbackState = "FAILED") {
-  entry.state = [
+  if ([
+    "RUNNER_TOKEN_BUDGET_EXCEEDED",
+    "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+  ].includes(error.code)) {
+    entry.state = "FAILED_BUDGET";
+  } else {
+    entry.state = [
     "BLOCKED_CONFLICT",
     "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
-    "RUNNER_CODEX_COST_UNVERIFIED",
-    "RUNNER_CODEX_SCHEMA_UNSUPPORTED",
     "RUNNER_NO_CHANGE",
   ].includes(error.code)
     ? "BLOCKED"
-    : fallbackState;
+      : fallbackState;
+  }
   entry.errorCode = error.code ?? "RUNNER_FAILED";
   entry.error = error;
 }
@@ -104,6 +111,10 @@ async function mapConcurrent(entries, concurrency, operation, shouldContinue = (
 }
 
 function terminalState(packages) {
+  if (packages.every(({ state }) => state === "PATCH_READY_FOR_OWNER_REVIEW")) {
+    return "PATCH_READY_FOR_OWNER_REVIEW";
+  }
+  if (packages.some(({ state }) => state === "FAILED_BUDGET")) return "FAILED_BUDGET";
   if (packages.every(({ state }) => state === "COMPLETED")) return "COMPLETED";
   if (packages.some(({ state }) => state === "FAILED")) return "FAILED";
   if (packages.every(({ state }) => state === "NO_CHANGE")) return "NO_CHANGE";
@@ -118,48 +129,120 @@ function asRunnerError(error) {
 
 function assertWorkerUsage(result, budget, aggregate) {
   const usage = result.usage;
+  const usageVerified = usage?.verified === true
+    && Number.isSafeInteger(usage.total_tokens)
+    && usage.total_tokens >= 0
+    && Number.isSafeInteger(usage.input_tokens)
+    && usage.input_tokens >= 0
+    && Number.isSafeInteger(usage.output_tokens)
+    && usage.output_tokens >= 0
+    && usage.input_tokens + usage.output_tokens === usage.total_tokens
+    && Number.isSafeInteger(usage.external_calls)
+    && usage.external_calls >= 0
+    && usage.external_calls_verified === true
+    && Number.isSafeInteger(usage.process_calls ?? 0)
+    && (usage.process_calls ?? 0) >= 0;
   if (
-    !usage
-    || !Number.isSafeInteger(usage.tokens)
-    || usage.tokens < 0
-    || typeof usage.cost !== "number"
-    || !Number.isFinite(usage.cost)
-    || usage.cost < 0
-    || usage.cost_available !== true
-    || usage.cost_verified !== true
-    || usage.currency !== budget.currency
-    || !Number.isSafeInteger(usage.external_calls)
-    || usage.external_calls < 0
-    || usage.external_calls_verified !== true
-    || usage.verified !== true
+    !usageVerified
+    || (usage.cost_available === true && (
+      usage.cost_verified !== true
+      || typeof usage.cost !== "number"
+      || !Number.isFinite(usage.cost)
+      || usage.cost < 0
+      || usage.currency !== budget.currency
+    ))
+    || (usage.cost_available !== true && (
+      usage.cost !== null
+      || usage.currency !== null
+      || usage.cost_verified !== false
+    ))
   ) {
     throw Object.assign(new Error("Worker did not return verifiable budget usage"), {
-      code: "RUNNER_WORKER_USAGE_MISSING",
+      code: "RUNNER_CODEX_USAGE_UNVERIFIED",
+    });
+  }
+  if (
+    usage.cost_available !== true
+    && budget.monetary_cost_policy !== "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT"
+  ) {
+    throw Object.assign(new Error("Unavailable Codex cost lacks Owner authority"), {
+      code: "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
     });
   }
   const next = {
-    tokens: aggregate.tokens + usage.tokens,
-    cost: aggregate.cost + usage.cost,
+    total_tokens: aggregate.total_tokens + usage.total_tokens,
+    cost: usage.cost_available && aggregate.cost_available
+      ? aggregate.cost + usage.cost
+      : null,
+    cost_available: aggregate.cost_available && usage.cost_available,
+    cost_verified: aggregate.cost_verified && usage.cost_verified,
+    currency: usage.cost_available && aggregate.cost_available ? budget.currency : null,
     external_calls: aggregate.external_calls + usage.external_calls,
+    process_calls: aggregate.process_calls + (usage.process_calls ?? 0),
   };
-  if (!Number.isSafeInteger(next.tokens) || !Number.isFinite(next.cost)
-    || !Number.isSafeInteger(next.external_calls)) {
+  if (!Number.isSafeInteger(next.total_tokens)
+    || !Number.isSafeInteger(next.external_calls)
+    || !Number.isSafeInteger(next.process_calls)) {
     throw Object.assign(new Error("Worker aggregate usage overflowed safe budget arithmetic"), {
-      code: "RUNNER_BUDGET_EXCEEDED",
+      code: "RUNNER_CODEX_USAGE_UNVERIFIED",
       details: { aggregate: next, budget },
     });
   }
   Object.assign(aggregate, next);
-  if (
-    next.tokens > budget.max_tokens
-    || next.cost > budget.max_cost
-    || next.external_calls > budget.max_external_calls
-  ) {
-    throw Object.assign(new Error("Worker exceeded the Owner-approved execution budget"), {
-      code: "RUNNER_BUDGET_EXCEEDED",
-      details: { aggregate: next, budget },
+  const budgetResult = {
+    total_tokens: next.total_tokens,
+    worker_total_tokens: usage.total_tokens,
+    max_total_tokens: budget.max_total_tokens ?? budget.max_tokens,
+    token_budget_verified: true,
+    token_budget_exceeded: next.total_tokens > (budget.max_total_tokens ?? budget.max_tokens),
+    cost: next.cost,
+    cost_available: next.cost_available,
+    cost_verified: next.cost_verified,
+    monetary_cost_policy: budget.monetary_cost_policy ?? null,
+    external_calls: next.external_calls,
+    max_external_calls: budget.max_external_calls,
+    external_calls_verified: usage.external_calls_verified,
+    process_calls: next.process_calls,
+    observed: {
+      total_tokens: usage.total_tokens,
+      cost: usage.cost,
+      external_calls: usage.external_calls,
+      process_calls: usage.process_calls ?? 0,
+    },
+    authoritative: {
+      total_tokens: next.total_tokens,
+      worker_total_tokens: usage.total_tokens,
+      cost: next.cost_verified ? next.cost : null,
+      external_calls: next.external_calls,
+    },
+    authority_source: "FINAL_SUCCESSFUL_TURN_COMPLETED",
+    patch_ready: false,
+    error_code: null,
+    terminal_state: "RUNNING",
+  };
+  if (budgetResult.token_budget_exceeded) {
+    budgetResult.error_code = "RUNNER_TOKEN_BUDGET_EXCEEDED";
+    budgetResult.terminal_state = "FAILED_BUDGET";
+    throw Object.assign(new Error("Worker exceeded the Owner-approved total-token budget"), {
+      code: budgetResult.error_code,
+      details: { aggregate: next, budget_result: budgetResult },
     });
   }
+  if (next.external_calls > budget.max_external_calls) {
+    budgetResult.error_code = "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED";
+    budgetResult.terminal_state = "FAILED_BUDGET";
+    throw Object.assign(new Error("Worker exceeded the Owner-approved external-call budget"), {
+      code: budgetResult.error_code,
+      details: { aggregate: next, budget_result: budgetResult },
+    });
+  }
+  if (next.cost_available && next.cost > budget.max_cost) {
+    throw Object.assign(new Error("Worker exceeded the Owner-approved monetary budget"), {
+      code: "RUNNER_BUDGET_EXCEEDED",
+      details: { aggregate: next, budget_result: budgetResult },
+    });
+  }
+  return budgetResult;
 }
 
 export async function runLightweightRunner({
@@ -218,7 +301,15 @@ export async function runLightweightRunner({
     );
   }
   const deadline = performance.now() + input.executionBudget.wall_clock_seconds * 1_000;
-  const aggregateUsage = { tokens: 0, cost: 0, external_calls: 0 };
+  const aggregateUsage = {
+    total_tokens: 0,
+    cost: 0,
+    cost_available: true,
+    cost_verified: true,
+    currency: input.executionBudget.currency,
+    external_calls: 0,
+    process_calls: 0,
+  };
   let runBudgetError = null;
   const remainingBudgetMs = () => {
     const remaining = Math.floor(deadline - performance.now());
@@ -394,7 +485,7 @@ export async function runLightweightRunner({
         });
         entry.workerResult = result;
         entry.workerPid = result.pid ?? null;
-        assertWorkerUsage(result, input.executionBudget, aggregateUsage);
+        entry.budgetResult = assertWorkerUsage(result, input.executionBudget, aggregateUsage);
         if (result.code !== 0 || result.timedOut) {
           const error = Object.assign(new Error("Bounded Worker failed"), {
             code: result.timedOut ? "RUNNER_WORKER_TIMEOUT" : "RUNNER_WORKER_FAILED",
@@ -402,10 +493,31 @@ export async function runLightweightRunner({
           throw error;
         }
       } catch (error) {
-        if (error.workerResult) entry.workerResult = error.workerResult;
-        const runnerError = asRunnerError(error);
-        if (runnerError.code === "RUNNER_BUDGET_EXCEEDED") {
+        let effectiveError = error;
+        if (error.workerResult) {
+          entry.workerResult = error.workerResult;
+          if (!error.details?.budget_result) {
+            try {
+              entry.budgetResult = assertWorkerUsage(
+                error.workerResult,
+                input.executionBudget,
+                aggregateUsage,
+              );
+            } catch (usageError) {
+              effectiveError = usageError;
+            }
+          }
+        }
+        const runnerError = asRunnerError(effectiveError);
+        if ([
+          "RUNNER_BUDGET_EXCEEDED",
+          "RUNNER_TOKEN_BUDGET_EXCEEDED",
+          "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+        ].includes(runnerError.code)) {
           runBudgetError = runnerError;
+        }
+        if (runnerError.details?.budget_result) {
+          entry.budgetResult = runnerError.details.budget_result;
         }
         captureFailure(entry, runnerError);
       }
@@ -415,13 +527,31 @@ export async function runLightweightRunner({
       for (const entry of packages.filter(
         ({ state }) => state === "RUNNING" || state === "PREPARING",
       )) {
+        const aggregateDecision = runBudgetError.details?.budget_result;
+        if (aggregateDecision) {
+          const workerObserved = entry.budgetResult?.observed ?? null;
+          const workerTotal = entry.budgetResult?.worker_total_tokens ?? null;
+          entry.budgetResult = {
+            ...entry.budgetResult,
+            ...aggregateDecision,
+            worker_total_tokens: workerTotal,
+            observed: workerObserved,
+            authoritative: {
+              ...aggregateDecision.authoritative,
+              worker_total_tokens: workerTotal,
+            },
+          };
+        }
         captureFailure(entry, runBudgetError);
       }
     }
 
-    await updateRunManifest(manifestPath, "TESTING", {
-      packages: manifestPackages(packages),
-    }, { now });
+    if (runBudgetError === null) {
+      await updateRunManifest(manifestPath, "TESTING", {
+        packages: manifestPackages(packages),
+        aggregate_usage: aggregateUsage,
+      }, { now });
+    }
     await mapConcurrent(
       packages.filter(({ state }) => state === "RUNNING"),
       input.maxConcurrency,
@@ -546,20 +676,24 @@ export async function runLightweightRunner({
             workspaceState,
             { remainingBudgetMs },
           );
-          entry.changedFiles = await validateChangedFiles(
-            workspaceState.changed_files,
-            entry.workPackage,
-            {
-              repositoryRoot: entry.worktreePath,
-              approvalScope: input.approval,
-              mustExist: false,
-            },
-          );
-          if (entry.changedFiles.length > 0) {
-            assertExactPatchOnlyChange(
-              entry.changedFiles,
-              input.patchOnly.exactAllowedPath,
+          if (entry.state === "FAILED_BUDGET") {
+            entry.changedFiles = [...workspaceState.changed_files];
+          } else {
+            entry.changedFiles = await validateChangedFiles(
+              workspaceState.changed_files,
+              entry.workPackage,
+              {
+                repositoryRoot: entry.worktreePath,
+                approvalScope: input.approval,
+                mustExist: false,
+              },
             );
+            if (entry.changedFiles.length > 0) {
+              assertExactPatchOnlyChange(
+                entry.changedFiles,
+                input.patchOnly.exactAllowedPath,
+              );
+            }
           }
           if (
             entry.state === "TESTING"
@@ -573,7 +707,11 @@ export async function runLightweightRunner({
                 code: "RUNNER_NO_CHANGE",
               });
             } else {
-              artifactTerminalState = "COMPLETED";
+              artifactTerminalState = "PATCH_READY_FOR_OWNER_REVIEW";
+              if (entry.budgetResult !== null) {
+                entry.budgetResult.patch_ready = true;
+                entry.budgetResult.terminal_state = artifactTerminalState;
+              }
             }
           }
         } catch (error) {
@@ -621,6 +759,7 @@ export async function runLightweightRunner({
             terminalState: artifactTerminalState,
             error: entry.error ?? null,
             containment,
+            budgetResult: entry.budgetResult,
           });
           entry.state = artifactTerminalState;
         } catch (error) {
@@ -632,6 +771,7 @@ export async function runLightweightRunner({
       await updateRunManifest(manifestPath, state, {
         packages: manifestPackages(packages),
         error_code: firstError?.code ?? null,
+        aggregate_usage: aggregateUsage,
       }, { now });
       return summarizeRun({
         runId: input.runId,

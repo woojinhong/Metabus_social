@@ -106,6 +106,19 @@ function fixtureCommand(mode, detail = "") {
   });
 }
 
+function unavailableCostAuthority() {
+  return {
+    authentication_mode: "CHATGPT",
+    monetary_cost_policy: "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT",
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    production: false,
+    commit_allowed: false,
+    push_allowed: false,
+    pr_allowed: false,
+    exact_allowed_path: "docs/allowed.md",
+  };
+}
+
 function adapterFor(mode, {
   detail = "",
   sourceEnvironment = process.env,
@@ -117,7 +130,7 @@ function adapterFor(mode, {
     approvalMode: "never",
     sourceEnvironment,
     maxLogBytes,
-    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    costAuthority: unavailableCostAuthority(),
     versionProbe: async () => ({
       code: 0,
       timedOut: false,
@@ -166,8 +179,11 @@ test("sanitized Codex 0.146.0 JSONL verifies final token and external-tool usage
   assert.equal(parsed.usage.verified, true);
   assert.throws(
     () => assertCodexOutputPolicy(parsed, budget()),
-    (error) => error.code === "RUNNER_CODEX_COST_UNVERIFIED",
+    (error) => error.code === "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
   );
+  assert.equal(assertCodexOutputPolicy(parsed, budget(), {
+    costAuthority: unavailableCostAuthority(),
+  }).cost, null);
 });
 
 test("final cumulative snapshots are deduplicated and conflicting snapshots fail closed", () => {
@@ -285,7 +301,7 @@ test("external tools are deduplicated by item id while shell executions remain p
   assert.equal(parsed.usage.external_calls_verified, true);
   assert.throws(
     () => assertCodexOutputPolicy(parsed, budget()),
-    (error) => error.code === "RUNNER_EXTERNAL_CALL_DETECTED",
+    (error) => error.code === "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
   );
 
   const unknown = parseCodexJsonlOutput(codexJsonl({}, [
@@ -293,6 +309,30 @@ test("external tools are deduplicated by item id while shell executions remain p
   ]));
   assert.equal(unknown.usage.external_calls_verified, false);
   assert.equal(unknown.usage.verified, false);
+  assert.throws(
+    () => assertCodexOutputPolicy(unknown, budget(), {
+      costAuthority: unavailableCostAuthority(),
+    }),
+    (error) => error.code === "RUNNER_CODEX_USAGE_UNVERIFIED",
+  );
+
+  const hiddenExternal = parseCodexJsonlOutput(codexJsonl({}, [{
+    type: "item.completed",
+    item: {
+      id: "message-hidden-external",
+      type: "agent_message",
+      metadata: { mcp_tool_call: { id: "hidden" } },
+    },
+  }]));
+  assert.equal(hiddenExternal.usage.external_calls, 0);
+  assert.equal(hiddenExternal.usage.external_calls_verified, false);
+  assert.equal(hiddenExternal.usage.verified, false);
+  assert.throws(
+    () => assertCodexOutputPolicy(hiddenExternal, budget(), {
+      costAuthority: unavailableCostAuthority(),
+    }),
+    (error) => error.code === "RUNNER_CODEX_USAGE_UNVERIFIED",
+  );
 });
 
 test("agent text cannot inject usage evidence and unsupported delta-shaped events fail closed", () => {
@@ -317,7 +357,7 @@ test("agent text cannot inject usage evidence and unsupported delta-shaped event
   assert.equal(delta.usage.verified, false);
   assert.throws(
     () => assertCodexOutputPolicy(delta, budget()),
-    (error) => error.code === "RUNNER_CODEX_SCHEMA_UNSUPPORTED",
+    (error) => error.code === "RUNNER_CODEX_USAGE_UNVERIFIED",
   );
 
   const nested = parseCodexJsonlOutput(codexJsonl({}, [{
@@ -673,7 +713,7 @@ test("external-call events fail closed and non-JSON output is collected safely",
       workPackage: fixture.workPackage,
     }),
     (error) => {
-      assert.equal(error.code, "RUNNER_EXTERNAL_CALL_DETECTED");
+      assert.equal(error.code, "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED");
       assert.ok(error.workerResult.usage.external_calls > 0);
       assert.equal(error.workerResult.policyRejected, true);
       return true;
@@ -858,7 +898,7 @@ test("Codex adapter verifies the exact CLI parser profile before launch", async 
     approvalMode: "never",
     allowPartialContainment: true,
     isolationEvidence: { network: false, filesystem: false, processTree: false },
-    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    costAuthority: unavailableCostAuthority(),
     versionProbe: async () => ({ code: 0, stdout: "codex-cli 0.147.0\n" }),
   });
   await assert.rejects(
@@ -872,7 +912,7 @@ test("Codex adapter verifies the exact CLI parser profile before launch", async 
     approvalMode: "never",
     allowPartialContainment: true,
     isolationEvidence: { network: false, filesystem: false, processTree: false },
-    costAuthority: { approved: true, mode: "CLI_REPORTED", currency: "USD" },
+    costAuthority: unavailableCostAuthority(),
     versionProbe: async () => {
       throw Object.assign(new Error("probe failed"), { code: "ENOENT" });
     },

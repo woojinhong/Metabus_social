@@ -776,10 +776,10 @@ test("real Codex aggregate budget stops before launching another Package", async
     worker,
   });
   assert.equal(worker.calls.length, 1);
-  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(fixture.result.state, "FAILED_BUDGET");
   assert.equal(
     fixture.result.packages.filter(
-      ({ error_code }) => error_code === "RUNNER_BUDGET_EXCEEDED",
+      ({ error_code }) => error_code === "RUNNER_TOKEN_BUDGET_EXCEEDED",
     ).length,
     2,
   );
@@ -793,8 +793,8 @@ test("Worker usage beyond the pinned token budget blocks publication", async (t)
     }),
   });
   const fixture = await executeFixture(t, { worker });
-  assert.equal(fixture.result.state, "FAILED");
-  assert.equal(fixture.result.packages[0].error_code, "RUNNER_BUDGET_EXCEEDED");
+  assert.equal(fixture.result.state, "FAILED_BUDGET");
+  assert.equal(fixture.result.packages[0].error_code, "RUNNER_TOKEN_BUDGET_EXCEEDED");
   assert.equal(fixture.publisher.publishCalls.length, 0);
 });
 
@@ -813,7 +813,7 @@ test("unverified Worker usage blocks publication even when numeric fields are pr
   assert.equal(fixture.result.state, "FAILED");
   assert.equal(
     fixture.result.packages[0].error_code,
-    "RUNNER_WORKER_USAGE_MISSING",
+    "RUNNER_CODEX_USAGE_UNVERIFIED",
   );
   assert.equal(fixture.publisher.publishCalls.length, 0);
 });
@@ -989,13 +989,20 @@ test("Worker token usage is aggregated across the whole run", async (t) => {
     ],
     worker,
   });
-  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(fixture.result.state, "FAILED_BUDGET");
   assert.equal(
     fixture.result.packages.filter(
-      ({ error_code }) => error_code === "RUNNER_BUDGET_EXCEEDED",
+      ({ error_code }) => error_code === "RUNNER_TOKEN_BUDGET_EXCEEDED",
     ).length,
     2,
   );
+  for (const packageResult of fixture.result.packages) {
+    assert.equal(packageResult.usage_budget.total_tokens, 12_000);
+    assert.equal(packageResult.usage_budget.worker_total_tokens, 6_000);
+    assert.equal(packageResult.usage_budget.token_budget_exceeded, true);
+    assert.equal(packageResult.usage_budget.error_code, "RUNNER_TOKEN_BUDGET_EXCEEDED");
+    assert.equal(packageResult.usage_budget.terminal_state, "FAILED_BUDGET");
+  }
   assert.equal(fixture.publisher.publishCalls.length, 0);
 });
 
@@ -1125,7 +1132,7 @@ test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publishe
     publisher,
     patchArtifactWriter,
   });
-  assert.equal(fixture.result.state, "COMPLETED");
+  assert.equal(fixture.result.state, "PATCH_READY_FOR_OWNER_REVIEW");
   assert.equal(fixture.result.packages[0].commit_sha, null);
   assert.equal(fixture.result.packages[0].draft_pr_url, null);
   assert.equal(publisher.publishCalls.length, 0);
@@ -1136,10 +1143,10 @@ test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publishe
   );
 });
 
-test("actual Codex 0.146 usage passes usage verification but blocks on missing cost authority", async (t) => {
+test("actual Codex 0.146 usage reaches patch-ready under the exact unavailable-cost authority", async (t) => {
   const publisher = fakePublisher();
   const testRunner = fakeTestRunner();
-  const patchArtifactWriter = fakePatchArtifactWriter({ changedFiles: [], patch: "" });
+  const patchArtifactWriter = fakePatchArtifactWriter({ changedFiles: ["docs/allowed.md"] });
   const worker = {
     async assertAvailable() {
       return true;
@@ -1152,7 +1159,26 @@ test("actual Codex 0.146 usage passes usage verification but blocks on missing c
       await writeFile(stderrPath, "", "utf8");
       const parsed = parseCodexJsonlOutput(stdout);
       try {
-        assertCodexOutputPolicy(parsed, input.budget);
+        const usage = assertCodexOutputPolicy(parsed, input.budget, {
+          costAuthority: {
+            authentication_mode: "CHATGPT",
+            monetary_cost_policy: "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT",
+            publication_mode: "EXECUTE_PATCH_ONLY",
+            production: false,
+            commit_allowed: false,
+            push_allowed: false,
+            pr_allowed: false,
+            exact_allowed_path: "docs/allowed.md",
+          },
+        });
+        return {
+          code: 0,
+          timedOut: false,
+          pid: 6400,
+          stdoutPath,
+          stderrPath,
+          usage,
+        };
       } catch (error) {
         error.workerResult = {
           code: 0,
@@ -1165,7 +1191,7 @@ test("actual Codex 0.146 usage passes usage verification but blocks on missing c
         };
         throw error;
       }
-      assert.fail("missing Codex cost authority must not pass");
+      assert.fail("approved Codex cost authority must pass");
     },
   };
   const fixture = await executeFixture(t, {
@@ -1176,14 +1202,65 @@ test("actual Codex 0.146 usage passes usage verification but blocks on missing c
     publisher,
     patchArtifactWriter,
   });
-  assert.equal(fixture.result.state, "BLOCKED");
-  assert.equal(fixture.result.packages[0].error_code, "RUNNER_CODEX_COST_UNVERIFIED");
-  assert.equal(testRunner.calls.length, 0);
+  assert.equal(fixture.result.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(fixture.result.packages[0].error_code, null);
+  assert.equal(testRunner.calls.length, 1);
   assert.equal(publisher.publishCalls.length, 0);
   assert.equal(patchArtifactWriter.writes.length, 1);
   assert.equal(patchArtifactWriter.writes[0].workerResult.usage.tokens, 444_962);
   assert.equal(patchArtifactWriter.writes[0].workerResult.usage.verified, true);
   assert.equal(patchArtifactWriter.writes[0].workerResult.usage.cost, null);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.total_tokens, 444_962);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.max_total_tokens, 600_000);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.cost_available, false);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.patch_ready, true);
+});
+
+test("Codex 0.146 token excess preserves artifacts and skips tests and publication", async (t) => {
+  const publisher = fakePublisher();
+  const testRunner = fakeTestRunner();
+  const patchArtifactWriter = fakePatchArtifactWriter({ changedFiles: ["docs/allowed.md"] });
+  const worker = fakeWorker({
+    onRun: async () => {
+      const stdout = await readFile(CODEX_0_146_FIXTURE, "utf8");
+      return { usage: parseCodexJsonlOutput(stdout).usage };
+    },
+  });
+  worker.kind = "CODEX_CLI_0_146";
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    approvalOverrides: { max_total_tokens: 400_000 },
+    worker,
+    testRunner,
+    publisher,
+    patchArtifactWriter,
+  });
+  assert.equal(fixture.result.state, "FAILED_BUDGET");
+  assert.equal(fixture.result.packages[0].error_code, "RUNNER_TOKEN_BUDGET_EXCEEDED");
+  assert.equal(fixture.result.packages[0].usage_budget.patch_ready, false);
+  assert.equal(testRunner.calls.length, 0);
+  assert.equal(publisher.publishCalls.length, 0);
+  assert.equal(patchArtifactWriter.writes.length, 1);
+  assert.equal(patchArtifactWriter.writes[0].terminalState, "FAILED_BUDGET");
+});
+
+test("Codex 0.146 total exactly equal to max_total_tokens remains patch-ready", async (t) => {
+  const worker = fakeWorker({
+    onRun: async () => ({
+      usage: parseCodexJsonlOutput(await readFile(CODEX_0_146_FIXTURE, "utf8")).usage,
+    }),
+  });
+  worker.kind = "CODEX_CLI_0_146";
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    approvalOverrides: { max_total_tokens: 444_962 },
+    worker,
+    patchArtifactWriter: fakePatchArtifactWriter({ changedFiles: ["docs/allowed.md"] }),
+  });
+  assert.equal(fixture.result.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(fixture.result.packages[0].usage_budget.token_budget_exceeded, false);
 });
 
 test("EXECUTE_PATCH_ONLY fails closed for staged, committed, and forbidden changes", async (t) => {
@@ -1335,6 +1412,53 @@ test("EXECUTE_PATCH_ONLY rejects malformed and cross-mode approvals", async (t) 
   assertCode("RUNNER_PATCH_ONLY_SCOPE_INVALID", () => validateRunInput({
     dryRun: unsafeDryRun,
     approval: unsafeApproval,
+    repositorySha: REPOSITORY_SHA,
+  }));
+});
+
+test("EXECUTE_PATCH_ONLY approval requires every AH-P2-11 exact pin", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-budget-approval-");
+  const { dryRun } = makeFixture([{ path: "docs/allowed.md" }], join(root, "worktrees"));
+  const valid = () => makeOwnerApproval(dryRun, {
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    disposable_clone_root: join(root, `repository-${Math.random().toString(16).slice(2)}`),
+    source_repository_root: root,
+    worktree_root: join(root, "worktrees"),
+  });
+  assert.doesNotThrow(() => validateRunInput({
+    dryRun,
+    approval: valid(),
+    repositorySha: REPOSITORY_SHA,
+  }));
+  const scenarios = [
+    ["authentication_mode", undefined, "RUNNER_PATCH_ONLY_APPROVAL_INVALID"],
+    ["authentication_mode", "API_KEY", "RUNNER_PATCH_ONLY_APPROVAL_INVALID"],
+    ["token_budget_enforcement", undefined, "RUNNER_PATCH_ONLY_APPROVAL_INVALID"],
+    ["token_budget_enforcement", "PRE_RUN", "RUNNER_PATCH_ONLY_APPROVAL_INVALID"],
+    ["monetary_cost_policy", undefined, "RUNNER_CODEX_COST_AUTHORITY_REQUIRED"],
+    ["publication_mode", "EXECUTE_AND_DRAFT_PR", "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID"],
+    ["commit_allowed", true, "RUNNER_PATCH_ONLY_PERMISSION_INVALID"],
+    ["push_allowed", true, "RUNNER_PATCH_ONLY_PERMISSION_INVALID"],
+    ["pr_allowed", true, "RUNNER_PATCH_ONLY_PERMISSION_INVALID"],
+    ["max_total_tokens", undefined, "RUNNER_BUDGET_INVALID"],
+    ["max_total_tokens", 0, "RUNNER_BUDGET_INVALID"],
+    ["max_total_tokens", -1, "RUNNER_BUDGET_INVALID"],
+    ["max_total_tokens", 1.5, "RUNNER_BUDGET_INVALID"],
+    ["max_total_tokens", Number.MAX_SAFE_INTEGER + 1, "RUNNER_BUDGET_INVALID"],
+  ];
+  for (const [field, value, code] of scenarios) {
+    const approval = valid();
+    if (value === undefined) delete approval[field];
+    else approval[field] = value;
+    resealApproval(approval);
+    assertCode(code, () => validateRunInput({ dryRun, approval, repositorySha: REPOSITORY_SHA }));
+  }
+  const spendAuthority = valid();
+  spendAuthority.execution_budget.max_cost = 1;
+  resealApproval(spendAuthority);
+  assertCode("RUNNER_BUDGET_INVALID", () => validateRunInput({
+    dryRun,
+    approval: spendAuthority,
     repositorySha: REPOSITORY_SHA,
   }));
 });
@@ -1714,8 +1838,24 @@ test("patch artifact writer renders binary diff and rejects staged or committed 
     tests: [],
     workerResult: null,
     patch,
-    terminalState: "COMPLETED",
+    terminalState: "PATCH_READY_FOR_OWNER_REVIEW",
     containment: { status: "PARTIALLY_VERIFIED" },
+    budgetResult: {
+      total_tokens: 444_962,
+      max_total_tokens: 600_000,
+      token_budget_verified: true,
+      token_budget_exceeded: false,
+      cost: null,
+      cost_available: false,
+      cost_verified: false,
+      monetary_cost_policy: "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT",
+      external_calls: 0,
+      max_external_calls: 0,
+      external_calls_verified: true,
+      process_calls: 23,
+      observed: { total_tokens: 444_962, cost: null, external_calls: 0, process_calls: 23 },
+      authoritative: { total_tokens: 444_962, cost: null, external_calls: 0 },
+    },
   });
   assert.equal(await readFile(paths.patch, "utf8"), patch);
   assert.equal(await readFile(paths.workerStdout, "utf8"), "");
@@ -1723,6 +1863,16 @@ test("patch artifact writer renders binary diff and rejects staged or committed 
   const testRecord = JSON.parse(await readFile(paths.testResults, "utf8"));
   assert.equal(testRecord.status, "NOT_RUN");
   assert.equal(testRecord.all_passed, false);
+  const runResult = JSON.parse(await readFile(paths.runResult, "utf8"));
+  assert.equal(runResult.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(runResult.patch_ready, true);
+  assert.equal(runResult.total_tokens, 444_962);
+  assert.equal(runResult.max_total_tokens, 600_000);
+  assert.equal(runResult.cost, null);
+  assert.equal(runResult.cost_available, false);
+  assert.equal(runResult.external_calls, 0);
+  assert.equal(runResult.process_calls, 23);
+  assert.match(await readFile(paths.finalSummary, "utf8"), /Cost: unavailable \(null\)/u);
 
   const failedOutput = join(fixture.root, "failed-artifacts");
   await assert.rejects(

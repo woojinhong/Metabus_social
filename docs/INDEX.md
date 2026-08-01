@@ -44,8 +44,9 @@ handling to command-scoped `safe.directory` and leaves persistent Git config
 and source ownership unchanged. [Issue #64 usage evidence](discovery/autonomous-harness-codex-jsonl-usage.md)
 pins Codex 0.146.0 final token/external-tool parsing. The
 [AH-P2-11 authority](discovery/autonomous-harness-codex-cost-budget-authority.md)
-approves the narrow cost-unavailable exception and post-run token gate; Runner
-support and a fresh approval are still required. AH-P2-06 artifacts remain preserved. Patch-only
+approves the narrow cost-unavailable exception and post-run token gate. Issue
+#68 wires Runner enforcement under Draft-PR review; no Pilot was rerun and a
+fresh run ID/approval remain required. AH-P2-06 artifacts remain preserved. Patch-only
 containment is `PARTIALLY_VERIFIED`; a new real run needs a new run ID, exact
 pins and separate residual-risk Owner acceptance.
 

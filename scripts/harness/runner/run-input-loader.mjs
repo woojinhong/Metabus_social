@@ -72,6 +72,13 @@ function validateBudget(budget) {
   return clone(budget);
 }
 
+function positiveSafeInteger(value, field) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    failRunner("RUNNER_BUDGET_INVALID", `${field} must be a positive safe integer`, { field });
+  }
+  return value;
+}
+
 function validatePublicationPolicy(policy) {
   if (
     !policy
@@ -165,6 +172,43 @@ function validatePatchOnlyApproval({
   concurrency,
 }) {
   if (publicationPolicy.mode !== "EXECUTE_PATCH_ONLY") return null;
+  if (approval.monetary_cost_policy !== "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT") {
+    failRunner(
+      "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
+      "Patch-only Codex execution requires the exact Owner-approved unavailable-cost policy",
+    );
+  }
+  if (
+    approval.authentication_mode !== "CHATGPT"
+    || approval.codex_cli_version !== "0.146.0"
+    || approval.usage_schema_version !== "1.0.0"
+    || approval.parser_profile !== "codex-jsonl@0.146.0"
+    || approval.token_budget_enforcement !== "POST_RUN_HARD_GATE"
+    || approval.production !== false
+    || approval.residual_risks_accepted !== true
+  ) {
+    failRunner(
+      "RUNNER_PATCH_ONLY_APPROVAL_INVALID",
+      "Patch-only approval must pin CHATGPT, Codex/parser versions, post-run token enforcement, non-production, and residual-risk acceptance",
+    );
+  }
+  const maxTotalTokens = positiveSafeInteger(
+    approval.max_total_tokens,
+    "approval.max_total_tokens",
+  );
+  if (
+    approval.execution_budget?.max_tokens !== maxTotalTokens
+    || approval.execution_budget?.max_cost !== 0
+    || approval.max_external_calls !== 0
+    || approval.execution_budget?.max_external_calls !== approval.max_external_calls
+    || approval.max_retries !== 0
+    || approval.execution_budget?.max_retries !== approval.max_retries
+  ) {
+    failRunner(
+      "RUNNER_BUDGET_INVALID",
+      "Patch-only approval pins must exactly match the execution budget",
+    );
+  }
   const prohibitedPaths = sortedUniqueStrings(
     approval.prohibited_paths,
     "approval.prohibited_paths",
@@ -245,6 +289,8 @@ function validatePatchOnlyApproval({
   }
   if (
     approvedPaths.length !== 1
+    || approvedPaths[0].includes("//")
+    || approvedPaths[0].split("/").some((segment) => segment === "." || segment === "..")
     || !approvedPaths[0].startsWith("docs/")
     || !/^[A-Za-z0-9._/-]+\.md$/u.test(approvedPaths[0])
   ) {
@@ -280,6 +326,8 @@ function validatePatchOnlyApproval({
     disposableCloneRoot: resolve(approval.disposable_clone_root),
     sourceRepositoryRoot: resolve(approval.source_repository_root),
     exactAllowedPath: exactPath,
+    maxTotalTokens,
+    monetaryCostPolicy: approval.monetary_cost_policy,
   };
 }
 
@@ -499,6 +547,11 @@ export function validateRunInput({
     concurrency,
   });
 
+  const executionBudget = validateBudget(approval.execution_budget);
+  if (patchOnly !== null) {
+    executionBudget.max_total_tokens = patchOnly.maxTotalTokens;
+    executionBudget.monetary_cost_policy = patchOnly.monetaryCostPolicy;
+  }
   return {
     dryRun,
     approval,
@@ -507,7 +560,7 @@ export function validateRunInput({
     sourceSha,
     maxConcurrency: concurrency,
     runId: approval.run_id,
-    executionBudget: validateBudget(approval.execution_budget),
+    executionBudget,
     worktreeRoot: resolve(requestedRoot),
     publicationPolicy,
     patchOnly,

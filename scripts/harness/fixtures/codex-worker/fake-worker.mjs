@@ -13,7 +13,7 @@ function start() {
   process.stdout.write(`${JSON.stringify({ type: "turn.started" })}\n`);
 }
 
-function usage(tokens = 12, cost = 0) {
+function usage(tokens = 12, cost = 0, externalCalls = 0) {
   process.stdout.write(`${JSON.stringify({
     type: "turn.completed",
     usage: {
@@ -25,7 +25,7 @@ function usage(tokens = 12, cost = 0) {
       total_tokens: tokens,
       cost,
       currency: "USD",
-      external_calls: 0,
+      external_calls: externalCalls,
     },
   })}\n`);
 }
@@ -112,7 +112,7 @@ if (mode === "grandchild") {
     type: "item.completed",
     item: { id: "external-1", type: "web_search" },
   })}\n`);
-  usage(4);
+  usage(4, 0, 1);
 } else if (mode === "malformed-after-usage") {
   await readStdin();
   start();
