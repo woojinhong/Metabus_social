@@ -2,7 +2,7 @@
 title: AH-P2-01 Lightweight Worktree Runner Pilot Authority
 document_type: automation implementation authority
 classification: user decision
-status: Owner-approved scope; AH-P2-13 preserved as NO_CHANGE; Issue #70 hardens patch-only write/operation contracts
+status: Owner-approved scope; AH-P2-15 preserved as NO_CHANGE; Issue #72 verifies effective patch-only sandbox
 last_verified: 2026-08-01
 related_documents: ["autonomous-harness-foundation-approval-plan.md","autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md","../operations/README.md","../INDEX.md"]
 decision_authority: explicit Owner instructions on 2026-07-31, Issue #54 and Issue #58
@@ -194,7 +194,7 @@ Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.
 
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 
-Issue #60/#62 confine this mode to one exact `docs/**` path in an independent OS-temp clone with command-scoped `safe.directory`; commit, push, PR and persistent Git configuration remain forbidden. AH-P2-13 verified 369026 tokens and zero external calls, but its effective read-only sandbox rejected the runbook write; it ended `NO_CHANGE` with an empty patch and is preserved and never reusable.
-Issue #70 requires `workspace-write` in the patch-only CLI, approval and adapter, places the sandbox pin on `codex exec`, and keeps read-only for zero-write diagnostics only. This does not widen other modes. Exact-path, HEAD, index, remote, reparse-point and pre/post-test fingerprint checks remain. Path/reparse violations are `FAILED_PATH_POLICY`; other Git-state violations keep dedicated errors under `FAILED`, and no publisher runs.
-Planner uses read-only `git ls-tree` at the pinned source SHA: absent targets are `CREATE`, regular files are `MODIFY`, and other Git modes fail closed. Runner rechecks before Worker launch and after Worker/tests, includes ignored files in the workspace delta, and blocks stale, deleted, directory, symlink, junction, DELETE or RENAME cases.
-Any next real Pilot requires a new run ID, fresh exact Owner approval and residual-risk acceptance. Product code, schema/migration, dependency/workflow and automatic publication remain prohibited.
+Issue #60/#62 confine this mode to one exact `docs/**` path in an OS-temp clone with command-scoped `safe.directory`; commit, push, PR and persistent Git configuration remain forbidden. AH-P2-13 and AH-P2-15 ended `NO_CHANGE` after effective read-only rejected the runbook CREATE; both runs and artifacts are preserved and never reusable.
+Issue #70 pins requested `workspace-write` in approval, CLI and adapter, but AH-P2-15 proved requested and effective sandbox can differ. Issue #72 requires a same-host Codex write probe before a real patch-only Worker; read-only denial is `RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH`, missing or stale evidence is `RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED`, and neither may become `NO_CHANGE`.
+The probe uses the same executable, version, detected config-source hashes, exact environment-value hashes, host identity and command policy as the Worker, records no config secret values, and is not reusable across changed bindings or sessions. It must both write inside the workspace and receive a machine-readable denial outside the workspace/dedicated temp boundary; its verified usage consumes the same Owner token/time budget. Exact-path, HEAD, index, remote, all Git metadata, reparse and pre/post-test checks remain.
+If the host cannot prove effective `workspace-write`, operation is `BLOCKED_ENVIRONMENT`. Any next real Pilot requires a new run ID, fresh exact Owner approval and residual-risk acceptance; product code, schema/migration, dependency/workflow and automatic publication remain prohibited.

@@ -6,6 +6,7 @@ export function buildCodexExecCommand({
   cwd,
   sandbox,
   approvalMode,
+  loadUserConfig = false,
 }) {
   if (typeof executable !== "string" || !isAbsolute(executable)) {
     const error = new Error("Codex executable must be an explicit absolute path");
@@ -31,7 +32,7 @@ export function buildCodexExecCommand({
       "--cd",
       resolve(cwd),
       "--ephemeral",
-      "--ignore-user-config",
+      ...(!loadUserConfig ? ["--ignore-user-config"] : []),
       "--json",
       "-",
     ],

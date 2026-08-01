@@ -28,7 +28,8 @@ function usage() {
     "    [--real-codex-worker",
     "      --codex-executable <absolute-path>",
     "      --worker-sandbox <read-only|workspace-write>",
-    "      --worker-approval <never>]",
+    "      --worker-approval <never>",
+    "      --require-effective-sandbox-probe]",
     "",
     "Default mode is --prepare-only with the unavailable Worker adapter.",
     "Real Codex execution requires all explicit Worker flags, an exact approved",
@@ -54,6 +55,7 @@ export function parseRunnerArgs(args) {
     "--execute-patch-only",
     "--execute-and-publish",
     "--real-codex-worker",
+    "--require-effective-sandbox-probe",
   ]);
   const parsed = {};
   for (let index = 0; index < args.length; index += 1) {
@@ -114,8 +116,28 @@ export function parseRunnerArgs(args) {
       error.code = "RUNNER_WORKER_SANDBOX_MODE_INVALID";
       throw error;
     }
+    if (
+      parsed["--execute-patch-only"]
+      && parsed["--require-effective-sandbox-probe"] !== true
+    ) {
+      const error = new TypeError(
+        "EXECUTE_PATCH_ONLY real Codex Workers require --require-effective-sandbox-probe",
+      );
+      error.code = "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED";
+      throw error;
+    }
+    if (
+      !parsed["--execute-patch-only"]
+      && parsed["--require-effective-sandbox-probe"] === true
+    ) {
+      throw new TypeError(
+        "--require-effective-sandbox-probe is confined to --execute-patch-only",
+      );
+    }
   } else if (workerValues.some((flag) => parsed[flag])) {
     throw new TypeError("Codex Worker options require --real-codex-worker");
+  } else if (parsed["--require-effective-sandbox-probe"]) {
+    throw new TypeError("--require-effective-sandbox-probe requires --real-codex-worker");
   }
   return parsed;
 }

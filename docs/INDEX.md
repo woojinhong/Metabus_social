@@ -51,8 +51,13 @@ and artifacts are preserved and cannot be reused. Issue #70 requires patch-only
 CLI/approval/adapter agreement on `workspace-write`, retains exact-path
 postchecks including ignored files, and derives CREATE/MODIFY via read-only
 `git ls-tree` at the pinned SHA with pre/post checks. Containment remains
-`PARTIALLY_VERIFIED`; another real
-run needs a new run ID, fresh exact approval and residual-risk acceptance.
+`PARTIALLY_VERIFIED`. AH-P2-15 then proved requested `workspace-write` can still
+be effective read-only when user config is ignored; that `NO_CHANGE` run is
+preserved and cannot be reused. Issue #72 requires a same-host/config/version/environment
+OS-temp positive-write and denied-boundary probe before a patch-only Worker;
+its usage consumes the same Owner budget. Effective mismatch or stale,
+missing or unsafe proof blocks as `BLOCKED_ENVIRONMENT`, not `NO_CHANGE`.
+Another real run needs a new run ID, fresh exact approval and residual-risk acceptance.
 
 ## Authority and promotion
 

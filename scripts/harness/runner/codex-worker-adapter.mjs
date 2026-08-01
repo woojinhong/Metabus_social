@@ -1,6 +1,12 @@
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { buildCodexExecCommand } from "./codex-command-builder.mjs";
+import {
+  assertCodexProbeBinding,
+  fingerprintCodexHostConfiguration,
+  probeCodexEffectiveSandbox,
+} from "./codex-effective-sandbox.mjs";
 import {
   assertCodexOutputPolicy,
   parseCodexJsonlOutput,
@@ -45,6 +51,8 @@ export function createCodexWorkerAdapter({
   versionProbe = runProcess,
   costAuthority = null,
   commandBuilder = buildCodexExecCommand,
+  effectiveSandboxProbe = probeCodexEffectiveSandbox,
+  configurationFingerprint = fingerprintCodexHostConfiguration,
 } = {}) {
   if (typeof executable !== "string" || !isAbsolute(executable)) {
     throw adapterError(
@@ -72,8 +80,42 @@ export function createCodexWorkerAdapter({
     filesystem: isolationEvidence.filesystem === true,
     processTree: isolationEvidence.processTree === true,
   };
+  const requiresEffectiveSandboxProbe = patchOnly
+    || costAuthority?.publication_mode === "EXECUTE_PATCH_ONLY";
+  const filteredEnvironment = filterWorkerEnvironment(sourceEnvironment);
+  let executionEnvironment = Object.freeze({ ...filteredEnvironment.environment });
+  let runtimeEnvironmentInitialized = !requiresEffectiveSandboxProbe;
+  let effectiveSandboxEvidence = null;
 
-  const assertAvailable = async () => {
+  const ensureExecutionEnvironment = async () => {
+    if (runtimeEnvironmentInitialized) return executionEnvironment;
+    const runtimeTemp = await mkdtemp(join(tmpdir(), "propscans-codex-runtime-"));
+    const hooksPath = join(runtimeTemp, "empty-hooks");
+    const templatePath = join(runtimeTemp, "empty-template");
+    await mkdir(hooksPath);
+    await mkdir(templatePath);
+    const withoutTemp = Object.fromEntries(Object.entries(executionEnvironment)
+      .filter(([name]) => !["TEMP", "TMP", "TMPDIR"].includes(name.toUpperCase())));
+    executionEnvironment = Object.freeze({
+      ...withoutTemp,
+      TEMP: runtimeTemp,
+      TMP: runtimeTemp,
+      TMPDIR: runtimeTemp,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+      GIT_CONFIG_COUNT: "3",
+      GIT_CONFIG_KEY_0: "core.hooksPath",
+      GIT_CONFIG_VALUE_0: hooksPath,
+      GIT_CONFIG_KEY_1: "init.templateDir",
+      GIT_CONFIG_VALUE_1: templatePath,
+      GIT_CONFIG_KEY_2: "commit.gpgSign",
+      GIT_CONFIG_VALUE_2: "false",
+    });
+    runtimeEnvironmentInitialized = true;
+    return executionEnvironment;
+  };
+
+  const assertAvailable = async ({ budget = null, timeoutMs = null } = {}) => {
     await access(executablePath).catch((cause) => {
       throw adapterError(
         "RUNNER_CODEX_UNAVAILABLE",
@@ -108,8 +150,9 @@ export function createCodexWorkerAdapter({
         "Owner-pinned Codex authentication and cost authority is required before execution",
       );
     }
+    const environment = await ensureExecutionEnvironment();
     const versionResult = await versionProbe(executablePath, ["--version"], {
-      env: filterWorkerEnvironment(sourceEnvironment).environment,
+      env: environment,
       timeoutMs: 5_000,
       maxOutputBytes: 4_096,
     }).catch((cause) => {
@@ -132,6 +175,57 @@ export function createCodexWorkerAdapter({
         { observed_version: versionOutput || null },
       );
     }
+    if (requiresEffectiveSandboxProbe) {
+      const fingerprint = async () => configurationFingerprint({
+        executable: executablePath,
+        sandbox,
+        approvalMode,
+        cliVersion: versionOutput,
+        environment,
+      }).catch((cause) => {
+        if (cause.code?.startsWith?.("RUNNER_")) throw cause;
+        throw adapterError(
+          "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+          "Codex host/configuration fingerprint could not be verified",
+          { cause: cause.code ?? cause.name },
+        );
+      });
+      let currentBinding = await fingerprint();
+      if (effectiveSandboxEvidence === null) {
+        if (budget === null || typeof budget !== "object") {
+          throw adapterError(
+            "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+            "Effective sandbox probe requires the Owner-approved run budget",
+            { environment_state: "BLOCKED_ENVIRONMENT" },
+          );
+        }
+        try {
+          effectiveSandboxEvidence = await effectiveSandboxProbe({
+            executable: executablePath,
+            sandbox,
+            approvalMode,
+            sourceEnvironment,
+            environment,
+            binding: currentBinding,
+            commandBuilder,
+            run,
+            budget,
+            timeoutMs: Number.isFinite(timeoutMs)
+              ? Math.max(1, Math.min(timeoutMs, budget.worker_timeout_seconds * 1_000))
+              : budget.worker_timeout_seconds * 1_000,
+          });
+        } catch (cause) {
+          if (cause.code?.startsWith?.("RUNNER_")) throw cause;
+          throw adapterError(
+            "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+            "Codex effective sandbox probe could not be verified",
+            { cause: cause.code ?? cause.name },
+          );
+        }
+        currentBinding = await fingerprint();
+      }
+      assertCodexProbeBinding(effectiveSandboxEvidence, currentBinding);
+    }
     return {
       executable: executablePath,
       sandbox,
@@ -139,6 +233,17 @@ export function createCodexWorkerAdapter({
       isolation: evidence,
       containment_status: fullyVerified ? "VERIFIED" : "PARTIALLY_VERIFIED",
       parser_profile: "codex-jsonl@0.146.0",
+      effective_sandbox: requiresEffectiveSandboxProbe
+        ? effectiveSandboxEvidence.effective_sandbox
+        : null,
+      effective_sandbox_probe: requiresEffectiveSandboxProbe
+        ? {
+            binding_sha256: effectiveSandboxEvidence.binding_sha256,
+            result_path: effectiveSandboxEvidence.result_path ?? null,
+            probe_root: effectiveSandboxEvidence.probe_root ?? null,
+            usage: effectiveSandboxEvidence.usage ?? null,
+          }
+        : null,
       cost_authority: {
         authentication_mode: costAuthority.authentication_mode,
         monetary_cost_policy: costAuthority.monetary_cost_policy,
@@ -162,7 +267,7 @@ export function createCodexWorkerAdapter({
       budget,
       workPackage,
     }) {
-      await assertAvailable();
+      await assertAvailable({ budget, timeoutMs });
       if (budget?.max_external_calls !== 0) {
         throw adapterError(
           "RUNNER_WORKER_BUDGET_INVALID",
@@ -180,17 +285,19 @@ export function createCodexWorkerAdapter({
         cwd: invocation.cwd,
         sandbox,
         approvalMode,
+        loadUserConfig: requiresEffectiveSandboxProbe,
       });
-      const filtered = filterWorkerEnvironment(sourceEnvironment);
+      const filtered = filteredEnvironment;
       const valuesToRedact = secretValues(
         sourceEnvironment,
         filtered.removedSecretNames,
       );
+      await assertAvailable({ budget, timeoutMs });
       let result;
       try {
         result = await run(command.executable, command.args, {
           cwd: invocation.cwd,
-          env: filtered.environment,
+          env: executionEnvironment,
           timeoutMs,
           maxOutputBytes: maxLogBytes,
           stdinData: invocation.prompt,
@@ -215,6 +322,9 @@ export function createCodexWorkerAdapter({
         maxTotalBytes: maxLogBytes,
         maxLineBytes: Math.min(maxLogBytes, 256 * 1024),
       });
+      const runtimeWriteDenialObserved =
+        /read-only sandbox|rejected by user approval settings|writing is blocked/iu
+          .test(`${stdout}\n${stderr}`);
       const metadata = {
         record_kind: "CODEX_WORKER_LOG_METADATA",
         pid: result.pid,
@@ -242,11 +352,49 @@ export function createCodexWorkerAdapter({
         containment_status: (
           evidence.network && evidence.filesystem && evidence.processTree
         ) ? "VERIFIED" : "PARTIALLY_VERIFIED",
+        requested_sandbox: sandbox,
+        preflight_effective_sandbox:
+          effectiveSandboxEvidence?.effective_sandbox ?? null,
+        runtime_effective_sandbox:
+          runtimeWriteDenialObserved ? "read-only" : null,
+        runtime_write_denial_observed: runtimeWriteDenialObserved,
+        effective_sandbox_binding_sha256:
+          effectiveSandboxEvidence?.binding_sha256 ?? null,
+        effective_sandbox_probe_result_path:
+          effectiveSandboxEvidence?.result_path ?? null,
       };
       await writeFile(metadataPath, `${JSON.stringify(metadata)}\n`, {
         encoding: "utf8",
         flag: "wx",
       });
+      if (runtimeWriteDenialObserved) {
+        const error = adapterError(
+          "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+          "Codex Worker reported effective write denial after the preflight probe",
+          {
+            requested_sandbox: sandbox,
+            effective_sandbox: "read-only",
+            environment_state: "BLOCKED_ENVIRONMENT",
+          },
+        );
+        error.workerResult = {
+          code: result.code,
+          signal: result.signal,
+          timedOut: result.timedOut,
+          pid: result.pid,
+          duration_ms: result.durationMs,
+          stdoutPath,
+          stderrPath,
+          metadataPath,
+          stdoutTruncated: result.stdoutTruncated,
+          stderrTruncated: result.stderrTruncated,
+          usage: parsed.usage,
+          removedSecretNames: filtered.removedSecretNames,
+          processTermination: result.termination,
+          policyRejected: true,
+        };
+        throw error;
+      }
       let usage;
       try {
         usage = assertCodexOutputPolicy(parsed, budget, {
@@ -286,6 +434,7 @@ export function createCodexWorkerAdapter({
         usage,
         removedSecretNames: filtered.removedSecretNames,
         processTermination: result.termination,
+        effectiveSandboxEvidence,
       };
     },
   };

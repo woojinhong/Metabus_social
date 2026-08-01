@@ -69,6 +69,16 @@ decision_authority: decisions.md and approved operations policies
   CREATE/MODIFY uses read-only `git ls-tree` at the pinned source SHA and is
   rechecked before Worker launch and after Worker/tests. Ignored files are part
   of the exact-path delta; a later Pilot needs a new run ID and fresh approval.
+- AH-P2-15 pinned requested `workspace-write` but Codex 0.146.0 applied effective
+  read-only under `--ignore-user-config`; its CREATE was denied and reported
+  `NO_CHANGE`. The run is preserved, immutable and never reusable.
+- Issue #72 removes that conflicting flag and requires a fresh OS-temp write
+  probe for every real patch-only host/config/version/environment binding. It
+  must write inside the workspace and fail outside the workspace/temp boundary;
+  probe tokens and time consume the same Owner budget. A read-only
+  denial is `RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH`; absent, unsafe or stale
+  evidence is `RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED`. Both block before
+  Worker launch and are operationally `BLOCKED_ENVIRONMENT`, never `NO_CHANGE`.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical

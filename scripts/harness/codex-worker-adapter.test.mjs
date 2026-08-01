@@ -13,6 +13,12 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createCodexWorkerAdapter } from "./runner/codex-worker-adapter.mjs";
 import { buildCodexExecCommand } from "./runner/codex-command-builder.mjs";
+import {
+  buildCodexSandboxBoundaryCommand,
+  fingerprintCodexHostConfiguration,
+  probeCodexEffectiveSandbox,
+  sanitizeCodexDiagnostic,
+} from "./runner/codex-effective-sandbox.mjs";
 import { validatePatchOnlyLauncherText } from "./runner/external-host-launcher-policy.mjs";
 import {
   assertCodexOutputPolicy,
@@ -124,6 +130,20 @@ function adapterFor(mode, {
   detail = "",
   sourceEnvironment = process.env,
   maxLogBytes = 1024 * 1024,
+  effectiveSandboxProbe = async ({ binding }) => ({
+    verified: true,
+    effective_sandbox: "workspace-write",
+    binding_sha256: binding.binding_sha256,
+    result_path: "fixture-probe.json",
+    probe_root: "fixture-probe",
+    usage: parseCodexJsonlOutput(codexJsonl()).usage,
+  }),
+  configurationFingerprint = async () => ({
+    binding_sha256: "fixture-binding",
+    executable_sha256: "fixture-executable",
+    codex_cli_version: "codex-cli 0.146.0",
+  }),
+  run = runProcess,
 } = {}) {
   return createCodexWorkerAdapter({
     executable: process.execPath,
@@ -144,14 +164,21 @@ function adapterFor(mode, {
       processTree: true,
     },
     commandBuilder: fixtureCommand(mode, detail),
+    effectiveSandboxProbe,
+    configurationFingerprint,
+    run,
   });
 }
 
 function budget() {
   return {
+    max_tokens: 600_000,
+    max_total_tokens: 600_000,
     max_external_calls: 0,
     max_cost: 0,
     currency: "USD",
+    monetary_cost_policy: "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT",
+    worker_timeout_seconds: 5,
   };
 }
 
@@ -408,6 +435,7 @@ test("Codex command uses explicit bounded non-interactive flags and stdin", () =
     cwd: resolve("."),
     sandbox: "workspace-write",
     approvalMode: "never",
+    loadUserConfig: true,
   });
   assert.equal(command.executable, resolve(process.execPath));
   assert.deepEqual(command.args, [
@@ -417,13 +445,393 @@ test("Codex command uses explicit bounded non-interactive flags and stdin", () =
     "-c", "sandbox_workspace_write.network_access=false",
     "--cd", resolve("."),
     "--ephemeral",
-    "--ignore-user-config",
     "--json",
     "-",
   ]);
   assert.equal(command.args.includes("--search"), false);
   assert.equal(command.args.includes("--dangerously-bypass-approvals-and-sandbox"), false);
+  assert.equal(command.args.includes("--ignore-user-config"), false);
   assert.equal(command.promptTransport, "STDIN");
+});
+
+test("non-patch Codex commands retain isolated user-config behavior", () => {
+  const command = buildCodexExecCommand({
+    executable: process.execPath,
+    cwd: resolve("."),
+    sandbox: "read-only",
+    approvalMode: "never",
+  });
+  assert.equal(command.args.includes("--ignore-user-config"), true);
+});
+
+function probeProcess(onRun = async () => {}, {
+  stderr = "patch rejected: writing is blocked by sandbox boundary\n",
+  boundaryExitCode = 73,
+  boundaryOutput = "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1\n",
+} = {}) {
+  return async (unusedExecutable, unusedArgs, { cwd }) => {
+    await onRun(cwd);
+    const boundaryTarget = join(
+      dirname(cwd),
+      "outside-workspace-boundary",
+      "boundary-write-must-fail.txt",
+    );
+    const stdout = codexJsonl({}, [{
+      type: "item.completed",
+      item: {
+        id: "boundary-attempt",
+        type: "command_execution",
+        command: `powershell.exe -Command "${buildCodexSandboxBoundaryCommand(boundaryTarget)}"`,
+        aggregated_output: boundaryOutput,
+        exit_code: boundaryExitCode,
+        status: boundaryExitCode === 91 ? "completed" : "failed",
+      },
+    }]);
+    return {
+      code: 0,
+      signal: null,
+      timedOut: false,
+      pid: 1234,
+      durationMs: 1,
+      stdout,
+      stderr,
+      stdoutBytes: Buffer.byteLength(stdout),
+      stderrBytes: Buffer.byteLength(stderr),
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      termination: null,
+    };
+  };
+}
+
+async function runProbeFixture(t, onRun, options = {}) {
+  const root = await temporaryDirectory(t, "propscans-effective-sandbox-");
+  return probeCodexEffectiveSandbox({
+    executable: process.execPath,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    binding: {
+      binding_sha256: "fixture-binding",
+      executable_sha256: "fixture-executable",
+      codex_cli_version: "codex-cli 0.146.0",
+    },
+    run: probeProcess(onRun, options),
+    probeRootFactory: async () => root,
+    timeoutMs: 5_000,
+    budget: budget(),
+  });
+}
+
+test("effective sandbox probe accepts one exact unstaged file and verified usage", async (t) => {
+  const result = await runProbeFixture(t, async (cwd) => {
+    await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+  });
+  assert.equal(result.verified, true);
+  assert.equal(result.effective_sandbox, "workspace-write");
+  assert.deepEqual(result.changed_paths, ["?? probe.txt"]);
+  assert.deepEqual(result.staged_paths, []);
+  assert.deepEqual(result.remotes, []);
+  assert.equal(result.head_unchanged, true);
+  assert.equal(result.external_calls, 0);
+  assert.equal(result.boundary_denial_observed, true);
+  assert.equal(result.boundary_target_created, false);
+  assert.equal(result.git_metadata_unchanged, true);
+  assert.ok(await readFile(result.result_path, "utf8"));
+});
+
+test("effective sandbox probe rejects broader-than-workspace-write access", async (t) => {
+  await assert.rejects(
+    runProbeFixture(t, async (cwd) => {
+      await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+      await writeFile(
+        join(dirname(cwd), "outside-workspace-boundary", "boundary-write-must-fail.txt"),
+        "BOUNDARY_WRITE_MUST_FAIL\n",
+        "utf8",
+      );
+    }, {
+      stderr: "",
+      boundaryExitCode: 91,
+      boundaryOutput: "CODEX_BOUNDARY_WRITE_SUCCEEDED_V1\n",
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+      && error.details.effective_sandbox === "broader-than-workspace-write",
+  );
+});
+
+test("effective sandbox probe classifies write denial instead of NO_CHANGE", async (t) => {
+  await assert.rejects(
+    runProbeFixture(t, async () => {}, {
+      stderr: "patch rejected: writing is blocked by read-only sandbox; rejected by user approval settings",
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+      && error.details.effective_sandbox === "read-only",
+  );
+});
+
+test("effective sandbox probe rejects a non-permission boundary command failure", async (t) => {
+  await assert.rejects(
+    runProbeFixture(t, async (cwd) => {
+      await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+    }, {
+      stderr: "ParserError: unexpected token\n",
+      boundaryExitCode: 74,
+      boundaryOutput: "CODEX_BOUNDARY_UNEXPECTED_FAILURE_V1\n",
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+  );
+});
+
+test("effective sandbox probe rejects a forged sentinel with unreachable exact script", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-effective-forged-boundary-");
+  await assert.rejects(
+    probeCodexEffectiveSandbox({
+      executable: process.execPath,
+      sandbox: "workspace-write",
+      approvalMode: "never",
+      binding: {
+        binding_sha256: "fixture-binding",
+        executable_sha256: "fixture-executable",
+        codex_cli_version: "codex-cli 0.146.0",
+      },
+      run: async (unusedExecutable, unusedArgs, { cwd }) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        const target = join(dirname(cwd), "outside-workspace-boundary", "boundary-write-must-fail.txt");
+        const expected = buildCodexSandboxBoundaryCommand(target);
+        const stdout = codexJsonl({}, [{
+          type: "item.completed",
+          item: {
+            id: "forged-boundary",
+            type: "command_execution",
+            command: `powershell.exe -Command "Write-Output 'CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1'; exit 73; # ${expected}"`,
+            aggregated_output: "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1\n",
+            exit_code: 73,
+            status: "failed",
+          },
+        }]);
+        return {
+          code: 0,
+          timedOut: false,
+          stdout,
+          stderr: "",
+          stdoutTruncated: false,
+          stderrTruncated: false,
+        };
+      },
+      probeRootFactory: async () => root,
+      timeoutMs: 5_000,
+      budget: budget(),
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+  );
+});
+
+test("effective sandbox probe rejects any other boundary-directory file", async (t) => {
+  await assert.rejects(
+    runProbeFixture(t, async (cwd) => {
+      await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+      await writeFile(join(dirname(cwd), "outside-workspace-boundary", "other.txt"), "unsafe\n", "utf8");
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+  );
+});
+
+test("effective sandbox probe fails closed on no-change and unsafe Git mutations", async (t) => {
+  const cases = [
+    { name: "no-change", mutate: async () => {} },
+    {
+      name: "other-file",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        await writeFile(join(cwd, "other.txt"), "unexpected\n", "utf8");
+      },
+    },
+    {
+      name: "staged",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        execFileSync("git", ["add", "probe.txt"], { cwd });
+      },
+    },
+    {
+      name: "commit",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        execFileSync("git", ["add", "probe.txt"], { cwd });
+        execFileSync("git", ["commit", "-m", "forbidden probe commit"], { cwd });
+      },
+    },
+    {
+      name: "remote",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        execFileSync("git", ["remote", "add", "origin", "https://example.invalid/probe.git"], { cwd });
+      },
+    },
+    {
+      name: "git-config",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        execFileSync("git", ["config", "core.hooksPath", "outside-hooks"], { cwd });
+      },
+    },
+    {
+      name: "git-hooks",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        await writeFile(join(cwd, ".git", "hooks", "post-commit"), "unexpected hook\n", "utf8");
+      },
+    },
+    {
+      name: "git-object",
+      mutate: async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        execFileSync("git", ["hash-object", "-w", "--stdin"], {
+          cwd,
+          input: "unexpected orphan object\n",
+        });
+      },
+    },
+  ];
+  for (const item of cases) {
+    await t.test(item.name, async (subtest) => {
+      await assert.rejects(
+        runProbeFixture(subtest, item.mutate),
+        (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+      );
+    });
+  }
+});
+
+test("diagnostic sanitizer removes UUIDv7/session secrets without corrupting ask flags", () => {
+  const uuidv7 = "019c1a2b-3c4d-7e5f-8a9b-0c1d2e3f4a5b";
+  const sanitized = sanitizeCodexDiagnostic(
+    `{"thread_id":"${uuidv7}"}\n--ask-for-approval never\nsess-secret-value\n`,
+  );
+  assert.equal(sanitized.includes(uuidv7), false);
+  assert.match(sanitized, /\[REDACTED_ID\]/u);
+  assert.match(sanitized, /--ask-for-approval never/u);
+  assert.equal(sanitized.includes("sess-secret-value"), false);
+});
+
+test("effective sandbox configuration fingerprint is secret-free and detects changes", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-effective-fingerprint-");
+  const home = join(root, "home");
+  const programData = join(root, "program-data");
+  const executable = join(root, "codex.exe");
+  await mkdir(join(home, ".codex"), { recursive: true });
+  await writeFile(executable, "fixture executable\n", "utf8");
+  const secret = "secret-config-sentinel";
+  await writeFile(join(home, ".codex", "config.toml"), `sandbox_mode = "workspace-write"\nsecret = "${secret}"\n`, "utf8");
+  const first = await fingerprintCodexHostConfiguration({
+    executable,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    cliVersion: "codex-cli 0.146.0",
+    home,
+    programData,
+    environment: { PATH: "first-path", TEMP: "first-temp" },
+  });
+  assert.equal(JSON.stringify(first).includes(secret), false);
+  await writeFile(join(home, ".codex", "config.toml"), "sandbox_mode = \"read-only\"\n", "utf8");
+  const second = await fingerprintCodexHostConfiguration({
+    executable,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    cliVersion: "codex-cli 0.146.0",
+    home,
+    programData,
+    environment: { PATH: "first-path", TEMP: "first-temp" },
+  });
+  assert.notEqual(first.binding_sha256, second.binding_sha256);
+  const environmentChanged = await fingerprintCodexHostConfiguration({
+    executable,
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    cliVersion: "codex-cli 0.146.0",
+    home,
+    programData,
+    environment: { PATH: "second-path", TEMP: "first-temp" },
+  });
+  assert.notEqual(second.binding_sha256, environmentChanged.binding_sha256);
+  assert.equal(JSON.stringify(environmentChanged).includes("second-path"), false);
+});
+
+test("probe mismatch blocks the actual Worker before process start", async (t) => {
+  const fixture = await invocationFixture(t);
+  let workerStarts = 0;
+  const adapter = adapterFor("normal", {
+    effectiveSandboxProbe: async () => {
+      throw Object.assign(new Error("effective read-only"), {
+        code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+      });
+    },
+    run: async (...args) => {
+      workerStarts += 1;
+      return runProcess(...args);
+    },
+  });
+  await assert.rejects(
+    adapter.run({
+      cwd: fixture.worktree,
+      promptPath: fixture.promptPath,
+      contextPath: fixture.contextPath,
+      logDirectory: fixture.diagnostics,
+      timeoutMs: 5_000,
+      budget: budget(),
+      workPackage: fixture.workPackage,
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+  );
+  assert.equal(workerStarts, 0);
+});
+
+test("config read-only and approval write-denial conflicts are effective mismatches", async (t) => {
+  const conflicts = [
+    ["config-read-only", "config override selected read-only sandbox; writing is blocked"],
+    ["approval-write-denied", "patch rejected by user approval settings"],
+  ];
+  for (const [name, stderr] of conflicts) {
+    await t.test(name, async (subtest) => {
+      await assert.rejects(
+        runProbeFixture(subtest, async () => {}, { stderr }),
+        (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+          && error.details.effective_sandbox === "read-only",
+      );
+    });
+  }
+});
+
+test("changed executable/version/config binding prevents probe reuse", async (t) => {
+  for (const changed of ["executable", "version", "config"]) {
+    await t.test(changed, async (subtest) => {
+      const fixture = await invocationFixture(subtest);
+      let fingerprintCalls = 0;
+      let workerStarts = 0;
+      const adapter = adapterFor("normal", {
+        configurationFingerprint: async () => ({
+          binding_sha256: fingerprintCalls++ < 2 ? "binding-before" : `binding-after-${changed}`,
+        }),
+        run: async (...args) => {
+          workerStarts += 1;
+          return runProcess(...args);
+        },
+      });
+      await adapter.assertAvailable({ budget: budget(), timeoutMs: 5_000 });
+      await assert.rejects(
+        adapter.run({
+          cwd: fixture.worktree,
+          promptPath: fixture.promptPath,
+          contextPath: fixture.contextPath,
+          logDirectory: fixture.diagnostics,
+          timeoutMs: 5_000,
+          budget: budget(),
+          workPackage: fixture.workPackage,
+        }),
+        (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+      );
+      assert.equal(workerStarts, 0);
+    });
+  }
 });
 
 test("external-host launcher fixture pins workspace-write and rejects read-only", async () => {
@@ -433,12 +841,25 @@ test("external-host launcher fixture pins workspace-write and rejects read-only"
   );
   assert.deepEqual(validatePatchOnlyLauncherText(fixture), {
     sandbox: "workspace-write",
+    effective_sandbox_probe: "REQUIRED",
   });
   assert.throws(
     () => validatePatchOnlyLauncherText(
       fixture.replace("'workspace-write'", "'read-only'"),
     ),
     (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+  );
+  assert.throws(
+    () => validatePatchOnlyLauncherText(
+      fixture.replace("  '--require-effective-sandbox-probe'\n", ""),
+    ),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+  );
+  assert.throws(
+    () => validatePatchOnlyLauncherText(
+      `${fixture.replace("  '--require-effective-sandbox-probe'\n", "")}\n# '--require-effective-sandbox-probe'\n`,
+    ),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
   );
 });
 
@@ -476,7 +897,7 @@ test("environment filtering is allowlist-only and records secret names without v
 test("normal fake Worker fixes cwd, transports prompt by stdin, and records usage", async (t) => {
   const fixture = await invocationFixture(t);
   const adapter = adapterFor("normal");
-  await adapter.assertAvailable();
+  await adapter.assertAvailable({ budget: budget(), timeoutMs: 5_000 });
   const result = await adapter.run({
     cwd: fixture.worktree,
     promptPath: fixture.promptPath,
@@ -521,6 +942,32 @@ test("nonzero fake Worker retains exit code and verified usage", async (t) => {
   assert.equal(result.timedOut, false);
   assert.equal(result.usage.tokens, 5);
   assert.equal(result.usage.external_calls, 0);
+});
+
+test("runtime write denial after a successful probe is a sandbox mismatch", async (t) => {
+  const fixture = await invocationFixture(t);
+  await assert.rejects(
+    adapterFor("write-denied").run({
+      cwd: fixture.worktree,
+      promptPath: fixture.promptPath,
+      contextPath: fixture.contextPath,
+      logDirectory: fixture.diagnostics,
+      timeoutMs: 5_000,
+      budget: budget(),
+      workPackage: fixture.workPackage,
+    }),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+      && error.details.environment_state === "BLOCKED_ENVIRONMENT"
+      && error.workerResult.policyRejected === true,
+  );
+  assert.match(
+    await readFile(join(fixture.diagnostics, "worker-log-metadata.json"), "utf8"),
+    /"preflight_effective_sandbox":"workspace-write"/u,
+  );
+  assert.match(
+    await readFile(join(fixture.diagnostics, "worker-log-metadata.json"), "utf8"),
+    /"runtime_effective_sandbox":"read-only","runtime_write_denial_observed":true/u,
+  );
 });
 
 test("timeout terminates the fake Worker and returns bounded diagnostics", async (t) => {
@@ -843,6 +1290,35 @@ test("real CLI flags require execute mode and exact approved worker policy", asy
       (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
     );
   }
+  const patchOnlyArgs = [
+    "--dry-run", "dry.json",
+    "--approval", "approval.json",
+    "--approval-hash", `sha256:${"a".repeat(64)}`,
+    "--work-packages", "WP-1",
+    "--repository", resolve("."),
+    "--worktree-root", resolve(tmpdir(), "worktrees"),
+    "--real-codex-worker",
+    "--codex-executable", process.execPath,
+    "--worker-sandbox", "workspace-write",
+    "--worker-approval", "never",
+    "--execute-patch-only",
+  ];
+  assert.throws(
+    () => parseRunnerArgs(patchOnlyArgs),
+    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+  );
+  assert.equal(parseRunnerArgs([
+    ...patchOnlyArgs,
+    "--require-effective-sandbox-probe",
+  ])["--require-effective-sandbox-probe"], true);
+  assert.throws(
+    () => parseRunnerArgs([
+      ...patchOnlyArgs.filter((value) => value !== "--execute-patch-only"),
+      "--execute-and-publish",
+      "--require-effective-sandbox-probe",
+    ]),
+    /confined to --execute-patch-only/u,
+  );
 
   const root = await temporaryDirectory(t, "propscans-codex-cli-");
   execFileSync("git", ["init", "-b", "master"], { cwd: root });

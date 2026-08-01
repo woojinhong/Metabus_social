@@ -93,6 +93,8 @@ function captureFailure(entry, error, fallbackState = "FAILED") {
     entry.state = [
     "BLOCKED_CONFLICT",
     "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
     "RUNNER_NO_CHANGE",
   ].includes(error.code)
     ? "BLOCKED"
@@ -428,14 +430,49 @@ export async function runLightweightRunner({
     throw error;
   }
   try {
-    await Promise.all([
-      worker.assertAvailable(),
+    const [workerAvailability] = await Promise.all([
+      worker.assertAvailable({
+        budget: input.executionBudget,
+        timeoutMs: Math.min(
+          input.executionBudget.worker_timeout_seconds * 1_000,
+          remainingBudgetMs(),
+        ),
+      }),
       testRunner.assertAvailable(),
     ]);
+    const probeUsage = workerAvailability?.effective_sandbox_probe?.usage ?? null;
+    if (probeUsage !== null) {
+      assertWorkerUsage({ usage: probeUsage }, input.executionBudget, aggregateUsage);
+    }
   } catch (error) {
-    const runnerError = asRunnerError(error);
-    await updateRunManifest(manifestPath, "BLOCKED", {
+    let effectiveError = error;
+    let probeBudgetResult = null;
+    const failedProbeUsage = error.probeResult?.usage ?? null;
+    if (failedProbeUsage !== null) {
+      try {
+        probeBudgetResult = assertWorkerUsage(
+          { usage: failedProbeUsage },
+          input.executionBudget,
+          aggregateUsage,
+        );
+      } catch (usageError) {
+        if ([
+          "RUNNER_BUDGET_EXCEEDED",
+          "RUNNER_TOKEN_BUDGET_EXCEEDED",
+          "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+        ].includes(usageError.code)) effectiveError = usageError;
+      }
+    }
+    const runnerError = asRunnerError(effectiveError);
+    const budgetFailure = [
+      "RUNNER_BUDGET_EXCEEDED",
+      "RUNNER_TOKEN_BUDGET_EXCEEDED",
+      "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+    ].includes(runnerError.code);
+    await updateRunManifest(manifestPath, budgetFailure ? "FAILED_BUDGET" : "BLOCKED", {
       error_code: runnerError.code,
+      aggregate_usage: aggregateUsage,
+      probe_budget_result: runnerError.details?.budget_result ?? probeBudgetResult,
     }, { now });
     throw runnerError;
   }
@@ -538,7 +575,9 @@ export async function runLightweightRunner({
                 aggregateUsage,
               );
             } catch (usageError) {
-              effectiveError = usageError;
+              if (error.code !== "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH") {
+                effectiveError = usageError;
+              }
             }
           }
         }
