@@ -243,16 +243,29 @@ export function validateApprovedWorkerPolicy(approval, {
       "Owner approval must pin the real Codex Worker policy",
     );
   }
-  const expected = {
-    adapter: "CODEX_CLI_0_146",
-    executable: normalizedAbsolute(executable, "executable"),
-    sandbox,
-    approval: approvalMode,
-    network_policy: "DENY_REQUIRED",
-    external_calls: 0,
-    filesystem_policy: "WORKTREE_AND_RUNNER_PATH_VALIDATION",
-    process_containment: "WINDOWS_JOB_OBJECT_REQUIRED",
-  };
+  const patchOnly = approval.publication_policy?.mode === "EXECUTE_PATCH_ONLY";
+  const expected = patchOnly
+    ? {
+        adapter: "CODEX_CLI_0_146",
+        executable: normalizedAbsolute(executable, "executable"),
+        sandbox,
+        approval: approvalMode,
+        network_policy: "CODEX_CONFIG_RESTRICTED",
+        external_calls: 0,
+        filesystem_policy: "DISPOSABLE_CLONE_AND_RUNNER_PATH_VALIDATION",
+        process_containment: "WINDOWS_TASKKILL_TREE_FALLBACK",
+        containment_status: "PARTIALLY_VERIFIED",
+      }
+    : {
+        adapter: "CODEX_CLI_0_146",
+        executable: normalizedAbsolute(executable, "executable"),
+        sandbox,
+        approval: approvalMode,
+        network_policy: "DENY_REQUIRED",
+        external_calls: 0,
+        filesystem_policy: "WORKTREE_AND_RUNNER_PATH_VALIDATION",
+        process_containment: "WINDOWS_JOB_OBJECT_REQUIRED",
+      };
   const actual = {
     adapter: policy.adapter,
     executable: normalizedAbsolute(policy.executable, "worker_policy.executable"),
@@ -262,6 +275,7 @@ export function validateApprovedWorkerPolicy(approval, {
     external_calls: policy.external_calls,
     filesystem_policy: policy.filesystem_policy,
     process_containment: policy.process_containment,
+    ...(patchOnly ? { containment_status: policy.containment_status } : {}),
   };
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     policyError(

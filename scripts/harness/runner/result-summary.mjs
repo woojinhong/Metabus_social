@@ -26,6 +26,7 @@ export function summarizeRun({
       draft_pr_url: entry.draftPrUrl ?? null,
       error_code: entry.errorCode ?? null,
       diagnostics_path: entry.diagnosticsPath ?? null,
+      artifact_paths: entry.artifactPaths ?? null,
     })),
     error: error === null
       ? null

@@ -38,6 +38,7 @@ export function createCodexWorkerAdapter({
   approvalMode,
   sourceEnvironment = process.env,
   isolationEvidence = {},
+  allowPartialContainment = false,
   maxLogBytes = 1024 * 1024,
   run = runProcess,
   commandBuilder = buildCodexExecCommand,
@@ -67,7 +68,8 @@ export function createCodexWorkerAdapter({
         { cause: cause.code ?? cause.name },
       );
     });
-    if (!evidence.network || !evidence.filesystem || !evidence.processTree) {
+    const fullyVerified = evidence.network && evidence.filesystem && evidence.processTree;
+    if (!fullyVerified && !allowPartialContainment) {
       throw adapterError(
         "RUNNER_WORKER_SANDBOX_UNVERIFIED",
         "Real Pilot requires independently verified network, filesystem, and process-tree containment",
@@ -79,6 +81,7 @@ export function createCodexWorkerAdapter({
       sandbox,
       approval: approvalMode,
       isolation: evidence,
+      containment_status: fullyVerified ? "VERIFIED" : "PARTIALLY_VERIFIED",
     };
   };
 
@@ -162,14 +165,38 @@ export function createCodexWorkerAdapter({
         parsed_jsonl_records: parsed.parsed_records,
         malformed_jsonl_lines: parsed.malformed_lines,
         process_termination: result.termination,
+        containment_status: (
+          evidence.network && evidence.filesystem && evidence.processTree
+        ) ? "VERIFIED" : "PARTIALLY_VERIFIED",
       };
       await writeFile(metadataPath, `${JSON.stringify(metadata)}\n`, {
         encoding: "utf8",
         flag: "wx",
       });
-      const usage = assertCodexOutputPolicy(parsed, budget, {
-        stdoutTruncated: result.stdoutTruncated,
-      });
+      let usage;
+      try {
+        usage = assertCodexOutputPolicy(parsed, budget, {
+          stdoutTruncated: result.stdoutTruncated,
+        });
+      } catch (error) {
+        error.workerResult = {
+          code: result.code,
+          signal: result.signal,
+          timedOut: result.timedOut,
+          pid: result.pid,
+          duration_ms: result.durationMs,
+          stdoutPath,
+          stderrPath,
+          metadataPath,
+          stdoutTruncated: result.stdoutTruncated,
+          stderrTruncated: result.stderrTruncated,
+          usage: parsed.usage,
+          removedSecretNames: filtered.removedSecretNames,
+          processTermination: result.termination,
+          policyRejected: true,
+        };
+        throw error;
+      }
       return {
         code: result.code,
         signal: result.signal,

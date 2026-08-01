@@ -2,8 +2,8 @@
 title: AH-P2-01 Lightweight Worktree Runner Pilot Authority
 document_type: automation implementation authority
 classification: user decision
-status: Owner-approved scope; foundation implemented in Issue #56 and real-adapter work in Issue #58, actual Pilot not run
-last_verified: 2026-07-31
+status: Owner-approved scope; Issues #56/#58/#60 implement Runner, adapter and patch-only boundaries; actual Pilot not run
+last_verified: 2026-08-01
 related_documents: ["autonomous-harness-foundation-approval-plan.md","autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md","../operations/README.md","../INDEX.md"]
 decision_authority: explicit Owner instructions on 2026-07-31, Issue #54 and Issue #58
 ---
@@ -188,3 +188,10 @@ OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-proc
 초기화 access-denied로 종료했다. 따라서 network, filesystem과 strict process containment
 상태는 계속 `BLOCKED_ENVIRONMENT`이며 실제 Pilot은 새 per-run Owner approval 뒤에도
 모든 환경 Gate가 별도로 충족되기 전까지 실행할 수 없다.
+
+## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
+
+Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. `origin`과 credential helper를 제거하고 concurrency 1에서 bounded log, changed-file/test JSON, binary patch, manifest와 summary를 만들되 `git add`, commit, push, PR과 GitHub adapter를 호출하지 않는다.
+승인은 Dry-run, source SHA, Package revision/digest, allowed/prohibited path, clone root, zero retry/external-call budget과 모든 publication 권한 false를 mode별로 pin한다. Draft-PR 승인은 재사용할 수 없고 Package pin은 JSON key 순서가 아닌 canonical 의미로 비교한다.
+Containment는 `PARTIALLY_VERIFIED`다. Codex network config, reparse 검사, hard deadline과 Windows tree termination은 있지만 OS network deny, race-free filesystem sandbox와 handle-pinned Job Object는 증명되지 않았다. 실제 docs-only Pilot은 이 잔여 위험을 명시적으로 수락한 별도 per-run Owner 승인이 필요하다.
+성공, 실패, timeout과 `NO_CHANGE` 모두 clone과 진단을 보존한다. 제품 code, schema/migration, dependency/workflow와 실제 Pilot은 별도 승인 없이 계속 금지한다.

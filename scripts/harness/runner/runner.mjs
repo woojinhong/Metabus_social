@@ -17,6 +17,8 @@ import {
   createWorktreeManager,
   worktreePathFor,
 } from "./worktree-manager.mjs";
+import { createDisposableCloneManager } from "./disposable-clone-manager.mjs";
+import { createPatchArtifactWriter } from "./patch-artifacts.mjs";
 import { writeWorkerContext } from "./worker-context-builder.mjs";
 import { unavailableCodexAdapter } from "./worker-process.mjs";
 import { createTestRunner } from "./test-runner.mjs";
@@ -24,12 +26,13 @@ import { createGitPublisher } from "./git-publisher.mjs";
 import { renderDraftPr } from "./draft-pr-renderer.mjs";
 import { summarizeRun } from "./result-summary.mjs";
 
-function packageRecord(workPackage, worktreeRoot) {
+function packageRecord(workPackage, worktreeRoot, workspacePath = null) {
   return {
     workPackage,
     workPackageId: workPackage.work_package_id,
     branch: workPackage.proposed_branch,
-    worktreePath: worktreePathFor(worktreeRoot, workPackage.work_package_id),
+    worktreePath: workspacePath
+      ?? worktreePathFor(worktreeRoot, workPackage.work_package_id),
     state: "APPROVED",
     workerPid: null,
     changedFiles: [],
@@ -39,6 +42,7 @@ function packageRecord(workPackage, worktreeRoot) {
     errorCode: null,
     diagnosticsPath: null,
     workerResult: null,
+    artifactPaths: null,
   };
 }
 
@@ -54,6 +58,7 @@ function manifestPackages(packages) {
     draft_pr_url: entry.draftPrUrl,
     error_code: entry.errorCode,
     diagnostics_path: entry.diagnosticsPath,
+    artifact_paths: entry.artifactPaths,
   }));
 }
 
@@ -63,6 +68,18 @@ function captureFailure(entry, error, fallbackState = "FAILED") {
     : fallbackState;
   entry.errorCode = error.code ?? "RUNNER_FAILED";
   entry.error = error;
+}
+
+function assertExactPatchOnlyChange(changedFiles, exactAllowedPath) {
+  if (changedFiles.length !== 1 || changedFiles[0] !== exactAllowedPath) {
+    throw Object.assign(
+      new Error("Patch-only changed files differ from the exact approved document"),
+      {
+        code: "RUNNER_PATCH_ONLY_SCOPE_INVALID",
+        details: { changedFiles, exactAllowedPath },
+      },
+    );
+  }
 }
 
 async function mapConcurrent(entries, concurrency, operation) {
@@ -83,6 +100,7 @@ async function mapConcurrent(entries, concurrency, operation) {
 function terminalState(packages) {
   if (packages.every(({ state }) => state === "COMPLETED")) return "COMPLETED";
   if (packages.some(({ state }) => state === "FAILED")) return "FAILED";
+  if (packages.every(({ state }) => state === "NO_CHANGE")) return "NO_CHANGE";
   return "BLOCKED";
 }
 
@@ -136,6 +154,7 @@ export async function runLightweightRunner({
   worktreeRoot,
   repository,
   prepareOnly = true,
+  executionMode = null,
   manifestRoot = join(tmpdir(), "propscans-lightweight-runner"),
   diagnosticsRoot = manifestRoot,
   now,
@@ -150,6 +169,22 @@ export async function runLightweightRunner({
     maxConcurrency,
     worktreeRoot,
   });
+  const requestedMode = executionMode
+    ?? (prepareOnly ? "PREPARE_ONLY" : "EXECUTE_AND_DRAFT_PR");
+  if (requestedMode !== input.publicationPolicy.mode) {
+    throw Object.assign(
+      new Error("Requested Runner mode differs from the Owner-approved mode"),
+      {
+        code: "RUNNER_EXECUTION_MODE_MISMATCH",
+        details: {
+          requested_mode: requestedMode,
+          approved_mode: input.publicationPolicy.mode,
+        },
+      },
+    );
+  }
+  const isPrepareOnly = requestedMode === "PREPARE_ONLY";
+  const isPatchOnly = requestedMode === "EXECUTE_PATCH_ONLY";
   const deadline = performance.now() + input.executionBudget.wall_clock_seconds * 1_000;
   const aggregateUsage = { tokens: 0, cost: 0, external_calls: 0 };
   let runBudgetError = null;
@@ -167,10 +202,20 @@ export async function runLightweightRunner({
   }
   detectPathConflicts(input.selectedWorkPackages, { approvalScope: input.approval });
 
-  const worktreeManager = adapters.worktreeManager ?? createWorktreeManager();
+  const worktreeManager = isPatchOnly
+    ? adapters.disposableCloneManager ?? createDisposableCloneManager()
+    : adapters.worktreeManager ?? createWorktreeManager();
   const worker = adapters.worker ?? unavailableCodexAdapter();
-  const testRunner = adapters.testRunner ?? createTestRunner();
-  const publisher = adapters.publisher ?? createGitPublisher();
+  const testRunner = adapters.testRunner ?? createTestRunner({
+    allowPartialContainment: isPatchOnly,
+  });
+  const publisher = isPatchOnly
+    ? null
+    : adapters.publisher ?? createGitPublisher();
+  const patchArtifacts = isPatchOnly
+    ? adapters.patchArtifactWriter ?? createPatchArtifactWriter()
+    : null;
+  const verifier = isPatchOnly ? patchArtifacts : publisher;
   const repositoryUri = input.dryRun.input_snapshot.repository.canonical_uri;
   await worktreeManager.assertSourceReady(
     repository,
@@ -193,9 +238,13 @@ export async function runLightweightRunner({
   remainingBudgetMs();
 
   const packages = input.selectedWorkPackages.map(
-    (workPackage) => packageRecord(workPackage, input.worktreeRoot),
+    (workPackage) => packageRecord(
+      workPackage,
+      input.worktreeRoot,
+      isPatchOnly ? input.patchOnly.disposableCloneRoot : null,
+    ),
   );
-  if (prepareOnly && typeof worktreeManager.assertAvailable === "function") {
+  if (isPrepareOnly && typeof worktreeManager.assertAvailable === "function") {
     for (const entry of packages) {
       await worktreeManager.assertAvailable(
         repository,
@@ -210,7 +259,7 @@ export async function runLightweightRunner({
   remainingBudgetMs();
   const manifestPath = created.manifestPath;
 
-  if (prepareOnly) {
+  if (isPrepareOnly) {
     remainingBudgetMs();
     return summarizeRun({
       runId: input.runId,
@@ -221,9 +270,9 @@ export async function runLightweightRunner({
       packages,
     });
   }
-  if (input.publicationPolicy.mode !== "EXECUTE_AND_DRAFT_PR") {
+  if (!["EXECUTE_PATCH_ONLY", "EXECUTE_AND_DRAFT_PR"].includes(requestedMode)) {
     const error = Object.assign(
-      new Error("Owner approval permits prepare-only mode, not execution/publication"),
+      new Error("Owner approval does not permit execution"),
       { code: "RUNNER_PUBLICATION_POLICY_INVALID" },
     );
     await updateRunManifest(manifestPath, "BLOCKED", { error_code: error.code }, { now });
@@ -316,6 +365,7 @@ export async function runLightweightRunner({
           throw error;
         }
       } catch (error) {
+        if (error.workerResult) entry.workerResult = error.workerResult;
         const runnerError = asRunnerError(error);
         if (runnerError.code === "RUNNER_BUDGET_EXCEEDED") {
           runBudgetError = runnerError;
@@ -338,12 +388,12 @@ export async function runLightweightRunner({
       input.maxConcurrency,
       async (entry) => {
         try {
-          await publisher.assertPinnedHead(
+          await verifier.assertPinnedHead(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
           );
-          const changedFiles = await publisher.changedFiles(
+          const changedFiles = await verifier.changedFiles(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
@@ -362,7 +412,13 @@ export async function runLightweightRunner({
               mustExist: false,
             },
           );
-          const preTestFingerprint = await publisher.changeFingerprint(
+          if (isPatchOnly) {
+            assertExactPatchOnlyChange(
+              entry.changedFiles,
+              input.patchOnly.exactAllowedPath,
+            );
+          }
+          const preTestFingerprint = await verifier.changeFingerprint(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
@@ -379,12 +435,12 @@ export async function runLightweightRunner({
             ),
           });
           remainingBudgetMs();
-          await publisher.assertPinnedHead(
+          await verifier.assertPinnedHead(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
           );
-          const finalChangedFiles = await publisher.changedFiles(
+          const finalChangedFiles = await verifier.changedFiles(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
@@ -398,7 +454,13 @@ export async function runLightweightRunner({
               mustExist: false,
             },
           );
-          const postTestFingerprint = await publisher.changeFingerprint(
+          if (isPatchOnly) {
+            assertExactPatchOnlyChange(
+              entry.changedFiles,
+              input.patchOnly.exactAllowedPath,
+            );
+          }
+          const postTestFingerprint = await verifier.changeFingerprint(
             entry.worktreePath,
             input.sourceSha,
             { remainingBudgetMs },
@@ -416,6 +478,132 @@ export async function runLightweightRunner({
         }
       },
     );
+
+    if (isPatchOnly) {
+      try {
+        await worktreeManager.verifySourceUnchanged(
+          repository,
+          input.sourceSha,
+          repositoryUri,
+          { remainingBudgetMs },
+        );
+      } catch (error) {
+        for (const entry of packages) captureFailure(entry, asRunnerError(error));
+      }
+      for (const entry of packages) {
+        let workspaceState = null;
+        let patch = "";
+        let artifactTerminalState = entry.state;
+        try {
+          workspaceState = await patchArtifacts.inspect(
+            entry.worktreePath,
+            input.sourceSha,
+            { remainingBudgetMs },
+          );
+          patchArtifacts.assertSafeState(workspaceState, input.sourceSha);
+          patch = await patchArtifacts.createPatch(
+            entry.worktreePath,
+            input.sourceSha,
+            workspaceState,
+            { remainingBudgetMs },
+          );
+          entry.changedFiles = await validateChangedFiles(
+            workspaceState.changed_files,
+            entry.workPackage,
+            {
+              repositoryRoot: entry.worktreePath,
+              approvalScope: input.approval,
+              mustExist: false,
+            },
+          );
+          if (entry.changedFiles.length > 0) {
+            assertExactPatchOnlyChange(
+              entry.changedFiles,
+              input.patchOnly.exactAllowedPath,
+            );
+          }
+          if (
+            entry.state === "TESTING"
+            || entry.errorCode === "RUNNER_NO_CHANGE"
+          ) {
+            if (Buffer.byteLength(patch) === 0) {
+              entry.state = "NO_CHANGE";
+              artifactTerminalState = "NO_CHANGE";
+              entry.errorCode = "RUNNER_NO_CHANGE";
+              entry.error = Object.assign(new Error("Worker produced no change"), {
+                code: "RUNNER_NO_CHANGE",
+              });
+            } else {
+              artifactTerminalState = "COMPLETED";
+            }
+          }
+        } catch (error) {
+          captureFailure(entry, asRunnerError(error));
+          artifactTerminalState = entry.state;
+        }
+        try {
+          await worktreeManager.verifySourceUnchanged(
+            repository,
+            input.sourceSha,
+            repositoryUri,
+            { remainingBudgetMs },
+          );
+        } catch (error) {
+          captureFailure(entry, asRunnerError(error));
+          artifactTerminalState = entry.state;
+        }
+        const externalCalls = entry.workerResult?.usage?.external_calls;
+        const containment = {
+          status: input.patchOnly.status,
+          limitations: input.patchOnly.limitations,
+          disposable_clone: true,
+          remote_present: (workspaceState?.remotes?.length ?? 0) > 0,
+          credential_environment: "ALLOWLIST_ONLY",
+          external_calls_reported: Number.isInteger(externalCalls) ? externalCalls : null,
+          external_tool_event_detected: Number.isInteger(externalCalls)
+            ? externalCalls > 0
+            : null,
+          network_observation: "CODEX_JSONL_EXTERNAL_TOOL_EVENTS_ONLY",
+          process_termination: entry.workerResult?.processTermination ?? null,
+          clone_preserved: true,
+        };
+        const outputDirectory = entry.diagnosticsPath
+          ?? join(diagnosticsRoot, input.runId, entry.workPackageId);
+        try {
+          entry.artifactPaths = await patchArtifacts.writeArtifacts({
+            outputDirectory,
+            runId: input.runId,
+            workPackage: entry.workPackage,
+            sourceSha: input.sourceSha,
+            state: workspaceState,
+            tests: entry.tests,
+            workerResult: entry.workerResult,
+            patch,
+            terminalState: artifactTerminalState,
+            error: entry.error ?? null,
+            containment,
+          });
+          entry.state = artifactTerminalState;
+        } catch (error) {
+          captureFailure(entry, asRunnerError(error));
+        }
+      }
+      const state = terminalState(packages);
+      const firstError = packages.find(({ error }) => error)?.error ?? null;
+      await updateRunManifest(manifestPath, state, {
+        packages: manifestPackages(packages),
+        error_code: firstError?.code ?? null,
+      }, { now });
+      return summarizeRun({
+        runId: input.runId,
+        dryRunId: input.dryRun.dry_run_id,
+        state,
+        prepareOnly: false,
+        manifestPath,
+        packages,
+        error: firstError,
+      });
+    }
 
     const publishable = packages.filter(({ state }) => state === "TESTING");
     if (publishable.length > 0) {

@@ -1,4 +1,5 @@
-import { isAbsolute, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { isAbsolute, relative, resolve } from "node:path";
 import {
   parseJsonStrict,
   sha256Digest,
@@ -74,21 +75,201 @@ function validateBudget(budget) {
 function validatePublicationPolicy(policy) {
   if (
     !policy
-    || !["PREPARE_ONLY", "EXECUTE_AND_DRAFT_PR"].includes(policy.mode)
-    || policy.draft_only !== true
+    || ![
+      "PREPARE_ONLY",
+      "EXECUTE_PATCH_ONLY",
+      "EXECUTE_AND_DRAFT_PR",
+    ].includes(policy.mode)
     || policy.base_branch !== "master"
-    || !Number.isInteger(policy.issue_number)
-    || policy.issue_number < 1
   ) {
-    failRunner("RUNNER_PUBLICATION_POLICY_INVALID", "Invalid Draft-PR-only publication policy");
+    failRunner("RUNNER_PUBLICATION_POLICY_INVALID", "Invalid Runner publication policy");
   }
-  if (policy.mode === "PREPARE_ONLY" && policy.allow_push !== false) {
+  if (
+    policy.mode === "PREPARE_ONLY"
+    && (policy.draft_only !== true || policy.allow_push !== false)
+  ) {
     failRunner("RUNNER_PUBLICATION_POLICY_INVALID", "Prepare-only runs cannot allow push");
   }
-  if (policy.mode === "EXECUTE_AND_DRAFT_PR" && policy.allow_push !== true) {
+  if (
+    policy.mode === "EXECUTE_PATCH_ONLY"
+    && (
+      policy.draft_only !== false
+      || policy.allow_commit !== false
+      || policy.allow_push !== false
+      || policy.allow_pr !== false
+      || policy.allow_github !== false
+      || policy.issue_number !== null
+    )
+  ) {
+    failRunner(
+      "RUNNER_PUBLICATION_POLICY_INVALID",
+      "Patch-only runs must disable commit, push, PR, and GitHub publication",
+    );
+  }
+  if (
+    policy.mode === "EXECUTE_AND_DRAFT_PR"
+    && (
+      policy.draft_only !== true
+      || policy.allow_push !== true
+      || !Number.isInteger(policy.issue_number)
+      || policy.issue_number < 1
+    )
+  ) {
     failRunner("RUNNER_PUBLICATION_POLICY_INVALID", "Execution publication must explicitly allow push");
   }
   return clone(policy);
+}
+
+function exactWorkPackagePin(value) {
+  if (!value || typeof value !== "object") return null;
+  const expectedKeys = [
+    "proposed_branch",
+    "work_package_id",
+    "work_package_plan_digest",
+    "work_package_revision",
+  ];
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expectedKeys)) return null;
+  return {
+    work_package_id: value.work_package_id,
+    work_package_revision: value.work_package_revision,
+    work_package_plan_digest: value.work_package_plan_digest,
+    proposed_branch: value.proposed_branch,
+  };
+}
+
+function sameWorkPackagePins(approved, actual) {
+  const normalizedApproved = approved.map(exactWorkPackagePin);
+  if (normalizedApproved.some((value) => value === null)) return false;
+  return sha256Digest(normalizedApproved) === sha256Digest(actual);
+}
+
+function belowOsTemp(candidate) {
+  const path = relative(resolve(tmpdir()), resolve(candidate));
+  return path !== ""
+    && path !== ".."
+    && !path.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
+    && !isAbsolute(path);
+}
+
+const PATCH_ONLY_LIMITATIONS = Object.freeze([
+  "HANDLE_PINNED_JOB_OBJECT_UNVERIFIED",
+  "OS_NETWORK_DENY_UNVERIFIED",
+  "RACE_FREE_FILESYSTEM_SANDBOX_UNVERIFIED",
+]);
+
+function validatePatchOnlyApproval({
+  approval,
+  publicationPolicy,
+  selectedWorkPackages,
+  approvedPaths,
+  concurrency,
+}) {
+  if (publicationPolicy.mode !== "EXECUTE_PATCH_ONLY") return null;
+  const prohibitedPaths = sortedUniqueStrings(
+    approval.prohibited_paths,
+    "approval.prohibited_paths",
+  );
+  const selectedProhibitedPaths = [...new Set(
+    selectedWorkPackages.flatMap(({ path_policy }) =>
+      path_policy.forbidden_paths.map(({ path }) => path)),
+  )].sort();
+  if (sha256Digest(prohibitedPaths) !== sha256Digest(selectedProhibitedPaths)) {
+    failRunner(
+      "RUNNER_PROHIBITED_SCOPE_MISMATCH",
+      "Owner approval must pin the exact selected Work Package prohibited paths",
+      { prohibitedPaths, selectedProhibitedPaths },
+    );
+  }
+  if (
+    concurrency !== 1
+    || selectedWorkPackages.length !== 1
+    || approval.execution_budget?.max_external_calls !== 0
+    || approval.execution_budget?.max_retries !== 0
+  ) {
+    failRunner(
+      "RUNNER_PATCH_ONLY_LIMIT_INVALID",
+      "Patch-only runs require one Package, concurrency one, zero retries, and zero external calls",
+    );
+  }
+  for (const field of [
+    "commit_allowed",
+    "push_allowed",
+    "pr_allowed",
+    "merge_allowed",
+    "ready_transition_allowed",
+    "issue_close_allowed",
+  ]) {
+    if (approval[field] !== false) {
+      failRunner(
+        "RUNNER_PATCH_ONLY_PERMISSION_INVALID",
+        `Patch-only approval must pin ${field}: false`,
+        { field },
+      );
+    }
+  }
+  if (
+    approval.publication_mode !== "EXECUTE_PATCH_ONLY"
+    || typeof approval.disposable_clone_root !== "string"
+    || !isAbsolute(approval.disposable_clone_root)
+    || !belowOsTemp(approval.disposable_clone_root)
+  ) {
+    failRunner(
+      "RUNNER_DISPOSABLE_CLONE_INVALID",
+      "Patch-only approval must pin an absolute disposable clone below OS temp",
+    );
+  }
+  const containment = approval.containment_acknowledgement;
+  const limitations = sortedUniqueStrings(
+    containment?.limitations,
+    "approval.containment_acknowledgement.limitations",
+  );
+  if (
+    containment?.status !== "PARTIALLY_VERIFIED"
+    || containment?.residual_risk_accepted !== true
+    || sha256Digest(limitations) !== sha256Digest([...PATCH_ONLY_LIMITATIONS])
+  ) {
+    failRunner(
+      "RUNNER_CONTAINMENT_APPROVAL_MISSING",
+      "Owner must explicitly accept the exact residual patch-only containment risks",
+    );
+  }
+  if (
+    approvedPaths.length !== 1
+    || !approvedPaths[0].startsWith("docs/")
+    || !/^[A-Za-z0-9._/-]+\.md$/u.test(approvedPaths[0])
+  ) {
+    failRunner(
+      "RUNNER_PATCH_ONLY_SCOPE_INVALID",
+      "Patch-only Pilot is limited to one exact docs/** path",
+    );
+  }
+  const exactPath = approvedPaths[0];
+  const [workPackage] = selectedWorkPackages;
+  const allowedRules = workPackage.path_policy?.allowed_paths ?? [];
+  const requiredRules = workPackage.path_policy?.required_paths ?? [];
+  const expectedChanges = workPackage.expected_changes ?? [];
+  if (
+    allowedRules.length !== 1
+    || allowedRules[0].match !== "EXACT"
+    || allowedRules[0].path !== exactPath
+    || requiredRules.length !== 1
+    || requiredRules[0].match !== "EXACT"
+    || requiredRules[0].path !== exactPath
+    || expectedChanges.length !== 1
+    || expectedChanges[0].path !== exactPath
+    || expectedChanges[0].operation !== "MODIFY"
+  ) {
+    failRunner(
+      "RUNNER_PATCH_ONLY_SCOPE_INVALID",
+      "Patch-only requires identical exact allowed, required, and expected-change paths",
+    );
+  }
+  return {
+    status: containment.status,
+    limitations,
+    disposableCloneRoot: resolve(approval.disposable_clone_root),
+    exactAllowedPath: exactPath,
+  };
 }
 
 function proposedBranch(dryRun, workPackage) {
@@ -232,7 +413,7 @@ export function validateRunInput({
     work_package_plan_digest: item.work_package_plan_digest,
     proposed_branch: item.proposed_branch,
   }));
-  if (JSON.stringify(approvedPackages) !== JSON.stringify(actualPins)) {
+  if (!sameWorkPackagePins(approvedPackages, actualPins)) {
     failRunner("RUNNER_WORK_PACKAGE_PIN_MISMATCH", "Owner approval does not pin the exact Package revisions/digests");
   }
 
@@ -298,6 +479,15 @@ export function validateRunInput({
     failRunner("RUNNER_RUN_ID_INVALID", "run_id must be a stable safe identifier");
   }
 
+  const publicationPolicy = validatePublicationPolicy(approval.publication_policy);
+  const patchOnly = validatePatchOnlyApproval({
+    approval,
+    publicationPolicy,
+    selectedWorkPackages,
+    approvedPaths,
+    concurrency,
+  });
+
   return {
     dryRun,
     approval,
@@ -308,7 +498,8 @@ export function validateRunInput({
     runId: approval.run_id,
     executionBudget: validateBudget(approval.execution_budget),
     worktreeRoot: resolve(requestedRoot),
-    publicationPolicy: validatePublicationPolicy(approval.publication_policy),
+    publicationPolicy,
+    patchOnly,
     approvalRecordHash: approval.record_hash,
   };
 }

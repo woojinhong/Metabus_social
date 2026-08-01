@@ -28,13 +28,15 @@ export function createTestRunner({
   networkIsolationVerified = false,
   filesystemIsolationVerified = false,
   processTreeIsolationVerified = false,
+  allowPartialContainment = false,
 } = {}) {
   return {
     async assertAvailable() {
       if (
-        !networkIsolationVerified
+        !allowPartialContainment
+        && (!networkIsolationVerified
         || !filesystemIsolationVerified
-        || !processTreeIsolationVerified
+        || !processTreeIsolationVerified)
       ) {
         const error = new Error(
           "Required-test network, filesystem, and process-tree isolation must be independently verified",
@@ -42,7 +44,9 @@ export function createTestRunner({
         error.code = "RUNNER_TEST_SANDBOX_UNVERIFIED";
         throw error;
       }
-      return true;
+      return allowPartialContainment
+        ? { status: "PARTIALLY_VERIFIED" }
+        : { status: "VERIFIED" };
     },
     async runRequired({ cwd, commands, timeoutMs = 120_000 }) {
       const results = [];
