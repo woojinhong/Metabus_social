@@ -19,6 +19,7 @@ import {
   serializePlannerResult,
 } from "./planner/compiler.mjs";
 import { PlannerError } from "./planner/planner-error.mjs";
+import { createGitSourcePathOperation } from "./planner/source-tree-inspector.mjs";
 import { schemaRegistry, schemas } from "./planner/schemas.mjs";
 import {
   clone,
@@ -33,8 +34,10 @@ const golden = JSON.parse(
   ),
 );
 
-function compile(input) {
-  return compilePlanner(JSON.stringify(input), REPOSITORY_SHA);
+function compile(input, sourcePathOperation = () => "MODIFY") {
+  return compilePlanner(JSON.stringify(input), REPOSITORY_SHA, {
+    sourcePathOperation,
+  });
 }
 
 function assertDryRun(record) {
@@ -75,6 +78,67 @@ test("single approved Requirement produces one schema-valid proposal", () => {
   );
   assert.match(result.issue_drafts[0].body, /\nRefs:/);
   assert.doesNotMatch(result.issue_drafts[0].body, /\b(?:Closes|Fixes|Resolves)\b/);
+  assert.deepEqual(result.work_packages[0].expected_changes, [{
+    path: "docs/test/requirement-1.md",
+    operation: "MODIFY",
+  }]);
+});
+
+test("pinned source tree distinguishes CREATE from MODIFY independently of source documents", () => {
+  const input = makePlannerInput([{
+    path: "docs/discovery/source-authority.md",
+    targetPath: "docs/operations/new-runbook.md",
+  }]);
+  const observations = [];
+  const result = compile(input, ({ path, repositorySha }) => {
+    observations.push({ path, repositorySha });
+    return "CREATE";
+  });
+  assertDryRun(result);
+  assert.deepEqual(result.work_packages[0].expected_changes, [{
+    path: "docs/operations/new-runbook.md",
+    operation: "CREATE",
+  }]);
+  assert.equal(
+    result.input_snapshot.planning_scope.source_documents
+      .some(({ document_path: documentPath }) =>
+        documentPath === "docs/operations/new-runbook.md"),
+    false,
+  );
+  assert.deepEqual(observations, [{
+    path: "docs/operations/new-runbook.md",
+    repositorySha: REPOSITORY_SHA,
+  }]);
+});
+
+test("Git source inspector classifies absent and regular targets and rejects symlinks", () => {
+  const calls = [];
+  const inspect = createGitSourcePathOperation({
+    run(executable, args) {
+      calls.push({ executable, args });
+      const path = args.at(-1);
+      if (path === "docs/new.md") return { status: 0, stdout: "", stderr: "" };
+      if (path === "docs/existing.md") {
+        return {
+          status: 0,
+          stdout: `100644 blob ${"b".repeat(40)}\tdocs/existing.md\0`,
+          stderr: "",
+        };
+      }
+      return {
+        status: 0,
+        stdout: `120000 blob ${"c".repeat(40)}\tdocs/link.md\0`,
+        stderr: "",
+      };
+    },
+  });
+  assert.equal(inspect({ path: "docs/new.md", repositorySha: REPOSITORY_SHA }), "CREATE");
+  assert.equal(inspect({ path: "docs/existing.md", repositorySha: REPOSITORY_SHA }), "MODIFY");
+  assert.throws(
+    () => inspect({ path: "docs/link.md", repositorySha: REPOSITORY_SHA }),
+    { code: "DRP_SOURCE_TARGET_UNSUPPORTED" },
+  );
+  assert(calls.every(({ args }) => args[2] === REPOSITORY_SHA));
 });
 
 test("two independent Requirements produce parallel Work Package candidates", () => {
@@ -235,7 +299,12 @@ test("CLI writes stdout or a new OS-temp file only", () => {
   try {
     const inputPath = join(directory, "input.json");
     const outputPath = join(directory, "output.json");
-    writeFileSync(inputPath, JSON.stringify(makePlannerInput()), "utf8");
+    const repositorySha = spawnSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).stdout.trim();
+    writeFileSync(inputPath, JSON.stringify(makePlannerInput([{}], {
+      repositorySha,
+    })), "utf8");
     const cliPath = fileURLToPath(new URL("./planner/cli.mjs", import.meta.url));
     const stdoutRun = spawnSync(
       process.execPath,
@@ -244,7 +313,7 @@ test("CLI writes stdout or a new OS-temp file only", () => {
         "--requirements",
         inputPath,
         "--repository-sha",
-        REPOSITORY_SHA,
+        repositorySha,
       ],
       { encoding: "utf8" },
     );
@@ -257,7 +326,7 @@ test("CLI writes stdout or a new OS-temp file only", () => {
         "--requirements",
         inputPath,
         "--repository-sha",
-        REPOSITORY_SHA,
+        repositorySha,
         "--output",
         outputPath,
       ],
@@ -272,7 +341,7 @@ test("CLI writes stdout or a new OS-temp file only", () => {
         "--requirements",
         inputPath,
         "--repository-sha",
-        REPOSITORY_SHA,
+        repositorySha,
         "--output",
         outputPath,
       ],
@@ -292,7 +361,7 @@ test("CLI writes stdout or a new OS-temp file only", () => {
         "--requirements",
         inputPath,
         "--repository-sha",
-        REPOSITORY_SHA,
+        repositorySha,
         "--output",
         repositoryOutput,
       ],
@@ -309,7 +378,7 @@ test("CLI writes stdout or a new OS-temp file only", () => {
   }
 });
 
-test("Planner runtime has no mutation, network, Worker or child-process imports", () => {
+test("Planner runtime has no mutation, network, or Worker imports and only source inspection may spawn", () => {
   const plannerFiles = [
     "cli.mjs",
     "compiler.mjs",
@@ -319,14 +388,25 @@ test("Planner runtime has no mutation, network, Worker or child-process imports"
     "planner-error.mjs",
     "requirement-loader.mjs",
     "schemas.mjs",
+    "source-tree-inspector.mjs",
     "work-package-compiler.mjs",
     "workgraph-compiler.mjs",
   ];
   for (const file of plannerFiles) {
     const source = readFileSync(new URL(`./planner/${file}`, import.meta.url), "utf8");
-    assert.doesNotMatch(source, /node:(?:child_process|http|https|net|worker_threads)/);
+    if (file !== "source-tree-inspector.mjs") {
+      assert.doesNotMatch(source, /node:(?:child_process|http|https|net|worker_threads)/);
+    }
     assert.doesNotMatch(source, /\b(?:fetch|Octokit|sqlite|worktree)\s*\(/i);
-    assert.doesNotMatch(source, /\b(?:exec|spawn|fork|gh|git)\s*\(/i);
+    if (file !== "source-tree-inspector.mjs") {
+      assert.doesNotMatch(source, /\b(?:exec|spawn|fork|gh|git)\s*\(/i);
+    }
   }
+  const inspector = readFileSync(
+    new URL("./planner/source-tree-inspector.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(inspector, /\["ls-tree", "-z", repositorySha, "--", path\]/u);
+  assert.doesNotMatch(inspector, /\b(?:add|commit|push|fetch|checkout|reset|clean)\b/u);
   assert.equal(pathToFileURL(process.cwd()).protocol, "file:");
 });

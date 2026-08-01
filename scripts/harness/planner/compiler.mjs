@@ -236,13 +236,13 @@ function baseDryRun({
   return dryRun;
 }
 
-export function compilePlanner(text, repositorySha) {
+export function compilePlanner(text, repositorySha, { sourcePathOperation } = {}) {
   const loaded = loadPlannerInput(text, repositorySha);
   let compiled = { items: [], completedWorkPackageIds: [] };
   let workPackages = [];
   let workPackageSetDigest = digestWorkPackageSet([]);
   try {
-    compiled = compileWorkPackages(loaded);
+    compiled = compileWorkPackages({ ...loaded, sourcePathOperation });
     workPackages = compiled.items.map(({ workPackage }) => workPackage);
     if (workPackages.length > loaded.inputSnapshot.policy.max_work_packages) {
       throw new PlannerError(

@@ -244,11 +244,18 @@ export function validateApprovedWorkerPolicy(approval, {
     );
   }
   const patchOnly = approval.publication_policy?.mode === "EXECUTE_PATCH_ONLY";
+  if (patchOnly && sandbox !== "workspace-write") {
+    policyError(
+      "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+      "EXECUTE_PATCH_ONLY real Workers require workspace-write",
+      { sandbox },
+    );
+  }
   const expected = patchOnly
     ? {
         adapter: "CODEX_CLI_0_146",
         executable: normalizedAbsolute(executable, "executable"),
-        sandbox,
+        sandbox: "workspace-write",
         approval: approvalMode,
         network_policy: "CODEX_CONFIG_RESTRICTED",
         external_calls: 0,

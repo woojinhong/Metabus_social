@@ -38,6 +38,7 @@ export function createCodexWorkerAdapter({
   approvalMode,
   sourceEnvironment = process.env,
   isolationEvidence = {},
+  patchOnly = false,
   allowPartialContainment = false,
   maxLogBytes = 1024 * 1024,
   run = runProcess,
@@ -52,6 +53,16 @@ export function createCodexWorkerAdapter({
     );
   }
   validateCodexPolicyValues({ sandbox, approvalMode });
+  if (
+    (patchOnly || costAuthority?.publication_mode === "EXECUTE_PATCH_ONLY")
+    && sandbox !== "workspace-write"
+  ) {
+    throw adapterError(
+      "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+      "Patch-only Codex Workers require the workspace-write sandbox",
+      { sandbox },
+    );
+  }
   if (!Number.isInteger(maxLogBytes) || maxLogBytes < 1024 || maxLogBytes > 4 * 1024 * 1024) {
     throw adapterError("RUNNER_WORKER_POLICY_INVALID", "Invalid Worker log byte limit");
   }

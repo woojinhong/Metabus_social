@@ -45,10 +45,14 @@ and source ownership unchanged. [Issue #64 usage evidence](discovery/autonomous-
 pins Codex 0.146.0 final token/external-tool parsing. The
 [AH-P2-11 authority](discovery/autonomous-harness-codex-cost-budget-authority.md)
 approves the narrow cost-unavailable exception and post-run token gate. Issue
-#68 wires Runner enforcement under Draft-PR review; no Pilot was rerun and a
-fresh run ID/approval remain required. AH-P2-06 artifacts remain preserved. Patch-only
-containment is `PARTIALLY_VERIFIED`; a new real run needs a new run ID, exact
-pins and separate residual-risk Owner acceptance.
+#68 wires Runner enforcement. AH-P2-13 verified usage but ended `NO_CHANGE`
+because its effective read-only sandbox rejected the runbook CREATE; its run ID
+and artifacts are preserved and cannot be reused. Issue #70 requires patch-only
+CLI/approval/adapter agreement on `workspace-write`, retains exact-path
+postchecks including ignored files, and derives CREATE/MODIFY via read-only
+`git ls-tree` at the pinned SHA with pre/post checks. Containment remains
+`PARTIALLY_VERIFIED`; another real
+run needs a new run ID, fresh exact approval and residual-risk acceptance.
 
 ## Authority and promotion
 

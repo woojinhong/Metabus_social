@@ -25,6 +25,22 @@ import { createTestRunner } from "./test-runner.mjs";
 import { createGitPublisher } from "./git-publisher.mjs";
 import { renderDraftPr } from "./draft-pr-renderer.mjs";
 import { summarizeRun } from "./result-summary.mjs";
+import {
+  validateExpectedChangeAfterWorker,
+  validateExpectedChangeAtSource,
+} from "./expected-change-policy.mjs";
+
+const PATH_POLICY_FAILURE_CODES = new Set([
+  "FORBIDDEN_PATH",
+  "HARD_PROHIBITED_PATH",
+  "OWNER_SCOPE_REQUIRED",
+  "PATH_ESCAPE",
+  "PATH_NOT_ALLOWED",
+  "SYMLINK_ESCAPE",
+  "RUNNER_WORKER_PATH_ESCAPE",
+  "RUNNER_EXPECTED_CHANGE_RESULT_MISMATCH",
+  "RUNNER_EXPECTED_CHANGE_TARGET_UNSUPPORTED",
+]);
 
 function packageRecord(workPackage, worktreeRoot, workspacePath = null) {
   return {
@@ -44,6 +60,7 @@ function packageRecord(workPackage, worktreeRoot, workspacePath = null) {
     workerResult: null,
     artifactPaths: null,
     budgetResult: null,
+    expectedChangeState: null,
   };
 }
 
@@ -70,6 +87,8 @@ function captureFailure(entry, error, fallbackState = "FAILED") {
     "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
   ].includes(error.code)) {
     entry.state = "FAILED_BUDGET";
+  } else if (PATH_POLICY_FAILURE_CODES.has(error.code)) {
+    entry.state = "FAILED_PATH_POLICY";
   } else {
     entry.state = [
     "BLOCKED_CONFLICT",
@@ -115,6 +134,9 @@ function terminalState(packages) {
     return "PATCH_READY_FOR_OWNER_REVIEW";
   }
   if (packages.some(({ state }) => state === "FAILED_BUDGET")) return "FAILED_BUDGET";
+  if (packages.some(({ state }) => state === "FAILED_PATH_POLICY")) {
+    return "FAILED_PATH_POLICY";
+  }
   if (packages.every(({ state }) => state === "COMPLETED")) return "COMPLETED";
   if (packages.some(({ state }) => state === "FAILED")) return "FAILED";
   if (packages.every(({ state }) => state === "NO_CHANGE")) return "NO_CHANGE";
@@ -338,6 +360,10 @@ export async function runLightweightRunner({
   const patchArtifacts = isPatchOnly
     ? adapters.patchArtifactWriter ?? createPatchArtifactWriter()
     : null;
+  const expectedChangeValidator = adapters.expectedChangeValidator
+    ?? validateExpectedChangeAtSource;
+  const expectedChangeResultValidator = adapters.expectedChangeResultValidator
+    ?? validateExpectedChangeAfterWorker;
   const verifier = isPatchOnly ? patchArtifacts : publisher;
   const repositoryUri = input.dryRun.input_snapshot.repository.canonical_uri;
   await worktreeManager.assertSourceReady(
@@ -434,6 +460,13 @@ export async function runLightweightRunner({
           disposableCloneRoot: input.patchOnly?.disposableCloneRoot ?? null,
           ownerApprovedSourceRoot: input.patchOnly?.sourceRepositoryRoot ?? null,
         });
+        if (isPatchOnly) {
+          entry.expectedChangeState = await expectedChangeValidator({
+            repositoryRoot: entry.worktreePath,
+            workPackage: entry.workPackage,
+            exactAllowedPath: input.patchOnly.exactAllowedPath,
+          });
+        }
         remainingBudgetMs();
         entry.state = "PREPARING";
       } catch (error) {
@@ -468,6 +501,7 @@ export async function runLightweightRunner({
           approval: input.approval,
           branch: entry.branch,
           worktreePath: entry.worktreePath,
+          expectedChangeState: entry.expectedChangeState,
         });
         entry.diagnosticsPath = context.packageRoot;
         entry.state = "RUNNING";
@@ -582,6 +616,12 @@ export async function runLightweightRunner({
             },
           );
           if (isPatchOnly) {
+            await expectedChangeResultValidator({
+              repositoryRoot: entry.worktreePath,
+              expectedChangeState: entry.expectedChangeState,
+            });
+          }
+          if (isPatchOnly) {
             assertExactPatchOnlyChange(
               entry.changedFiles,
               input.patchOnly.exactAllowedPath,
@@ -623,6 +663,12 @@ export async function runLightweightRunner({
               mustExist: false,
             },
           );
+          if (isPatchOnly) {
+            await expectedChangeResultValidator({
+              repositoryRoot: entry.worktreePath,
+              expectedChangeState: entry.expectedChangeState,
+            });
+          }
           if (isPatchOnly) {
             assertExactPatchOnlyChange(
               entry.changedFiles,

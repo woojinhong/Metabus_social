@@ -151,18 +151,18 @@ Pilot or invoke Runner publication. 모든 Package의 collision-free preparation
 `FAILED`로 끝난다. Preparation conflict는 Worker 시작 전에 전체 run을 `BLOCKED`로
 중단한다. 모든 failed worktree, manifest와 diagnostic log는 사람의 판단을 위해 보존한다.
 
-Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows `taskkill`
-fallback but no strict Job Object or OS network deny. Issue #60 adds the distinct
-`EXECUTE_PATCH_ONLY` path for one exact `docs/**` file. Issue #62 limits dubious-
-ownership handling to `git -c safe.directory=<verified-source-git-dir> clone`: it never uses `*`, changes source ownership, or writes global, system or user Git config.
-Issue #64 parses Codex 0.146.0 usage with unknown-schema fail-closed behavior; Issue #66 approves the AH-P2-11 ChatGPT/docs-only unavailable-cost exception and 600000-token post-run gate. Issue #68 wires the exact pins, budget states/errors and preserved patch-only artifacts under Draft-PR review; no Pilot was rerun and a fresh run ID/approval remain required.
-
-The approval pins the local source root; its Git config and repository state are
-compared after every clone attempt; destination Git metadata must be independent, with no remote and an empty local
-credential helper. This resolves only the AH-P2-06 clone-preparation blocker;
-that failed run stays preserved. Containment remains `PARTIALLY_VERIFIED`, so a
-new run ID and fresh residual-risk Owner approval are required. Product-code
-Pilots remain prohibited.
+Issues #58/#60/#62 add the Codex adapter, exact-file `EXECUTE_PATCH_ONLY` and
+command-scoped `safe.directory`; no strict Job Object or OS network deny is
+claimed. Issues #64/#66/#68 pin Codex 0.146.0 usage, cost-null policy and budgets.
+AH-P2-13 verified 369026 tokens and zero external calls but its effective
+read-only sandbox rejected the runbook CREATE, so it ended `NO_CHANGE`; the run
+and artifacts are preserved and cannot be reused. Issue #70 requires patch-only
+CLI/approval/adapter agreement on `workspace-write`; read-only remains diagnostic.
+One exact path plus index, HEAD, remote, reparse and fingerprint checks remain.
+CREATE/MODIFY uses read-only `git ls-tree` at the pinned source SHA and is
+rechecked before Worker launch and after Worker/tests. Ignored files are part
+of the exact-path delta. Another Pilot requires a new run ID and fresh approval;
+containment stays `PARTIALLY_VERIFIED` and product-code Pilots remain prohibited.
 
 ## 7. Validation gate
 

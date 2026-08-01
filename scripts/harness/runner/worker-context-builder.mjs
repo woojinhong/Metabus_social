@@ -8,6 +8,7 @@ export function buildWorkerContext({
   approval,
   branch,
   worktreePath,
+  expectedChangeState = null,
 }) {
   const sourceRequirementIds = workPackage.source_requirements
     .map(({ requirement_id }) => requirement_id)
@@ -20,6 +21,9 @@ export function buildWorkerContext({
       code: "RUNNER_CONTEXT_INVALID",
     });
   }
+  const expectedChange = expectedChangeState ?? workPackage.expected_changes[0];
+  const targetExistsAtSource = expectedChange.target_exists_at_source
+    ?? expectedChange.operation === "MODIFY";
   return {
     record_kind: "BOUNDED_WORKER_CONTEXT",
     work_package_id: workPackage.work_package_id,
@@ -32,6 +36,14 @@ export function buildWorkerContext({
     out_of_scope: workPackage.out_of_scope,
     acceptance_criteria: workPackage.acceptance_criteria,
     expected_changes: workPackage.expected_changes,
+    expected_operation: expectedChange.operation,
+    target_exists_at_source: targetExistsAtSource,
+    exact_target_path: expectedChange.path,
+    execution_instruction: expectedChange.operation === "CREATE"
+      ? `CREATE the exact target file ${expectedChange.path}; write the required content and do not stop after analysis.`
+      : `MODIFY the existing target file ${expectedChange.path}; read it first, write the required changes, and do not stop after analysis.`,
+    source_mismatch_instruction:
+      "If the target existence differs from target_exists_at_source, do not write and report a blocker.",
     allowed_paths: workPackage.path_policy.allowed_paths,
     prohibited_paths: workPackage.path_policy.forbidden_paths,
     required_tests: workPackage.required_tests,
@@ -59,12 +71,17 @@ export function buildWorkerContext({
   };
 }
 
-export function renderWorkerPrompt(contextPath) {
+export function renderWorkerPrompt(contextPath, context) {
   return [
     "Execute only the bounded Work Package in the provided context JSON.",
     `Context: ${contextPath}`,
-    "Work only inside the assigned worktree and allowed paths.",
-    "Do not commit, push, create or update GitHub resources, install dependencies,",
+    `Exact target: ${context.exact_target_path}`,
+    `Expected operation: ${context.expected_operation}`,
+    context.execution_instruction,
+    context.source_mismatch_instruction,
+    "Modify exactly the allowed target file and no other file.",
+    "Do not run git add, commit, push, or create or update a pull request.",
+    "Do not install dependencies,",
     "use secrets, access the network, expand scope, or change prohibited paths.",
     "Modify files and run local checks only. The Runner control plane independently",
     "validates paths and required tests before any publication.",
@@ -79,6 +96,7 @@ export async function writeWorkerContext({
   approval,
   branch,
   worktreePath,
+  expectedChangeState = null,
 }) {
   const packageRoot = join(diagnosticsRoot, runId, workPackage.work_package_id);
   await mkdir(packageRoot, { recursive: true });
@@ -88,10 +106,11 @@ export async function writeWorkerContext({
     approval,
     branch,
     worktreePath,
+    expectedChangeState,
   });
   const contextPath = join(packageRoot, "worker-context.json");
   const promptPath = join(packageRoot, "worker-prompt.txt");
   await writeFile(contextPath, `${serializeJcs(context)}\n`, { flag: "wx" });
-  await writeFile(promptPath, `${renderWorkerPrompt(contextPath)}\n`, { flag: "wx" });
+  await writeFile(promptPath, `${renderWorkerPrompt(contextPath, context)}\n`, { flag: "wx" });
   return { context, contextPath, promptPath, packageRoot };
 }

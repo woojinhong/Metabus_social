@@ -2,7 +2,7 @@
 title: AH-P2-01 Lightweight Worktree Runner Pilot Authority
 document_type: automation implementation authority
 classification: user decision
-status: Owner-approved scope; Issues #56/#58/#60 implement Runner, adapter and patch-only boundaries; actual Pilot not run
+status: Owner-approved scope; AH-P2-13 preserved as NO_CHANGE; Issue #70 hardens patch-only write/operation contracts
 last_verified: 2026-08-01
 related_documents: ["autonomous-harness-foundation-approval-plan.md","autonomous-harness-readonly-planner-authority.md","../operations/autonomous-harness-readiness-audit-2026-07-31.md","../operations/automation/dry-run-planner-contract.md","../operations/github-workflow.md","../operations/README.md","../INDEX.md"]
 decision_authority: explicit Owner instructions on 2026-07-31, Issue #54 and Issue #58
@@ -194,7 +194,7 @@ Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.
 
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 
-Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. Issue #62는 Owner-approved worktree에서 확인한 real git-dir의 local clone에만 `-c safe.directory=<정규화된 절대 git-dir>`를 적용하며 `*`, global/system/user config 변경과 source 소유권 변경을 금지한다.
-승인은 Dry-run, local source root/SHA, Package revision/digest, allowed/prohibited path, clone root, zero retry/external-call budget과 모든 publication 권한 false를 mode별로 pin한다. 성공·실패 모두 clone 전후 branch, HEAD, status, refs, worktrees와 source Git config hash가 같아야 하며 destination Git metadata는 독립적이어야 한다.
-이 변경은 AH-P2-06의 clone 준비 차단만 해결하며 그 실패 run/artifact는 보존한다. Containment는 계속 `PARTIALLY_VERIFIED`이고 실제 docs-only Pilot은 새 run ID와 잔여 위험을 수락한 새 per-run Owner 승인이 필요하다. 제품 코드 Pilot은 계속 금지한다.
-성공, budget 실패, timeout과 `NO_CHANGE` 모두 clone과 진단을 보존한다. Issue #68은 fixture만 실행했고 Codex Worker/Pilot은 실행하지 않았다. 제품 code, schema/migration, dependency/workflow Pilot은 계속 금지한다.
+Issue #60/#62 confine this mode to one exact `docs/**` path in an independent OS-temp clone with command-scoped `safe.directory`; commit, push, PR and persistent Git configuration remain forbidden. AH-P2-13 verified 369026 tokens and zero external calls, but its effective read-only sandbox rejected the runbook write; it ended `NO_CHANGE` with an empty patch and is preserved and never reusable.
+Issue #70 requires `workspace-write` in the patch-only CLI, approval and adapter, places the sandbox pin on `codex exec`, and keeps read-only for zero-write diagnostics only. This does not widen other modes. Exact-path, HEAD, index, remote, reparse-point and pre/post-test fingerprint checks remain. Path/reparse violations are `FAILED_PATH_POLICY`; other Git-state violations keep dedicated errors under `FAILED`, and no publisher runs.
+Planner uses read-only `git ls-tree` at the pinned source SHA: absent targets are `CREATE`, regular files are `MODIFY`, and other Git modes fail closed. Runner rechecks before Worker launch and after Worker/tests, includes ignored files in the workspace delta, and blocks stale, deleted, directory, symlink, junction, DELETE or RENAME cases.
+Any next real Pilot requires a new run ID, fresh exact Owner approval and residual-risk acceptance. Product code, schema/migration, dependency/workflow and automatic publication remain prohibited.

@@ -104,6 +104,16 @@ export function parseRunnerArgs(args) {
     if (!isAbsolute(parsed["--codex-executable"])) {
       throw new TypeError("--codex-executable must be absolute");
     }
+    if (
+      parsed["--execute-patch-only"]
+      && parsed["--worker-sandbox"] !== "workspace-write"
+    ) {
+      const error = new TypeError(
+        "EXECUTE_PATCH_ONLY real Codex Workers require --worker-sandbox workspace-write",
+      );
+      error.code = "RUNNER_WORKER_SANDBOX_MODE_INVALID";
+      throw error;
+    }
   } else if (workerValues.some((flag) => parsed[flag])) {
     throw new TypeError("Codex Worker options require --real-codex-worker");
   }
@@ -134,6 +144,7 @@ export async function runCli(args, {
     adapters = {
       worker: codexAdapterFactory({
         ...configuration,
+        patchOnly: parsed["--execute-patch-only"] === true,
         allowPartialContainment: parsed["--execute-patch-only"] === true,
         isolationEvidence: {
           network: false,

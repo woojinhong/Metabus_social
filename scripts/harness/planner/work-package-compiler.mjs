@@ -48,6 +48,16 @@ function changePaths(requirement, inputSnapshot) {
   );
 }
 
+function expectedOperation(path, inputSnapshot, sourcePathOperation) {
+  if (typeof sourcePathOperation !== "function") {
+    throw new TypeError("A pinned source-path operation resolver is required");
+  }
+  return sourcePathOperation({
+    path,
+    repositorySha: inputSnapshot.repository.repository_sha,
+  });
+}
+
 function pathRules(paths, match = "EXACT") {
   return paths.map((path) => ({ path, match }));
 }
@@ -187,6 +197,7 @@ function compileWorkPackage({
   repositoryUri,
   dependencyIds,
   blockIds,
+  sourcePathOperation,
 }) {
   const policy = inputSnapshot.policy;
   const type = TYPE_BY_REQUIREMENT_KIND[requirement.requirement_kind];
@@ -300,7 +311,10 @@ function compileWorkPackage({
       required_paths: pathRules(paths),
       approved_exceptions: [],
     },
-    expected_changes: paths.map((path) => ({ path, operation: "MODIFY" })),
+    expected_changes: paths.map((path) => ({
+      path,
+      operation: expectedOperation(path, inputSnapshot, sourcePathOperation),
+    })),
     acceptance_criteria: acceptanceCriteria(
       requirement,
       repositoryUri,
@@ -414,6 +428,7 @@ export function compileWorkPackages({
   requirementSetDigest,
   inputSnapshot,
   repositoryUri,
+  sourcePathOperation,
 }) {
   const requirementIds = new Set(
     requirements.map(({ requirement_id }) => requirement_id),
@@ -463,6 +478,7 @@ export function compileWorkPackages({
         ? [packageIds.get(requirement.parent_requirement)]
         : [],
       blockIds: childIds.get(requirement.requirement_id),
+      sourcePathOperation,
     }),
   );
   const completed = new Set(

@@ -20,10 +20,10 @@ export const TEXT_HASH = `sha256:${"c".repeat(64)}`;
 export const ZERO_DIGEST = `sha256:${"0".repeat(64)}`;
 export const GENERATED_AT = "2026-07-31T00:00:00Z";
 
-function locator(path, lineStart = 1, lineEnd = 20) {
+function locator(path, repositorySha, lineStart = 1, lineEnd = 20) {
   return {
     path,
-    repository_sha: REPOSITORY_SHA,
+    repository_sha: repositorySha,
     section_anchor: "owner-approved-requirement",
     line_start: lineStart,
     line_end: lineEnd,
@@ -38,6 +38,7 @@ function baseRequirement({
   kind,
   gate,
   acceptance,
+  repositorySha,
 }) {
   const approvalId = `APPROVAL-${alias}`;
   const granted = gate === "GRANTED";
@@ -52,7 +53,7 @@ function baseRequirement({
     title,
     source: {
       repository: REPOSITORY_URI,
-      repository_sha: REPOSITORY_SHA,
+      repository_sha: repositorySha,
       identity_path: path,
       document_path: path,
       document_blob_sha: DOCUMENT_BLOB_SHA,
@@ -65,7 +66,7 @@ function baseRequirement({
       document_classification: "user decision",
       source_status: "Approved for deterministic Planner fixture",
       source_authority: "APPROVED",
-      approval_record: locator(path),
+      approval_record: locator(path, repositorySha),
       approved_by: "owner",
       approved_at: GENERATED_AT,
       supporting_sources: [],
@@ -82,7 +83,7 @@ function baseRequirement({
       state: gate,
       reason: granted ? "Owner granted bounded implementation." : "Owner gate required.",
       approval_record_id: granted ? approvalId : null,
-      grant_source: granted ? locator(path) : null,
+      grant_source: granted ? locator(path, repositorySha) : null,
       granted_by: granted ? "owner" : null,
       granted_at: granted ? GENERATED_AT : null,
       valid_until: null,
@@ -123,7 +124,7 @@ function sealRequirement(requirement) {
   return requirement;
 }
 
-function approvalRecord(requirement) {
+function approvalRecord(requirement, repositorySha) {
   const gate = requirement.implementation_gate;
   if (gate.state !== "GRANTED") return null;
   const record = {
@@ -134,7 +135,7 @@ function approvalRecord(requirement) {
     source: gate.grant_source,
     source_approval_record_id: null,
     scope: [...gate.scope],
-    source_sha: REPOSITORY_SHA,
+    source_sha: repositorySha,
     decided_by: "owner",
     decided_at: GENERATED_AT,
     valid_until: null,
@@ -146,7 +147,9 @@ function approvalRecord(requirement) {
   return record;
 }
 
-export function makePlannerInput(specs = [{}]) {
+export function makePlannerInput(specs = [{}], {
+  repositorySha = REPOSITORY_SHA,
+} = {}) {
   const requirements = specs.map((spec, index) =>
     baseRequirement({
       alias: spec.alias ?? `AH-TEST-${index + 1}`,
@@ -158,6 +161,7 @@ export function makePlannerInput(specs = [{}]) {
       kind: spec.kind ?? "POLICY",
       gate: spec.gate ?? "GRANTED",
       acceptance: spec.acceptance ?? [`Fixture ${index + 1} is compiled.`],
+      repositorySha,
     }),
   );
   const idByAlias = new Map();
@@ -179,7 +183,7 @@ export function makePlannerInput(specs = [{}]) {
     left.requirement_id.localeCompare(right.requirement_id),
   );
   const approvals = sorted
-    .map(approvalRecord)
+    .map((requirement) => approvalRecord(requirement, repositorySha))
     .filter((record) => record !== null)
     .sort((left, right) =>
       left.approval_record_id.localeCompare(right.approval_record_id),
@@ -196,13 +200,15 @@ export function makePlannerInput(specs = [{}]) {
     input_snapshot: {
       repository: {
         canonical_uri: REPOSITORY_URI,
-        repository_sha: REPOSITORY_SHA,
+        repository_sha: repositorySha,
         default_branch: "master",
       },
       planning_scope: {
         vertical_slice: null,
         workstream: "autonomous-harness",
-        modules: [],
+        modules: [...new Set(
+          specs.map(({ targetPath }) => targetPath).filter(Boolean),
+        )].sort(),
         source_documents: sourceDocuments,
         source_requirement_ids: sorted.map(({ requirement_id }) => requirement_id),
       },
@@ -236,7 +242,7 @@ export function makePlannerInput(specs = [{}]) {
         snapshot: {
           source: "Owner-pinned deterministic fixture",
           as_of: GENERATED_AT,
-          source_sha: REPOSITORY_SHA,
+          source_sha: repositorySha,
           record_hash: ZERO_DIGEST,
         },
         open_issues: [],
@@ -249,7 +255,7 @@ export function makePlannerInput(specs = [{}]) {
     requirement_set_digest: "",
   };
   input.requirement_set_digest = digestRequirementSet(
-    REPOSITORY_SHA,
+    repositorySha,
     sorted,
   );
   const snapshotProjection = {
