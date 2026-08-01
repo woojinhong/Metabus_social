@@ -191,7 +191,7 @@ OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-proc
 
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 
-Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. `origin`과 credential helper를 제거하고 concurrency 1에서 bounded log, changed-file/test JSON, binary patch, manifest와 summary를 만들되 `git add`, commit, push, PR과 GitHub adapter를 호출하지 않는다.
-승인은 Dry-run, source SHA, Package revision/digest, allowed/prohibited path, clone root, zero retry/external-call budget과 모든 publication 권한 false를 mode별로 pin한다. Draft-PR 승인은 재사용할 수 없고 Package pin은 JSON key 순서가 아닌 canonical 의미로 비교한다.
-Containment는 `PARTIALLY_VERIFIED`다. Codex network config, reparse 검사, hard deadline과 Windows tree termination은 있지만 OS network deny, race-free filesystem sandbox와 handle-pinned Job Object는 증명되지 않았다. 실제 docs-only Pilot은 이 잔여 위험을 명시적으로 수락한 별도 per-run Owner 승인이 필요하다.
+Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. Issue #62는 Owner-approved worktree에서 확인한 real git-dir의 local clone에만 `-c safe.directory=<정규화된 절대 git-dir>`를 적용하며 `*`, global/system/user config 변경과 source 소유권 변경을 금지한다.
+승인은 Dry-run, local source root/SHA, Package revision/digest, allowed/prohibited path, clone root, zero retry/external-call budget과 모든 publication 권한 false를 mode별로 pin한다. 성공·실패 모두 clone 전후 branch, HEAD, status, refs, worktrees와 source Git config hash가 같아야 하며 destination Git metadata는 독립적이어야 한다.
+이 변경은 AH-P2-06의 clone 준비 차단만 해결하며 그 실패 run/artifact는 보존한다. Containment는 계속 `PARTIALLY_VERIFIED`이고 실제 docs-only Pilot은 새 run ID와 잔여 위험을 수락한 새 per-run Owner 승인이 필요하다. 제품 코드 Pilot은 계속 금지한다.
 성공, 실패, timeout과 `NO_CHANGE` 모두 clone과 진단을 보존한다. 제품 code, schema/migration, dependency/workflow와 실제 Pilot은 별도 승인 없이 계속 금지한다.

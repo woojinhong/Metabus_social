@@ -41,8 +41,12 @@ import { createWorktreeManager } from "./runner/worktree-manager.mjs";
 import { buildWorkerContext } from "./runner/worker-context-builder.mjs";
 import { runCli } from "./runner/cli.mjs";
 import { createGitPublisher } from "./runner/git-publisher.mjs";
-import { createDisposableCloneManager } from "./runner/disposable-clone-manager.mjs";
+import {
+  createDisposableCloneManager,
+  normalizeSafeDirectorySource,
+} from "./runner/disposable-clone-manager.mjs";
 import { createPatchArtifactWriter } from "./runner/patch-artifacts.mjs";
+import { runChecked } from "./runner/process-utils.mjs";
 
 async function temporaryDirectory(t, prefix) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -308,7 +312,10 @@ async function executeFixture(t, {
   const { dryRun, approval } = makeFixture(specs, worktreeRoot, {
     publication_mode: requestedMode,
     ...(requestedMode === "EXECUTE_PATCH_ONLY"
-      ? { disposable_clone_root: join(root, "disposable", "repository") }
+      ? {
+          disposable_clone_root: join(root, "disposable", "repository"),
+          source_repository_root: root,
+        }
       : {}),
     ...approvalOverrides,
   });
@@ -1026,6 +1033,21 @@ async function temporaryGitSource(t, prefix = "propscans-patch-source-") {
   return { root, source, sha };
 }
 
+function patchOnlyCloneScope(clonePath, sourceRoot) {
+  return {
+    executionMode: "EXECUTE_PATCH_ONLY",
+    publicationPolicy: {
+      mode: "EXECUTE_PATCH_ONLY",
+      allow_commit: false,
+      allow_push: false,
+      allow_pr: false,
+      allow_github: false,
+    },
+    disposableCloneRoot: clonePath,
+    ownerApprovedSourceRoot: sourceRoot,
+  };
+}
+
 test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publisher", async (t) => {
   const publisher = fakePublisher();
   const patchArtifactWriter = fakePatchArtifactWriter({
@@ -1226,10 +1248,29 @@ test("Owner selected Work Package pins compare semantically across JSON key orde
   }));
 });
 
-test("disposable clone removes remote, resets credentials, blocks push, and preserves source refs", async (t) => {
+test("disposable clone uses command-scoped safe.directory and preserves source state", async (t) => {
   const fixture = await temporaryGitSource(t);
   const clonePath = join(fixture.root, "disposable", "repository");
-  const manager = createDisposableCloneManager();
+  const isolatedGlobalConfig = join(fixture.root, "isolated-global.gitconfig");
+  const isolatedSystemConfig = join(fixture.root, "isolated-system.gitconfig");
+  await writeFile(isolatedGlobalConfig, "[user]\n\tname = Isolated Global\n");
+  await writeFile(isolatedSystemConfig, "[core]\n\tautocrlf = false\n");
+  const beforeGlobalConfig = await readFile(isolatedGlobalConfig);
+  const beforeSystemConfig = await readFile(isolatedSystemConfig);
+  const calls = [];
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      calls.push({ executable, args: [...args], options: { ...options } });
+      return runChecked(executable, args, {
+        ...options,
+        env: {
+          ...process.env,
+          GIT_CONFIG_GLOBAL: isolatedGlobalConfig,
+          GIT_CONFIG_SYSTEM: isolatedSystemConfig,
+        },
+      });
+    },
+  });
   await manager.assertSourceReady(
     fixture.source,
     fixture.sha,
@@ -1243,13 +1284,26 @@ test("disposable clone removes remote, resets credentials, blocks push, and pres
     cwd: fixture.source,
     encoding: "utf8",
   });
+  const configPath = join(fixture.source, ".git", "config");
+  const beforeConfig = await readFile(configPath);
   await manager.prepare({
     repository: fixture.source,
     sourceSha: fixture.sha,
     branch: "harness/patch-fixture",
     worktreePath: clonePath,
     repositoryUri: "https://github.com/woojinhong/Metabus_social",
+    ...patchOnlyCloneScope(clonePath, fixture.source),
   });
+  const cloneCall = calls.find(({ args }) => args.includes("clone"));
+  assert.deepEqual(cloneCall.args.slice(0, 5), [
+    "-c",
+    `safe.directory=${normalizeSafeDirectorySource(join(fixture.source, ".git"))}`,
+    "clone",
+    "--no-hardlinks",
+    "--no-tags",
+  ]);
+  assert.equal(cloneCall.options.shell, undefined);
+  assert.equal(calls.some(({ args }) => args.includes("--global") || args.includes("--system")), false);
   assert.equal(execFileSync("git", ["remote"], { cwd: clonePath, encoding: "utf8" }), "");
   assert.equal(
     execFileSync("git", ["config", "--local", "--get-all", "credential.helper"], {
@@ -1272,6 +1326,34 @@ test("disposable clone removes remote, resets credentials, blocks push, and pres
     cwd: fixture.source,
     encoding: "utf8",
   }), beforeWorktrees);
+  assert.deepEqual(await readFile(configPath), beforeConfig);
+  assert.deepEqual(await readFile(isolatedGlobalConfig), beforeGlobalConfig);
+  assert.deepEqual(await readFile(isolatedSystemConfig), beforeSystemConfig);
+  assert.equal(execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: clonePath,
+    encoding: "utf8",
+  }).trim(), fixture.sha);
+  const sourceGitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+    cwd: fixture.source,
+    encoding: "utf8",
+  }).trim();
+  const cloneGitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+    cwd: clonePath,
+    encoding: "utf8",
+  }).trim();
+  assert.notEqual(sourceGitDir, cloneGitDir);
+  assert.equal(execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    cwd: clonePath,
+    encoding: "utf8",
+  }).trim(), clonePath.replaceAll("\\", "/"));
+  await assert.rejects(
+    readFile(join(clonePath, ".git", "objects", "info", "alternates")),
+    (error) => error.code === "ENOENT",
+  );
+  await assert.rejects(
+    manager.assertAvailable(fixture.source, "harness/collision", clonePath),
+    (error) => error.code === "BLOCKED_CONFLICT",
+  );
   execFileSync("git", ["tag", "unexpected-source-ref"], { cwd: fixture.source });
   await assert.rejects(
     manager.verifySourceUnchanged(
@@ -1280,6 +1362,206 @@ test("disposable clone removes remote, resets credentials, blocks push, and pres
       "https://github.com/woojinhong/Metabus_social",
     ),
     (error) => error.code === "RUNNER_SOURCE_REPOSITORY_MUTATED",
+  );
+});
+
+test("safe.directory source and patch-only scope fail closed", async (t) => {
+  assert.throws(
+    () => normalizeSafeDirectorySource("relative/source"),
+    (error) => error.code === "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID",
+  );
+  for (const source of [`${tmpdir()}${process.platform === "win32" ? "\\" : "/"}*`,
+    `${tmpdir()}${process.platform === "win32" ? "\\" : "/"}bad\nsource`,
+    `${tmpdir()}${process.platform === "win32" ? "\\" : "/"}bad\u0001source`]) {
+    assert.throws(
+      () => normalizeSafeDirectorySource(source),
+      (error) => error.code === "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID",
+    );
+  }
+  const fixture = await temporaryGitSource(t, "propscans-safe-scope-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const manager = createDisposableCloneManager();
+  await assert.rejects(
+    manager.prepare({
+      repository: fixture.source,
+      sourceSha: fixture.sha,
+      branch: "harness/wrong-mode",
+      worktreePath: clonePath,
+      repositoryUri: "https://github.com/woojinhong/Metabus_social",
+      executionMode: "EXECUTE_AND_DRAFT_PR",
+      publicationPolicy: patchOnlyCloneScope(clonePath, fixture.source).publicationPolicy,
+      disposableCloneRoot: clonePath,
+      ownerApprovedSourceRoot: fixture.source,
+    }),
+    (error) => error.code === "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID",
+  );
+  await assert.rejects(
+    manager.assertAvailable(fixture.source, "harness/outside-temp", join(process.cwd(), "blocked")),
+    (error) => ["BLOCKED_CONFLICT", "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID"].includes(error.code),
+  );
+});
+
+test("patch-only approval pins the exact local source root before clone preparation", async (t) => {
+  await assert.rejects(
+    executeFixture(t, {
+      specs: [{ path: "docs/allowed.md" }],
+      executionMode: "EXECUTE_PATCH_ONLY",
+      approvalOverrides: {
+        source_repository_root: join(tmpdir(), "different-owner-approved-source"),
+      },
+    }),
+    (error) => error.code === "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID",
+  );
+});
+
+test("fake dubious-ownership gate accepts only the exact command-scoped clone argv", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-fake-ownership-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  let scopedCloneObserved = false;
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      if (args.includes("clone")) {
+        const expected = `safe.directory=${normalizeSafeDirectorySource(join(fixture.source, ".git"))}`;
+        if (args[0] !== "-c" || args[1] !== expected || args[2] !== "clone") {
+          const error = new Error("fatal: detected dubious ownership");
+          error.code = "PROCESS_FAILED";
+          error.result = { code: 128, stderr: "fatal: detected dubious ownership" };
+          throw error;
+        }
+        scopedCloneObserved = true;
+      }
+      return runChecked(executable, args, options);
+    },
+  });
+  await manager.prepare({
+    repository: fixture.source,
+    sourceSha: fixture.sha,
+    branch: "harness/fake-ownership",
+    worktreePath: clonePath,
+    repositoryUri: "https://github.com/woojinhong/Metabus_social",
+    ...patchOnlyCloneScope(clonePath, fixture.source),
+  });
+  assert.equal(scopedCloneObserved, true);
+});
+
+test("dubious ownership after exact scoped argv has a dedicated redacted error", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-ownership-taxonomy-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      if (args.includes("clone")) {
+        const error = new Error("fake ownership failure");
+        error.code = "PROCESS_FAILED";
+        error.result = {
+          code: 128,
+          stderr: `fatal: detected dubious ownership in repository at '${fixture.source}'`,
+        };
+        throw error;
+      }
+      return runChecked(executable, args, options);
+    },
+  });
+  await assert.rejects(
+    manager.prepare({
+      repository: fixture.source,
+      sourceSha: fixture.sha,
+      branch: "harness/ownership-taxonomy",
+      worktreePath: clonePath,
+      repositoryUri: "https://github.com/woojinhong/Metabus_social",
+      ...patchOnlyCloneScope(clonePath, fixture.source),
+    }),
+    (error) => error.code === "RUNNER_SOURCE_OWNERSHIP_UNTRUSTED"
+      && error.details.stderr_excerpt.includes("detected dubious ownership"),
+  );
+});
+
+test("failed disposable clone preserves destination diagnostics", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-clone-failure-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      if (args.includes("clone")) {
+        await mkdir(clonePath, { recursive: true });
+        await writeFile(join(clonePath, "clone-failure.txt"), "preserved\n");
+        const error = new Error("fake clone failure");
+        error.code = "PROCESS_FAILED";
+        error.result = { code: 128, stderr: "credential=https://user:secret@example.invalid" };
+        throw error;
+      }
+      return runChecked(executable, args, options);
+    },
+  });
+  await assert.rejects(
+    manager.prepare({
+      repository: fixture.source,
+      sourceSha: fixture.sha,
+      branch: "harness/failure",
+      worktreePath: clonePath,
+      repositoryUri: "https://github.com/woojinhong/Metabus_social",
+      ...patchOnlyCloneScope(clonePath, fixture.source),
+    }),
+    (error) => error.code === "RUNNER_DISPOSABLE_CLONE_FAILED"
+      && !error.details.stderr_excerpt.includes("user:secret"),
+  );
+  assert.equal(await readFile(join(clonePath, "clone-failure.txt"), "utf8"), "preserved\n");
+});
+
+test("source mutation outranks a disposable clone failure", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-clone-source-mutation-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      if (args.includes("clone")) {
+        execFileSync("git", ["tag", "mutation-during-clone"], { cwd: fixture.source });
+        const error = new Error("fake clone failure after source mutation");
+        error.code = "PROCESS_FAILED";
+        error.result = { code: 128, stderr: "fake clone failure" };
+        throw error;
+      }
+      return runChecked(executable, args, options);
+    },
+  });
+  await assert.rejects(
+    manager.prepare({
+      repository: fixture.source,
+      sourceSha: fixture.sha,
+      branch: "harness/source-mutated",
+      worktreePath: clonePath,
+      repositoryUri: "https://github.com/woojinhong/Metabus_social",
+      ...patchOnlyCloneScope(clonePath, fixture.source),
+    }),
+    (error) => error.code === "RUNNER_SOURCE_REPOSITORY_MUTATED"
+      && error.details.original_error_code === "RUNNER_DISPOSABLE_CLONE_FAILED",
+  );
+});
+
+test("disposable clone rejects source-linked destination Git metadata", async (t) => {
+  const fixture = await temporaryGitSource(t, "propscans-clone-linked-metadata-");
+  const clonePath = join(fixture.root, "disposable", "repository");
+  const sourceGitDir = join(fixture.source, ".git");
+  const manager = createDisposableCloneManager({
+    run: async (executable, args, options) => {
+      if (
+        options.cwd === clonePath
+        && args.length === 2
+        && args[0] === "rev-parse"
+        && args[1] === "--absolute-git-dir"
+      ) {
+        return { code: 0, stdout: `${sourceGitDir}\n`, stderr: "" };
+      }
+      return runChecked(executable, args, options);
+    },
+  });
+  await assert.rejects(
+    manager.prepare({
+      repository: fixture.source,
+      sourceSha: fixture.sha,
+      branch: "harness/linked-metadata",
+      worktreePath: clonePath,
+      repositoryUri: "https://github.com/woojinhong/Metabus_social",
+      ...patchOnlyCloneScope(clonePath, fixture.source),
+    }),
+    (error) => error.code === "RUNNER_DISPOSABLE_CLONE_NOT_INDEPENDENT",
   );
 });
 

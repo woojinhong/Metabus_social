@@ -38,10 +38,12 @@ then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authorit
 and [AH-P2-01 authority](discovery/autonomous-harness-lightweight-worktree-runner-authority.md),
 then the [AH-P0-02 machine schemas](../schemas/automation/requirement.schema.json).
 PR #53 implements the non-executing Planner. Issue #56 implements the AH-P2-01
-bounded Runner foundation. Issue #58 adds the real Codex adapter boundary and
-Issue #60 adds disposable-clone `EXECUTE_PATCH_ONLY`, without running a Pilot.
-Patch-only containment is `PARTIALLY_VERIFIED`; each real run still needs exact
-pins and separate Owner acceptance of the documented residual risks.
+bounded Runner foundation. Issues #58/#60 add the real Codex adapter and
+disposable-clone `EXECUTE_PATCH_ONLY`. Issue #62 confines dubious-ownership
+handling to command-scoped `safe.directory` and leaves persistent Git config
+and source ownership unchanged. AH-P2-06 artifacts remain preserved. Patch-only
+containment is `PARTIALLY_VERIFIED`; a new real run needs a new run ID, exact
+pins and separate residual-risk Owner acceptance.
 
 ## Authority and promotion
 
@@ -90,7 +92,7 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/operations | Approved operational policy and procedural drafts |
 | docs/wiki | Non-authoritative human/LLM navigation |
 | schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic Planner/Runner, gated Codex adapter and Issue #60 patch-only artifacts; no actual Pilot |
+| scripts/harness | Deterministic Planner/Runner, gated Codex adapter, patch-only artifacts and command-scoped safe-directory clone preparation; no product Pilot |
 
 ## Stable IDs and document rules
 

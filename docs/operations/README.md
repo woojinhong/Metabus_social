@@ -47,6 +47,12 @@ decision_authority: decisions.md and approved operations policies
   and GitHub adapters disabled. Its containment remains `PARTIALLY_VERIFIED`,
   so every actual run needs separate Owner acceptance of the unproved OS
   network, race-free filesystem and Job Object boundaries.
+- Issue #62 handles source dubious ownership only with command-scoped
+  `safe.directory=<verified absolute source git-dir>` on the clone command.
+  Owner approval pins the local source root; global/system/user config and
+  source ownership remain unchanged. AH-P2-06
+  artifacts stay preserved; a real retry needs a new run ID and Owner approval.
+  This does not authorize product-code Pilots.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical

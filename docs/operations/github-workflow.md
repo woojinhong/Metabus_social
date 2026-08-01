@@ -153,15 +153,16 @@ Pilot or invoke Runner publication. 모든 Package의 collision-free preparation
 
 Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows `taskkill`
 fallback but no strict Job Object or OS network deny. Issue #60 adds the distinct
-`EXECUTE_PATCH_ONLY` path: one exact `docs/**` file in an OS-temp disposable
-clone, required tests and review artifacts, with commit, push, PR and GitHub
-adapter capabilities disabled. It never reuses Draft-PR approval.
+`EXECUTE_PATCH_ONLY` path for one exact `docs/**` file. Issue #62 limits dubious-
+ownership handling to `git -c safe.directory=<verified-source-git-dir> clone`: it never uses
+`*`, changes source ownership, or writes global, system or user Git config.
 
-That path records containment as `PARTIALLY_VERIFIED`; `cwd`, Codex network
-configuration, reparse checks, timeouts and environment filtering do not prove
-OS network deny, a race-free filesystem sandbox or handle-pinned descendants.
-Every actual run needs a fresh hash-pinned Owner approval explicitly accepting
-those exact residual risks. Product-code Pilots remain prohibited.
+The approval pins the local source root; its Git config and repository state are
+compared after every clone attempt; destination Git metadata must be independent, with no remote and an empty local
+credential helper. This resolves only the AH-P2-06 clone-preparation blocker;
+that failed run stays preserved. Containment remains `PARTIALLY_VERIFIED`, so a
+new run ID and fresh residual-risk Owner approval are required. Product-code
+Pilots remain prohibited.
 
 ## 7. Validation gate
 
