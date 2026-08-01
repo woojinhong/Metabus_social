@@ -13,6 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createCodexWorkerAdapter } from "./runner/codex-worker-adapter.mjs";
 import { buildCodexExecCommand } from "./runner/codex-command-builder.mjs";
+import { validatePatchOnlyLauncherText } from "./runner/external-host-launcher-policy.mjs";
 import {
   assertCodexOutputPolicy,
   parseCodexJsonlOutput,
@@ -411,9 +412,9 @@ test("Codex command uses explicit bounded non-interactive flags and stdin", () =
   assert.equal(command.executable, resolve(process.execPath));
   assert.deepEqual(command.args, [
     "--ask-for-approval", "never",
+    "exec",
     "--sandbox", "workspace-write",
     "-c", "sandbox_workspace_write.network_access=false",
-    "exec",
     "--cd", resolve("."),
     "--ephemeral",
     "--ignore-user-config",
@@ -423,6 +424,22 @@ test("Codex command uses explicit bounded non-interactive flags and stdin", () =
   assert.equal(command.args.includes("--search"), false);
   assert.equal(command.args.includes("--dangerously-bypass-approvals-and-sandbox"), false);
   assert.equal(command.promptTransport, "STDIN");
+});
+
+test("external-host launcher fixture pins workspace-write and rejects read-only", async () => {
+  const fixture = await readFile(
+    new URL("./fixtures/external-host/run-pilot.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.deepEqual(validatePatchOnlyLauncherText(fixture), {
+    sandbox: "workspace-write",
+  });
+  assert.throws(
+    () => validatePatchOnlyLauncherText(
+      fixture.replace("'workspace-write'", "'read-only'"),
+    ),
+    (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+  );
 });
 
 test("environment filtering is allowlist-only and records secret names without values", () => {
@@ -808,6 +825,24 @@ test("real CLI flags require execute mode and exact approved worker policy", asy
     ]),
     /requires --execute-patch-only or --execute-and-publish/u,
   );
+  for (const sandbox of ["read-only", "danger-full-access"]) {
+    assert.throws(
+      () => parseRunnerArgs([
+        "--dry-run", "dry.json",
+        "--approval", "approval.json",
+        "--approval-hash", `sha256:${"a".repeat(64)}`,
+        "--work-packages", "WP-1",
+        "--repository", resolve("."),
+        "--worktree-root", resolve(tmpdir(), "worktrees"),
+        "--real-codex-worker",
+        "--codex-executable", process.execPath,
+        "--worker-sandbox", sandbox,
+        "--worker-approval", "never",
+        "--execute-patch-only",
+      ]),
+      (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+    );
+  }
 
   const root = await temporaryDirectory(t, "propscans-codex-cli-");
   execFileSync("git", ["init", "-b", "master"], { cwd: root });
@@ -891,6 +926,21 @@ test("patch-only Codex adapter blocks before launch when cost authority is absen
   );
 });
 
+test("patch-only Codex adapter rejects read-only before Worker construction", () => {
+  assert.throws(
+    () => createCodexWorkerAdapter({
+      executable: process.execPath,
+      sandbox: "read-only",
+      approvalMode: "never",
+      patchOnly: true,
+      allowPartialContainment: true,
+      isolationEvidence: { network: false, filesystem: false, processTree: false },
+      costAuthority: unavailableCostAuthority(),
+    }),
+    (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+  );
+});
+
 test("Codex adapter verifies the exact CLI parser profile before launch", async () => {
   const adapter = createCodexWorkerAdapter({
     executable: process.execPath,
@@ -950,6 +1000,24 @@ test("patch-only Worker policy is distinct from Draft-PR policy", () => {
     }).containment_status,
     "PARTIALLY_VERIFIED",
   );
+  assert.throws(
+    () => validateApprovedWorkerPolicy(approval, {
+      executable: process.execPath,
+      sandbox: "read-only",
+      approvalMode: "never",
+    }),
+    (error) => error.code === "RUNNER_WORKER_SANDBOX_MODE_INVALID",
+  );
+  approval.worker_policy.sandbox = "read-only";
+  assert.throws(
+    () => validateApprovedWorkerPolicy(approval, {
+      executable: process.execPath,
+      sandbox: "workspace-write",
+      approvalMode: "never",
+    }),
+    (error) => error.code === "RUNNER_WORKER_POLICY_MISMATCH",
+  );
+  approval.worker_policy.sandbox = "workspace-write";
   approval.worker_policy.network_policy = "DENY_REQUIRED";
   assert.throws(
     () => validateApprovedWorkerPolicy(approval, {

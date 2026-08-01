@@ -6,6 +6,7 @@ import {
 } from "../canonical-json.mjs";
 import { digestRecord } from "../planner/digest.mjs";
 import { schemas } from "../planner/schemas.mjs";
+import { validatePatchOnlyExpectedChange } from "./expected-change-policy.mjs";
 import { failRunner } from "./runner-error.mjs";
 
 function clone(value) {
@@ -313,13 +314,13 @@ function validatePatchOnlyApproval({
     || requiredRules[0].path !== exactPath
     || expectedChanges.length !== 1
     || expectedChanges[0].path !== exactPath
-    || expectedChanges[0].operation !== "MODIFY"
   ) {
     failRunner(
       "RUNNER_PATCH_ONLY_SCOPE_INVALID",
       "Patch-only requires identical exact allowed, required, and expected-change paths",
     );
   }
+  validatePatchOnlyExpectedChange(workPackage, exactPath);
   return {
     status: containment.status,
     limitations,

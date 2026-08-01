@@ -38,7 +38,10 @@ import {
 } from "./runner/path-policy.mjs";
 import { runLightweightRunner } from "./runner/runner.mjs";
 import { createWorktreeManager } from "./runner/worktree-manager.mjs";
-import { buildWorkerContext } from "./runner/worker-context-builder.mjs";
+import {
+  buildWorkerContext,
+  renderWorkerPrompt,
+} from "./runner/worker-context-builder.mjs";
 import { runCli } from "./runner/cli.mjs";
 import { createGitPublisher } from "./runner/git-publisher.mjs";
 import {
@@ -46,6 +49,11 @@ import {
   normalizeSafeDirectorySource,
 } from "./runner/disposable-clone-manager.mjs";
 import { createPatchArtifactWriter } from "./runner/patch-artifacts.mjs";
+import {
+  validateExpectedChangeAfterWorker,
+  validateExpectedChangeAtSource,
+  validatePatchOnlyExpectedChange,
+} from "./runner/expected-change-policy.mjs";
 import { runChecked } from "./runner/process-utils.mjs";
 import {
   assertCodexOutputPolicy,
@@ -331,6 +339,15 @@ async function executeFixture(t, {
   executionMode = null,
   patchArtifactWriter = null,
   disposableCloneManager = null,
+  expectedChangeValidator = async ({ workPackage }) => {
+    const expected = workPackage.expected_changes[0];
+    return {
+      ...expected,
+      target_exists_at_source: expected.operation === "MODIFY",
+    };
+  },
+  expectedChangeResultValidator = async ({ expectedChangeState }) =>
+    expectedChangeState,
 } = {}) {
   const root = await temporaryDirectory(t, "propscans-runner-test-");
   const worktreeRoot = join(root, "worktrees");
@@ -371,6 +388,8 @@ async function executeFixture(t, {
       publisher,
       patchArtifactWriter:
         patchArtifactWriter ?? fakePatchArtifactWriter(),
+      expectedChangeValidator,
+      expectedChangeResultValidator,
     },
   });
   return {
@@ -557,9 +576,23 @@ test("symlink escape is rejected", async (t) => {
 test("post-Worker path violation blocks publication", async (t) => {
   const publisher = fakePublisher({ changedFiles: ["docs/outside.md"] });
   const fixture = await executeFixture(t, { publisher });
-  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(fixture.result.state, "FAILED_PATH_POLICY");
   assert.equal(fixture.result.packages[0].error_code, "PATH_NOT_ALLOWED");
   assert.equal(publisher.publishCalls.length, 0);
+});
+
+test("Worker reparse escape is classified as FAILED_PATH_POLICY", async (t) => {
+  const worker = fakeWorker({
+    onRun: async () => {
+      throw Object.assign(new Error("worker path escaped"), {
+        code: "RUNNER_WORKER_PATH_ESCAPE",
+      });
+    },
+  });
+  const fixture = await executeFixture(t, { worker });
+  assert.equal(fixture.result.state, "FAILED_PATH_POLICY");
+  assert.equal(fixture.result.packages[0].error_code, "RUNNER_WORKER_PATH_ESCAPE");
+  assert.equal(fixture.publisher.publishCalls.length, 0);
 });
 
 test("required test failure blocks publication and preserves diagnostics", async (t) => {
@@ -708,7 +741,7 @@ test("post-test path mutation is re-enumerated and blocks publication", async (t
     changedFiles: [[allowed], [allowed, "src/after-test.java"]],
   });
   const fixture = await executeFixture(t, { publisher });
-  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(fixture.result.state, "FAILED_PATH_POLICY");
   assert.equal(fixture.result.packages[0].error_code, "HARD_PROHIBITED_PATH");
   assert.equal(publisher.publishCalls.length, 0);
 });
@@ -848,6 +881,169 @@ test("Worker context contains canonical Requirements and no other selected Packa
   );
   assert.equal(context.authority.selected_work_package_id, workPackage.work_package_id);
   assert.equal(Object.hasOwn(context.authority, "selected_work_package_ids"), false);
+  assert.equal(context.expected_operation, "MODIFY");
+  assert.equal(context.target_exists_at_source, true);
+  assert.equal(context.exact_target_path, workPackage.expected_changes[0].path);
+  assert.match(context.execution_instruction, /^MODIFY the existing target file/u);
+  assert.match(context.execution_instruction, /do not stop after analysis/u);
+  const prompt = renderWorkerPrompt("C:/tmp/context.json", context);
+  assert.match(prompt, /Expected operation: MODIFY/u);
+  assert.match(prompt, /Do not run git add, commit, push/u);
+  assert.match(prompt, /Modify exactly the allowed target file and no other file/u);
+});
+
+test("expected change validation distinguishes source CREATE and MODIFY", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-expected-change-");
+  await mkdir(join(root, "docs"), { recursive: true });
+  const createPackage = {
+    expected_changes: [{ path: "docs/new.md", operation: "CREATE" }],
+  };
+  assert.deepEqual(
+    await validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: createPackage,
+      exactAllowedPath: "docs/new.md",
+    }),
+    { path: "docs/new.md", operation: "CREATE", target_exists_at_source: false },
+  );
+  await writeFile(join(root, "docs", "existing.md"), "before\n", "utf8");
+  const modifyPackage = {
+    expected_changes: [{ path: "docs/existing.md", operation: "MODIFY" }],
+  };
+  assert.deepEqual(
+    await validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: modifyPackage,
+      exactAllowedPath: "docs/existing.md",
+    }),
+    { path: "docs/existing.md", operation: "MODIFY", target_exists_at_source: true },
+  );
+  await assert.rejects(
+    validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: {
+        expected_changes: [{ path: "docs/existing.md", operation: "CREATE" }],
+      },
+      exactAllowedPath: "docs/existing.md",
+    }),
+    (error) => error.code === "RUNNER_EXPECTED_CHANGE_SOURCE_MISMATCH",
+  );
+  await assert.rejects(
+    validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: {
+        expected_changes: [{ path: "docs/missing.md", operation: "MODIFY" }],
+      },
+      exactAllowedPath: "docs/missing.md",
+    }),
+    (error) => error.code === "RUNNER_EXPECTED_CHANGE_SOURCE_MISMATCH",
+  );
+});
+
+test("post-Worker operation validation rejects deletion and accepts a regular target", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-operation-result-");
+  const target = "docs/target.md";
+  await mkdir(join(root, "docs"), { recursive: true });
+  await assert.rejects(
+    validateExpectedChangeAfterWorker({
+      repositoryRoot: root,
+      expectedChangeState: {
+        path: target,
+        operation: "MODIFY",
+        target_exists_at_source: true,
+      },
+    }),
+    (error) => error.code === "RUNNER_EXPECTED_CHANGE_RESULT_MISMATCH",
+  );
+  await writeFile(join(root, target), "created\n", "utf8");
+  await assert.doesNotReject(validateExpectedChangeAfterWorker({
+    repositoryRoot: root,
+    expectedChangeState: {
+      path: target,
+      operation: "CREATE",
+      target_exists_at_source: false,
+    },
+  }));
+});
+
+test("expected change validation rejects delete, rename, directory, and reparse targets", async (t) => {
+  for (const operation of ["DELETE", "RENAME"]) {
+    assert.throws(
+      () => validatePatchOnlyExpectedChange({
+        expected_changes: [{ path: "docs/target.md", operation }],
+      }, "docs/target.md"),
+      (error) => error.code === "RUNNER_EXPECTED_CHANGE_OPERATION_UNSUPPORTED",
+    );
+  }
+  const root = await temporaryDirectory(t, "propscans-expected-unsupported-");
+  await mkdir(join(root, "docs", "directory.md"), { recursive: true });
+  await assert.rejects(
+    validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: {
+        expected_changes: [{ path: "docs/directory.md", operation: "MODIFY" }],
+      },
+      exactAllowedPath: "docs/directory.md",
+    }),
+    (error) => error.code === "RUNNER_EXPECTED_CHANGE_TARGET_UNSUPPORTED",
+  );
+  const outside = await temporaryDirectory(t, "propscans-expected-outside-");
+  await symlink(outside, join(root, "docs", "linked.md"), "junction");
+  await assert.rejects(
+    validateExpectedChangeAtSource({
+      repositoryRoot: root,
+      workPackage: {
+        expected_changes: [{ path: "docs/linked.md", operation: "MODIFY" }],
+      },
+      exactAllowedPath: "docs/linked.md",
+    }),
+    (error) => ["SYMLINK_ESCAPE", "RUNNER_EXPECTED_CHANGE_TARGET_UNSUPPORTED"]
+      .includes(error.code),
+  );
+});
+
+test("Runner blocks stale CREATE and MODIFY operations before Worker launch", async (t) => {
+  const createWorker = fakeWorker();
+  const createManager = fakeDisposableCloneManager();
+  const originalCreatePrepare = createManager.prepare.bind(createManager);
+  createManager.prepare = async (input) => {
+    await originalCreatePrepare(input);
+    const target = join(input.worktreePath, "docs", "new.md");
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, "unexpected existing target\n", "utf8");
+    return input;
+  };
+  const staleCreate = await executeFixture(t, {
+    specs: [{
+      path: "docs/source.md",
+      targetPath: "docs/new.md",
+      targetExistsAtSource: false,
+    }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    worker: createWorker,
+    disposableCloneManager: createManager,
+    expectedChangeValidator: validateExpectedChangeAtSource,
+  });
+  assert.equal(staleCreate.result.state, "BLOCKED");
+  assert.equal(
+    staleCreate.result.packages[0].error_code,
+    "RUNNER_EXPECTED_CHANGE_SOURCE_MISMATCH",
+  );
+  assert.equal(createWorker.calls.length, 0);
+
+  const modifyWorker = fakeWorker();
+  const staleModify = await executeFixture(t, {
+    specs: [{ path: "docs/missing.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    worker: modifyWorker,
+    expectedChangeValidator: validateExpectedChangeAtSource,
+  });
+  assert.equal(staleModify.result.state, "BLOCKED");
+  assert.equal(
+    staleModify.result.packages[0].error_code,
+    "RUNNER_EXPECTED_CHANGE_SOURCE_MISMATCH",
+  );
+  assert.equal(modifyWorker.calls.length, 0);
 });
 
 test("repository readiness verifies canonical origin and live remote master", async () => {
@@ -1143,6 +1339,141 @@ test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publishe
   );
 });
 
+test("workspace-write fake Worker creates exact file through real clone and patch writer", async (t) => {
+  const source = await temporaryGitSource(t, "propscans-real-patch-integration-");
+  const target = "docs/operations/harness-runner-pilot-runbook.md";
+  const disposableRoot = join(source.root, "disposable", "repository");
+  const diagnosticsRoot = join(source.root, "diagnostics");
+  const manifestRoot = join(source.root, "manifests");
+  const dryRun = makeDryRun([{
+    path: "docs/allowed.md",
+    targetPath: target,
+    targetExistsAtSource: false,
+  }], {
+    repositorySha: source.sha,
+    sourcePathOperation: () => "CREATE",
+  });
+  const approval = makeOwnerApproval(dryRun, {
+    publication_mode: "EXECUTE_PATCH_ONLY",
+    disposable_clone_root: disposableRoot,
+    source_repository_root: source.source,
+    run_id: "RUN-WORKSPACE-WRITE-INTEGRATION",
+    worktree_root: join(source.root, "unused-worktrees"),
+  });
+  const worker = fakeWorker({
+    onRun: async () => ({
+      usage: {
+        ...fakeUsage(369_026),
+        input_tokens: 360_000,
+        output_tokens: 9_026,
+        total_tokens: 369_026,
+        tokens: 369_026,
+        cost: null,
+        currency: null,
+        cost_available: false,
+        cost_verified: false,
+        external_calls: 0,
+      },
+    }),
+  });
+  const publisher = fakePublisher();
+  const result = await runLightweightRunner({
+    dryRun,
+    approval,
+    approvalRecordHash: approval.record_hash,
+    selectedWorkPackageIds: approval.selected_work_package_ids,
+    repositorySha: source.sha,
+    maxConcurrency: 1,
+    worktreeRoot: join(source.root, "unused-worktrees"),
+    repository: source.source,
+    prepareOnly: false,
+    executionMode: "EXECUTE_PATCH_ONLY",
+    manifestRoot,
+    diagnosticsRoot,
+    adapters: {
+      disposableCloneManager: createDisposableCloneManager(),
+      worker,
+      testRunner: fakeTestRunner(),
+      publisher,
+      patchArtifactWriter: createPatchArtifactWriter(),
+      expectedChangeValidator: validateExpectedChangeAtSource,
+      expectedChangeResultValidator: validateExpectedChangeAfterWorker,
+    },
+  });
+  assert.equal(result.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(result.packages[0].changed_files.length, 1);
+  assert.equal(result.packages[0].changed_files[0], target);
+  assert.equal(publisher.publishCalls.length, 0);
+  const patch = await readFile(result.packages[0].artifact_paths.patch, "utf8");
+  assert(Buffer.byteLength(patch) > 0);
+  assert.match(patch, /harness-runner-pilot-runbook\.md/u);
+  const runResult = JSON.parse(
+    await readFile(result.packages[0].artifact_paths.runResult, "utf8"),
+  );
+  assert.equal(runResult.total_tokens, 369_026);
+  assert.equal(runResult.max_total_tokens, 600_000);
+  assert.equal(runResult.external_calls, 0);
+});
+
+test("workspace-write CREATE integration reaches patch-ready with bounded usage", async (t) => {
+  const target = "docs/operations/harness-runner-pilot-runbook.md";
+  const publisher = fakePublisher();
+  const testRunner = fakeTestRunner();
+  const patchArtifactWriter = fakePatchArtifactWriter({
+    changedFiles: [target],
+    patch: "diff --git a/docs/operations/harness-runner-pilot-runbook.md b/docs/operations/harness-runner-pilot-runbook.md\n",
+  });
+  const worker = fakeWorker({
+    onRun: async () => ({
+      usage: {
+        ...fakeUsage(369_026),
+        parser_profile: "codex-jsonl@0.146.0",
+        cost: null,
+        currency: null,
+        cost_available: false,
+        cost_verified: false,
+        external_calls: 0,
+        external_calls_verified: true,
+      },
+    }),
+  });
+  worker.kind = "CODEX_CLI_0_146";
+  const fixture = await executeFixture(t, {
+    specs: [{
+      path: "docs/discovery/source-authority.md",
+      targetPath: target,
+      targetExistsAtSource: false,
+    }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    worker,
+    testRunner,
+    publisher,
+    patchArtifactWriter,
+  });
+  assert.equal(fixture.dryRun.work_packages[0].expected_changes[0].operation, "CREATE");
+  assert.equal(fixture.result.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(worker.calls.length, 1);
+  assert.equal(testRunner.calls.length, 1);
+  assert.equal(publisher.publishCalls.length, 0);
+  assert.equal(patchArtifactWriter.writes.length, 1);
+  assert.ok(Buffer.byteLength(patchArtifactWriter.writes[0].patch) > 0);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.total_tokens, 369_026);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.max_total_tokens, 600_000);
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.external_calls, 0);
+  const context = JSON.parse(await readFile(join(
+    fixture.root,
+    "diagnostics",
+    fixture.approval.run_id,
+    fixture.dryRun.work_packages[0].work_package_id,
+    "worker-context.json",
+  ), "utf8"));
+  assert.equal(context.expected_operation, "CREATE");
+  assert.equal(context.target_exists_at_source, false);
+  assert.equal(context.exact_target_path, target);
+  assert.match(context.execution_instruction, /^CREATE the exact target file/u);
+  assert.match(context.execution_instruction, /write the required content/u);
+});
+
 test("actual Codex 0.146 usage reaches patch-ready under the exact unavailable-cost authority", async (t) => {
   const publisher = fakePublisher();
   const testRunner = fakeTestRunner();
@@ -1282,6 +1613,7 @@ test("EXECUTE_PATCH_ONLY fails closed for staged, committed, and forbidden chang
     {
       writer: fakePatchArtifactWriter({ changedFiles: ["src/forbidden.java"] }),
       code: "HARD_PROHIBITED_PATH",
+      state: "FAILED_PATH_POLICY",
     },
   ];
   for (const scenario of scenarios) {
@@ -1290,7 +1622,7 @@ test("EXECUTE_PATCH_ONLY fails closed for staged, committed, and forbidden chang
       executionMode: "EXECUTE_PATCH_ONLY",
       patchArtifactWriter: scenario.writer,
     });
-    assert.equal(fixture.result.state, "FAILED");
+    assert.equal(fixture.result.state, scenario.state ?? "FAILED");
     assert.equal(fixture.result.packages[0].error_code, scenario.code);
     assert.equal(scenario.writer.writes.length, 1);
   }
@@ -1821,6 +2153,9 @@ test("patch artifact writer renders binary diff and rejects staged or committed 
   execFileSync("git", ["remote", "remove", "origin"], { cwd: fixture.source });
   await writeFile(join(fixture.source, "docs", "allowed.md"), "after\n", "utf8");
   await writeFile(join(fixture.source, "docs", "new-runbook.md"), "new\n", "utf8");
+  await writeFile(join(fixture.source, ".git", "info", "exclude"), "build/\n", "utf8");
+  await mkdir(join(fixture.source, "build"), { recursive: true });
+  await writeFile(join(fixture.source, "build", "escape.txt"), "ignored\n", "utf8");
   const writer = createPatchArtifactWriter();
   const state = await writer.inspect(fixture.source, fixture.sha);
   writer.assertSafeState(state, fixture.sha);
@@ -1828,6 +2163,8 @@ test("patch artifact writer renders binary diff and rejects staged or committed 
   assert.match(patch, /diff --git a\/docs\/allowed\.md b\/docs\/allowed\.md/u);
   assert.match(patch, /diff --git a\/docs\/new-runbook\.md b\/docs\/new-runbook\.md/u);
   assert.match(patch, /--- \/dev\/null/u);
+  assert(state.changed_files.includes("build/escape.txt"));
+  assert.match(patch, /diff --git a\/build\/escape\.txt b\/build\/escape\.txt/u);
   const output = join(fixture.root, "artifacts");
   const paths = await writer.writeArtifacts({
     outputDirectory: output,

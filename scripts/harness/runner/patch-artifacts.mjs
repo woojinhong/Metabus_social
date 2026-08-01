@@ -44,13 +44,14 @@ export function createPatchArtifactWriter({
   return {
     async inspect(cwd, sourceSha, { remainingBudgetMs } = {}) {
       const options = () => ({ timeoutMs: remainingBudgetMs?.() ?? 30_000 });
-      const [head, staged, remotes, tracked, untracked, commitCount] =
+      const [head, staged, remotes, tracked, untracked, ignored, commitCount] =
         await Promise.all([
           git(cwd, ["rev-parse", "HEAD"], options()),
           git(cwd, ["diff", "--cached", "--name-only"], options()),
           git(cwd, ["remote"], options()),
           git(cwd, ["diff", "--name-only", sourceSha], options()),
           git(cwd, ["ls-files", "--others", "--exclude-standard"], options()),
+          git(cwd, ["ls-files", "--others", "--ignored", "--exclude-standard"], options()),
           git(cwd, ["rev-list", "--count", `${sourceSha}..HEAD`], options()),
         ]);
       const state = {
@@ -58,7 +59,10 @@ export function createPatchArtifactWriter({
         staged: lines(staged.stdout).sort(),
         remotes: lines(remotes.stdout).sort(),
         tracked: lines(tracked.stdout).sort(),
-        untracked: lines(untracked.stdout).sort(),
+        untracked: [...new Set([
+          ...lines(untracked.stdout),
+          ...lines(ignored.stdout),
+        ])].sort(),
         commit_count: Number(commitCount.stdout.trim()),
       };
       state.changed_files = [...new Set([...state.tracked, ...state.untracked])].sort();

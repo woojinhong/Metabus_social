@@ -22,6 +22,7 @@ import {
   createErrorRecord,
   PlannerError,
 } from "./planner-error.mjs";
+import { createGitSourcePathOperation } from "./source-tree-inspector.mjs";
 
 function usage() {
   return [
@@ -76,7 +77,9 @@ export function runCli(args) {
   const parsed = parseArgs(args);
   const text = readFileSync(resolve(parsed["--requirements"]), "utf8");
   const output = serializePlannerResult(
-    compilePlanner(text, parsed["--repository-sha"]),
+    compilePlanner(text, parsed["--repository-sha"], {
+      sourcePathOperation: createGitSourcePathOperation(),
+    }),
   );
   if (parsed["--output"]) {
     writeFileSync(assertTemporaryOutput(parsed["--output"]), output, {

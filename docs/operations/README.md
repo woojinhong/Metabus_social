@@ -61,6 +61,14 @@ decision_authority: decisions.md and approved operations policies
   hard gate. Issue #68 wires the exact approval, cost-null, token/external-call,
   status and artifact contracts under Draft-PR review. No Pilot was rerun; a
   fresh run ID and fresh per-run approval remain mandatory.
+- AH-P2-13 executed one real patch-only Worker, verified 369026 tokens and zero
+  external calls, but its effective read-only sandbox rejected its CREATE and
+  the run ended `NO_CHANGE`. The run and artifacts are preserved and not reusable.
+  Issue #70 requires patch-only CLI, approval and adapter pins to agree on
+  `workspace-write`, while exact-path and Git-state postchecks retain control.
+  CREATE/MODIFY uses read-only `git ls-tree` at the pinned source SHA and is
+  rechecked before Worker launch and after Worker/tests. Ignored files are part
+  of the exact-path delta; a later Pilot needs a new run ID and fresh approval.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical

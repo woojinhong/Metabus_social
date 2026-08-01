@@ -12,9 +12,19 @@ export function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function makeDryRun(specs = [{}]) {
-  const input = makePlannerInput(specs);
-  return compilePlanner(JSON.stringify(input), REPOSITORY_SHA);
+export function makeDryRun(specs = [{}], {
+  repositorySha = REPOSITORY_SHA,
+  sourcePathOperation = null,
+} = {}) {
+  const input = makePlannerInput(specs, { repositorySha });
+  const createTargets = new Set(
+    specs.filter(({ targetExistsAtSource }) => targetExistsAtSource === false)
+      .map(({ targetPath }, index) => targetPath ?? `docs/test/requirement-${index + 1}.md`),
+  );
+  return compilePlanner(JSON.stringify(input), repositorySha, {
+    sourcePathOperation: sourcePathOperation
+      ?? (({ path }) => createTargets.has(path) ? "CREATE" : "MODIFY"),
+  });
 }
 
 export function makeOwnerApproval(dryRun, overrides = {}) {

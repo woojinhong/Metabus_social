@@ -23,11 +23,11 @@ export function buildCodexExecCommand({
     args: [
       "--ask-for-approval",
       approvalMode,
+      "exec",
       "--sandbox",
       sandbox,
       "-c",
       "sandbox_workspace_write.network_access=false",
-      "exec",
       "--cd",
       resolve(cwd),
       "--ephemeral",
