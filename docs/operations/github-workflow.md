@@ -154,15 +154,11 @@ Pilot or invoke Runner publication. 모든 Package의 collision-free preparation
 Issues #58/#60/#62 add the Codex adapter, exact-file `EXECUTE_PATCH_ONLY` and
 command-scoped `safe.directory`; no strict Job Object or OS network deny is
 claimed. Issues #64/#66/#68 pin Codex 0.146.0 usage, cost-null policy and budgets.
-AH-P2-13 verified 369026 tokens and zero external calls but its effective
-read-only sandbox rejected the runbook CREATE, so it ended `NO_CHANGE`; the run
-and artifacts are preserved and cannot be reused. Issue #70 requires patch-only
-CLI/approval/adapter agreement on `workspace-write`; read-only remains diagnostic.
-One exact path plus index, HEAD, remote, reparse and fingerprint checks remain.
-CREATE/MODIFY uses read-only `git ls-tree` at the pinned source SHA and is
-rechecked before Worker launch and after Worker/tests. Ignored files are part
-of the exact-path delta. Another Pilot requires a new run ID and fresh approval;
-containment stays `PARTIALLY_VERIFIED` and product-code Pilots remain prohibited.
+AH-P2-13 and AH-P2-15 ended `NO_CHANGE` after effective read-only rejected the runbook CREATE; both runs and artifacts are preserved and cannot be reused.
+Issue #70 pins requested `workspace-write`, but requested and effective policy can differ. Issue #72 therefore requires a same-host/config/version/environment OS-temp write probe before every real patch-only Worker.
+Effective read-only or stale, missing or unsafe evidence blocks before Worker launch as a dedicated sandbox error and is operationally `BLOCKED_ENVIRONMENT`, never `NO_CHANGE`.
+The probe and Worker use the same executable and command policy; executable, version, detected config-source hashes, exact environment-value hashes and host identity bind the evidence without recording config secrets. Success requires an in-workspace write plus a denied outside-boundary write, and probe usage consumes the same Owner budget.
+One exact path plus index, HEAD, remote, reparse and fingerprint checks remain. Another Pilot needs a new run ID and fresh approval; containment stays `PARTIALLY_VERIFIED` and product-code Pilots remain prohibited.
 
 ## 7. Validation gate
 

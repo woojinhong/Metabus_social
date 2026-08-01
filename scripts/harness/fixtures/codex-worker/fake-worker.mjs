@@ -122,6 +122,11 @@ if (mode === "grandchild") {
   await readStdin();
   start();
   usage(4, 1);
+} else if (mode === "write-denied") {
+  await readStdin();
+  start();
+  usage(4);
+  process.stderr.write("patch rejected: writing is blocked by read-only sandbox; rejected by user approval settings\n");
 } else {
   process.stderr.write(`unknown fixture mode: ${mode}\n`);
   process.exitCode = 64;

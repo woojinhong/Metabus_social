@@ -15,6 +15,7 @@ import {
   makeDryRun,
   makeOwnerApproval,
   REPOSITORY_SHA,
+  RUN_ID,
   resealApproval,
 } from "./fixtures/runner/valid/fixture-factory.mjs";
 import { digestRecord } from "./planner/digest.mjs";
@@ -348,11 +349,13 @@ async function executeFixture(t, {
   },
   expectedChangeResultValidator = async ({ expectedChangeState }) =>
     expectedChangeState,
+  captureRoots = () => {},
 } = {}) {
   const root = await temporaryDirectory(t, "propscans-runner-test-");
   const worktreeRoot = join(root, "worktrees");
   const manifestRoot = join(root, "manifests");
   const diagnosticsRoot = join(root, "diagnostics");
+  captureRoots({ root, manifestRoot, diagnosticsRoot, worktreeRoot });
   const requestedMode = executionMode
     ?? (prepareOnly ? "PREPARE_ONLY" : "EXECUTE_AND_DRAFT_PR");
   const { dryRun, approval } = makeFixture(specs, worktreeRoot, {
@@ -623,6 +626,163 @@ test("clean/no-change is explicit and blocks publication", async (t) => {
   assert.equal(fixture.result.state, "BLOCKED");
   assert.equal(fixture.result.packages[0].error_code, "RUNNER_NO_CHANGE");
   assert.equal(publisher.publishCalls.length, 0);
+});
+
+test("effective sandbox failures block before Worker start and are not NO_CHANGE", async (t) => {
+  for (const code of [
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+  ]) {
+    await t.test(code, async (subtest) => {
+      const worker = fakeWorker();
+      worker.assertAvailable = async () => {
+        throw Object.assign(new Error("effective sandbox preflight failed"), { code });
+      };
+      await assert.rejects(
+        executeFixture(subtest, {
+          worker,
+          executionMode: "EXECUTE_PATCH_ONLY",
+        }),
+        (error) => error.code === code && error.code !== "RUNNER_NO_CHANGE",
+      );
+      assert.equal(worker.calls.length, 0);
+    });
+  }
+});
+
+test("effective sandbox probe usage is included in the Owner run budget", async (t) => {
+  const worker = fakeWorker({ onRun: () => ({ usage: fakeUsage(100) }) });
+  worker.assertAvailable = async () => ({
+    effective_sandbox_probe: { usage: fakeUsage(50) },
+  });
+  const patchArtifactWriter = fakePatchArtifactWriter();
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    worker,
+    patchArtifactWriter,
+    executionMode: "EXECUTE_PATCH_ONLY",
+  });
+  assert.equal(fixture.result.state, "PATCH_READY_FOR_OWNER_REVIEW");
+  assert.equal(patchArtifactWriter.writes[0].budgetResult.total_tokens, 150);
+  assert.equal(worker.calls.length, 1);
+});
+
+test("probe token exhaustion blocks before the actual Worker", async (t) => {
+  const worker = fakeWorker();
+  worker.assertAvailable = async () => ({
+    effective_sandbox_probe: { usage: fakeUsage(600_001) },
+  });
+  let roots;
+  await assert.rejects(
+    executeFixture(t, {
+      specs: [{ path: "docs/allowed.md" }],
+      worker,
+      executionMode: "EXECUTE_PATCH_ONLY",
+      captureRoots: (value) => { roots = value; },
+    }),
+    (error) => error.code === "RUNNER_TOKEN_BUDGET_EXCEEDED",
+  );
+  assert.equal(worker.calls.length, 0);
+  const manifest = await readRunManifest(join(
+    roots.manifestRoot,
+    RUN_ID,
+    "manifest.json",
+  ));
+  assert.equal(manifest.current_state, "FAILED_BUDGET");
+  assert.equal(manifest.aggregate_usage.total_tokens, 600_001);
+  assert.equal(manifest.probe_budget_result.terminal_state, "FAILED_BUDGET");
+});
+
+test("failed sandbox probe usage is charged and budget failure takes precedence", async (t) => {
+  for (const spec of [
+    { name: "tokens", usage: fakeUsage(600_001), code: "RUNNER_TOKEN_BUDGET_EXCEEDED" },
+    {
+      name: "external-call",
+      usage: { ...fakeUsage(50), external_calls: 1 },
+      code: "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+    },
+  ]) {
+    await t.test(spec.name, async (subtest) => {
+      const worker = fakeWorker();
+      worker.assertAvailable = async () => {
+        const error = Object.assign(new Error("sandbox probe failed"), {
+          code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+          probeResult: { usage: spec.usage },
+        });
+        throw error;
+      };
+      let roots;
+      await assert.rejects(
+        executeFixture(subtest, {
+          specs: [{ path: "docs/allowed.md" }],
+          worker,
+          executionMode: "EXECUTE_PATCH_ONLY",
+          captureRoots: (value) => { roots = value; },
+        }),
+        (error) => error.code === spec.code,
+      );
+      const manifest = await readRunManifest(join(
+        roots.manifestRoot,
+        RUN_ID,
+        "manifest.json",
+      ));
+      assert.equal(manifest.current_state, "FAILED_BUDGET");
+      assert.equal(manifest.error_code, spec.code);
+      assert.equal(manifest.aggregate_usage.total_tokens, spec.usage.total_tokens);
+      assert.equal(manifest.aggregate_usage.external_calls, spec.usage.external_calls);
+      assert.equal(worker.calls.length, 0);
+    });
+  }
+});
+
+test("post-probe runtime write denial remains BLOCKED instead of NO_CHANGE", async (t) => {
+  const worker = fakeWorker({
+    onRun: async () => {
+      throw Object.assign(new Error("runtime effective sandbox changed"), {
+        code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+      });
+    },
+  });
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    worker,
+    executionMode: "EXECUTE_PATCH_ONLY",
+  });
+  assert.equal(fixture.result.state, "BLOCKED");
+  assert.equal(
+    fixture.result.packages[0].error_code,
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+  );
+  assert.equal(worker.calls.length, 1);
+  assert.equal(fixture.publisher.publishCalls.length, 0);
+});
+
+test("sandbox mismatch outranks incomplete usage after runtime denial", async (t) => {
+  const worker = fakeWorker();
+  worker.run = async (input) => {
+    worker.calls.push(input);
+    const error = Object.assign(new Error("write denied before valid completion"), {
+      code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+      workerResult: {
+        code: 0,
+        timedOut: false,
+        usage: { verified: false, external_calls: 0 },
+      },
+    });
+    throw error;
+  };
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    worker,
+    executionMode: "EXECUTE_PATCH_ONLY",
+  });
+  assert.equal(fixture.result.state, "BLOCKED");
+  assert.equal(
+    fixture.result.packages[0].error_code,
+    "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+  );
+  assert.equal(worker.calls.length, 1);
+  assert.equal(fixture.publisher.publishCalls.length, 0);
 });
 
 test("fake Worker success reaches commit/push/Draft-PR adapter plan only", async (t) => {
