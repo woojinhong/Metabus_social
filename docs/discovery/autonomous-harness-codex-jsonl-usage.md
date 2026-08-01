@@ -2,10 +2,10 @@
 title: Codex 0.146.0 JSONL Usage Evidence
 document_type: discovery record
 classification: confirmed fact
-status: Cost authority required before a new Pilot
+status: AH-P2-11 cost policy approved; Runner wiring required before a new Pilot
 last_verified: 2026-08-01
-related_documents: ["autonomous-harness-lightweight-worktree-runner-authority.md","../operations/github-workflow.md","../operations/README.md"]
-decision_authority: Issue #64 implementation scope and preserved AH-P2-10 evidence; no new cost-policy decision
+related_documents: ["autonomous-harness-lightweight-worktree-runner-authority.md","autonomous-harness-codex-cost-budget-authority.md","../operations/github-workflow.md","../operations/README.md"]
+decision_authority: Issue #64 evidence and the Owner-approved AH-P2-11 policy
 ---
 
 # Codex 0.146.0 JSONL usage evidence
@@ -70,12 +70,12 @@ usage-like unknown record makes usage non-authoritative.
 
 Monetary cost is `null`, `cost_available: false` and `cost_verified: false`
 when absent; it is never converted to zero. A supplied cost requires a finite
-non-negative value and three-letter currency. The current Owner approval pins
-`max_cost: 0` USD but does not pin ChatGPT versus API-key authentication.
-Therefore the real adapter returns `RUNNER_CODEX_COST_AUTHORITY_REQUIRED` as
-`BLOCKED` before Worker launch. A supplied JSONL result without authoritative
-cost is separately rejected as `RUNNER_CODEX_COST_UNVERIFIED`; a new
-Owner-approved authentication/cost authority is required before a real run.
+non-negative value and three-letter currency. AH-P2-11 accepts unavailable cost
+only for a separately approved, ChatGPT-authenticated, docs-only
+`EXECUTE_PATCH_ONLY` Pilot and never interprets `max_cost: 0` as verified zero.
+The current adapter still returns `RUNNER_CODEX_COST_AUTHORITY_REQUIRED` before
+launch until the approved [cost and token policy](autonomous-harness-codex-cost-budget-authority.md)
+is implemented and bound to a fresh approval.
 
 Unique `web_search` and `mcp_tool_call` item IDs count as external tool calls.
 Start/completion pairs with the same ID count once. `command_execution` is a
@@ -91,14 +91,13 @@ The original failure was caused by requiring non-existent `usage.cost` and
 The replacement parser verifies completion, token accounting and event-level
 external-tool absence. The adapter also probes an exact `codex 0.146.0` version
 before launch, serializes real Codex packages for aggregate-budget enforcement,
-and blocks before execution while monetary authority is missing. A future
-approval must additionally pin how an authoritative cost is supplied; this
-change does not infer that ChatGPT authentication means zero monetary cost.
+and blocks before execution while monetary-policy wiring is missing. AH-P2-11
+does not infer that ChatGPT authentication means zero monetary cost.
 The CLI exposes usage only after completion, so `max_tokens` is a post-reported
 publication gate, not an in-process hard stop. Real Codex packages are serialized
 and an aggregate excess prevents every later package launch, but one active
-Worker may report an excess after consuming it. A future Owner approval must
-explicitly accept or replace this enforcement boundary before enabling execution.
+Worker may report an excess after consuming it. AH-P2-11 accepts this boundary
+only for its exact scope; implementation and a fresh approval remain required.
 The failed run and artifacts are not reusable. Any later Pilot requires a new
 run ID, new Owner approval, exact pins and the existing containment acceptance;
 no Pilot or Codex Worker was run for Issue #64.
