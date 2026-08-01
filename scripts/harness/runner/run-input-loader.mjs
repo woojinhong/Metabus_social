@@ -209,7 +209,17 @@ function validatePatchOnlyApproval({
   }
   if (
     approval.publication_mode !== "EXECUTE_PATCH_ONLY"
-    || typeof approval.disposable_clone_root !== "string"
+    || typeof approval.source_repository_root !== "string"
+    || !isAbsolute(approval.source_repository_root)
+    || /[*\u0000-\u001f\u007f]/u.test(approval.source_repository_root)
+  ) {
+    failRunner(
+      "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID",
+      "Patch-only approval must pin a safe absolute local source root",
+    );
+  }
+  if (
+    typeof approval.disposable_clone_root !== "string"
     || !isAbsolute(approval.disposable_clone_root)
     || !belowOsTemp(approval.disposable_clone_root)
   ) {
@@ -268,6 +278,7 @@ function validatePatchOnlyApproval({
     status: containment.status,
     limitations,
     disposableCloneRoot: resolve(approval.disposable_clone_root),
+    sourceRepositoryRoot: resolve(approval.source_repository_root),
     exactAllowedPath: exactPath,
   };
 }

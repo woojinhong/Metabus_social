@@ -52,6 +52,9 @@ export function makeOwnerApproval(dryRun, overrides = {}) {
     dry_run_id: dryRun.dry_run_id,
     result_digest: dryRun.result_digest,
     source_repository_sha: dryRun.input_snapshot.repository.repository_sha,
+    source_repository_root: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? overrides.source_repository_root ?? "C:/tmp/propscans-source"
+      : undefined,
     selected_work_package_ids: [...selected].sort(),
     selected_work_packages: selectedPackages,
     allowed_paths: allowedPaths,

@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
 import {
@@ -185,6 +185,20 @@ export async function runLightweightRunner({
   }
   const isPrepareOnly = requestedMode === "PREPARE_ONLY";
   const isPatchOnly = requestedMode === "EXECUTE_PATCH_ONLY";
+  const requestedSourceRoot = resolve(repository);
+  const approvedSourceRoot = input.patchOnly?.sourceRepositoryRoot ?? null;
+  const sourceRootMatches = process.platform === "win32"
+    ? requestedSourceRoot.toLowerCase() === approvedSourceRoot?.toLowerCase()
+    : requestedSourceRoot === approvedSourceRoot;
+  if (
+    isPatchOnly
+    && !sourceRootMatches
+  ) {
+    throw Object.assign(
+      new Error("Patch-only repository differs from the Owner-approved local source root"),
+      { code: "RUNNER_SAFE_DIRECTORY_SCOPE_INVALID" },
+    );
+  }
   const deadline = performance.now() + input.executionBudget.wall_clock_seconds * 1_000;
   const aggregateUsage = { tokens: 0, cost: 0, external_calls: 0 };
   let runBudgetError = null;
@@ -306,6 +320,10 @@ export async function runLightweightRunner({
           runId: input.runId,
           repositoryUri,
           remainingBudgetMs,
+          executionMode: requestedMode,
+          publicationPolicy: input.publicationPolicy,
+          disposableCloneRoot: input.patchOnly?.disposableCloneRoot ?? null,
+          ownerApprovedSourceRoot: input.patchOnly?.sourceRepositoryRoot ?? null,
         });
         remainingBudgetMs();
         entry.state = "PREPARING";
