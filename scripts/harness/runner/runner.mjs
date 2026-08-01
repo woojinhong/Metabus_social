@@ -63,7 +63,13 @@ function manifestPackages(packages) {
 }
 
 function captureFailure(entry, error, fallbackState = "FAILED") {
-  entry.state = error.code === "BLOCKED_CONFLICT" || error.code === "RUNNER_NO_CHANGE"
+  entry.state = [
+    "BLOCKED_CONFLICT",
+    "RUNNER_CODEX_COST_AUTHORITY_REQUIRED",
+    "RUNNER_CODEX_COST_UNVERIFIED",
+    "RUNNER_CODEX_SCHEMA_UNSUPPORTED",
+    "RUNNER_NO_CHANGE",
+  ].includes(error.code)
     ? "BLOCKED"
     : fallbackState;
   entry.errorCode = error.code ?? "RUNNER_FAILED";
@@ -82,12 +88,12 @@ function assertExactPatchOnlyChange(changedFiles, exactAllowedPath) {
   }
 }
 
-async function mapConcurrent(entries, concurrency, operation) {
+async function mapConcurrent(entries, concurrency, operation, shouldContinue = () => true) {
   let cursor = 0;
   const workers = Array.from(
     { length: Math.min(concurrency, entries.length) },
     async () => {
-      while (cursor < entries.length) {
+      while (cursor < entries.length && shouldContinue()) {
         const index = cursor;
         cursor += 1;
         await operation(entries[index]);
@@ -114,13 +120,18 @@ function assertWorkerUsage(result, budget, aggregate) {
   const usage = result.usage;
   if (
     !usage
-    || !Number.isInteger(usage.tokens)
+    || !Number.isSafeInteger(usage.tokens)
     || usage.tokens < 0
     || typeof usage.cost !== "number"
+    || !Number.isFinite(usage.cost)
     || usage.cost < 0
-    || !Number.isInteger(usage.external_calls)
+    || usage.cost_available !== true
+    || usage.cost_verified !== true
+    || usage.currency !== budget.currency
+    || !Number.isSafeInteger(usage.external_calls)
     || usage.external_calls < 0
-    || usage.verified === false
+    || usage.external_calls_verified !== true
+    || usage.verified !== true
   ) {
     throw Object.assign(new Error("Worker did not return verifiable budget usage"), {
       code: "RUNNER_WORKER_USAGE_MISSING",
@@ -131,6 +142,13 @@ function assertWorkerUsage(result, budget, aggregate) {
     cost: aggregate.cost + usage.cost,
     external_calls: aggregate.external_calls + usage.external_calls,
   };
+  if (!Number.isSafeInteger(next.tokens) || !Number.isFinite(next.cost)
+    || !Number.isSafeInteger(next.external_calls)) {
+    throw Object.assign(new Error("Worker aggregate usage overflowed safe budget arithmetic"), {
+      code: "RUNNER_BUDGET_EXCEEDED",
+      details: { aggregate: next, budget },
+    });
+  }
   Object.assign(aggregate, next);
   if (
     next.tokens > budget.max_tokens
@@ -348,7 +366,8 @@ export async function runLightweightRunner({
     await updateRunManifest(manifestPath, "RUNNING", {
       packages: manifestPackages(packages),
     }, { now });
-    await mapConcurrent(packages, input.maxConcurrency, async (entry) => {
+    const workerConcurrency = worker.kind === "CODEX_CLI_0_146" ? 1 : input.maxConcurrency;
+    await mapConcurrent(packages, workerConcurrency, async (entry) => {
       try {
         const context = await writeWorkerContext({
           diagnosticsRoot,
@@ -390,10 +409,12 @@ export async function runLightweightRunner({
         }
         captureFailure(entry, runnerError);
       }
-    });
+    }, () => worker.kind !== "CODEX_CLI_0_146" || runBudgetError === null);
 
     if (runBudgetError !== null) {
-      for (const entry of packages.filter(({ state }) => state === "RUNNING")) {
+      for (const entry of packages.filter(
+        ({ state }) => state === "RUNNING" || state === "PREPARING",
+      )) {
         captureFailure(entry, runBudgetError);
       }
     }

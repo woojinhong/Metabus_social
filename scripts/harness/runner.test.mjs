@@ -47,6 +47,15 @@ import {
 } from "./runner/disposable-clone-manager.mjs";
 import { createPatchArtifactWriter } from "./runner/patch-artifacts.mjs";
 import { runChecked } from "./runner/process-utils.mjs";
+import {
+  assertCodexOutputPolicy,
+  parseCodexJsonlOutput,
+} from "./runner/codex-output-parser.mjs";
+
+const CODEX_0_146_FIXTURE = new URL(
+  "./fixtures/codex-worker/codex-0.146.0-sanitized-success.jsonl",
+  import.meta.url,
+).pathname.replace(/^\/([A-Za-z]:)/u, "$1");
 
 async function temporaryDirectory(t, prefix) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -95,6 +104,30 @@ function fakeWorktreeManager() {
   };
 }
 
+function fakeUsage(tokens = 100) {
+  return {
+    record_kind: "CODEX_WORKER_USAGE",
+    usage_model_version: "1.0.0",
+    parser_profile: "fixture",
+    input_tokens: tokens,
+    cached_input_tokens: 0,
+    output_tokens: 0,
+    reasoning_output_tokens: 0,
+    total_tokens: tokens,
+    tokens,
+    cost: 0,
+    currency: "USD",
+    cost_available: true,
+    cost_verified: true,
+    external_calls: 0,
+    external_calls_verified: true,
+    source_event_type: "turn.completed",
+    source_event_id: "turn:1",
+    verified: true,
+    verification_reason: "FIXTURE_AUTHORITATIVE_USAGE",
+  };
+}
+
 function fakeWorker({ onRun = null, exitCode = 0 } = {}) {
   let active = 0;
   let maximumActive = 0;
@@ -126,11 +159,7 @@ function fakeWorker({ onRun = null, exitCode = 0 } = {}) {
           pid: 4000 + calls.length,
           stdoutPath: join(input.logDirectory, "worker.stdout.log"),
           stderrPath: join(input.logDirectory, "worker.stderr.log"),
-          usage: override?.usage ?? {
-            tokens: 100,
-            cost: 0,
-            external_calls: 0,
-          },
+          usage: override?.usage ?? fakeUsage(),
         };
       } finally {
         active -= 1;
@@ -720,10 +749,47 @@ test("three independent Packages respect the absolute concurrency ceiling", asyn
   assert.equal(worker.maximumActive, 3);
 });
 
+test("real Codex adapter kind is serialized to preserve aggregate run budgets", async (t) => {
+  const worker = fakeWorker();
+  worker.kind = "CODEX_CLI_0_146";
+  const fixture = await executeFixture(t, {
+    specs: [
+      { alias: "SERIAL-A", path: "docs/test/serial-a.md" },
+      { alias: "SERIAL-B", path: "docs/test/serial-b.md" },
+    ],
+    approvalOverrides: { max_concurrency: 2 },
+    worker,
+  });
+  assert.equal(fixture.result.state, "COMPLETED");
+  assert.equal(worker.maximumActive, 1);
+});
+
+test("real Codex aggregate budget stops before launching another Package", async (t) => {
+  const worker = fakeWorker({ onRun: () => ({ usage: fakeUsage(10_001) }) });
+  worker.kind = "CODEX_CLI_0_146";
+  const fixture = await executeFixture(t, {
+    specs: [
+      { alias: "BUDGET-STOP-A", path: "docs/test/budget-stop-a.md" },
+      { alias: "BUDGET-STOP-B", path: "docs/test/budget-stop-b.md" },
+    ],
+    approvalOverrides: { max_concurrency: 2 },
+    worker,
+  });
+  assert.equal(worker.calls.length, 1);
+  assert.equal(fixture.result.state, "FAILED");
+  assert.equal(
+    fixture.result.packages.filter(
+      ({ error_code }) => error_code === "RUNNER_BUDGET_EXCEEDED",
+    ).length,
+    2,
+  );
+  assert.equal(fixture.publisher.publishCalls.length, 0);
+});
+
 test("Worker usage beyond the pinned token budget blocks publication", async (t) => {
   const worker = fakeWorker({
     onRun: () => ({
-      usage: { tokens: 10_001, cost: 0, external_calls: 0 },
+       usage: fakeUsage(10_001),
     }),
   });
   const fixture = await executeFixture(t, { worker });
@@ -913,7 +979,7 @@ test("Worker-created commits are rejected against the pinned source HEAD", async
 test("Worker token usage is aggregated across the whole run", async (t) => {
   const worker = fakeWorker({
     onRun: () => ({
-      usage: { tokens: 6_000, cost: 0, external_calls: 0 },
+      usage: fakeUsage(6_000),
     }),
   });
   const fixture = await executeFixture(t, {
@@ -1068,6 +1134,56 @@ test("EXECUTE_PATCH_ONLY success writes patch artifacts and never calls publishe
     patchArtifactWriter.writes[0].containment.status,
     "PARTIALLY_VERIFIED",
   );
+});
+
+test("actual Codex 0.146 usage passes usage verification but blocks on missing cost authority", async (t) => {
+  const publisher = fakePublisher();
+  const testRunner = fakeTestRunner();
+  const patchArtifactWriter = fakePatchArtifactWriter({ changedFiles: [], patch: "" });
+  const worker = {
+    async assertAvailable() {
+      return true;
+    },
+    async run(input) {
+      const stdout = await readFile(CODEX_0_146_FIXTURE, "utf8");
+      const stdoutPath = join(input.logDirectory, "worker.stdout.log");
+      const stderrPath = join(input.logDirectory, "worker.stderr.log");
+      await writeFile(stdoutPath, stdout, "utf8");
+      await writeFile(stderrPath, "", "utf8");
+      const parsed = parseCodexJsonlOutput(stdout);
+      try {
+        assertCodexOutputPolicy(parsed, input.budget);
+      } catch (error) {
+        error.workerResult = {
+          code: 0,
+          timedOut: false,
+          pid: 6400,
+          stdoutPath,
+          stderrPath,
+          usage: parsed.usage,
+          policyRejected: true,
+        };
+        throw error;
+      }
+      assert.fail("missing Codex cost authority must not pass");
+    },
+  };
+  const fixture = await executeFixture(t, {
+    specs: [{ path: "docs/allowed.md" }],
+    executionMode: "EXECUTE_PATCH_ONLY",
+    worker,
+    testRunner,
+    publisher,
+    patchArtifactWriter,
+  });
+  assert.equal(fixture.result.state, "BLOCKED");
+  assert.equal(fixture.result.packages[0].error_code, "RUNNER_CODEX_COST_UNVERIFIED");
+  assert.equal(testRunner.calls.length, 0);
+  assert.equal(publisher.publishCalls.length, 0);
+  assert.equal(patchArtifactWriter.writes.length, 1);
+  assert.equal(patchArtifactWriter.writes[0].workerResult.usage.tokens, 444_962);
+  assert.equal(patchArtifactWriter.writes[0].workerResult.usage.verified, true);
+  assert.equal(patchArtifactWriter.writes[0].workerResult.usage.cost, null);
 });
 
 test("EXECUTE_PATCH_ONLY fails closed for staged, committed, and forbidden changes", async (t) => {
