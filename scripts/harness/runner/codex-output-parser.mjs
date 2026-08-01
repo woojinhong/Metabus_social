@@ -100,6 +100,22 @@ function hasUsageLikeField(value) {
   return false;
 }
 
+function hasExternalCallLikeExtension(item) {
+  const pending = [item];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current || typeof current !== "object") continue;
+    for (const [key, child] of Object.entries(current)) {
+      if (current === item && key === "type") continue;
+      if (/(?:external[_-]?calls?|mcp(?:[_-]?tool)?[_-]?call|web[_-]?search|tool[_-]?call)/iu.test(key)) {
+        return true;
+      }
+      if (child && typeof child === "object") pending.push(child);
+    }
+  }
+  return false;
+}
+
 function isSafeDiagnosticPreamble(line, parsedRecords) {
   return parsedRecords === 0
     && Buffer.byteLength(line) <= 4096
@@ -361,6 +377,10 @@ export function parseCodexJsonlOutput(stdout, {
         unknownItemTypes.add(itemType);
         schemaUnsupported = true;
       }
+      if (hasExternalCallLikeExtension(record.item)) {
+        unknownItemTypes.add(`${itemType}:external-call-like-extension`);
+        schemaUnsupported = true;
+      }
     }
   }
 
@@ -455,21 +475,28 @@ export function parseCodexJsonlOutput(stdout, {
 
 export function assertCodexOutputPolicy(parsed, budget, {
   stdoutTruncated = false,
+  costAuthority = null,
 } = {}) {
-  if (budget?.max_external_calls !== 0) {
-    const error = new Error("Real Codex Worker budget must pin external calls to zero");
+  const exactAllowedPath = costAuthority?.exact_allowed_path;
+  const unavailableCostAuthorityValid = costAuthority?.authentication_mode === "CHATGPT"
+    && costAuthority.monetary_cost_policy === "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT"
+    && costAuthority.publication_mode === "EXECUTE_PATCH_ONLY"
+    && costAuthority.production === false
+    && costAuthority.commit_allowed === false
+    && costAuthority.push_allowed === false
+    && costAuthority.pr_allowed === false
+    && typeof exactAllowedPath === "string"
+    && /^docs\/[A-Za-z0-9._/-]+\.md$/u.test(exactAllowedPath)
+    && !exactAllowedPath.includes("//")
+    && exactAllowedPath.split("/").every((segment) => segment !== "." && segment !== "..");
+  if (!Number.isSafeInteger(budget?.max_external_calls) || budget.max_external_calls < 0) {
+    const error = new Error("Real Codex Worker budget must pin a valid external-call limit");
     error.code = "RUNNER_WORKER_BUDGET_INVALID";
-    throw error;
-  }
-  if (parsed.usage.external_calls !== 0) {
-    const error = new Error("Codex Worker emitted an external tool-call event");
-    error.code = "RUNNER_EXTERNAL_CALL_DETECTED";
-    error.details = { external_calls: parsed.usage.external_calls };
     throw error;
   }
   if (parsed.schema_unsupported) {
     const error = new Error("Codex JSONL schema is not supported by the pinned parser profile");
-    error.code = "RUNNER_CODEX_SCHEMA_UNSUPPORTED";
+    error.code = "RUNNER_CODEX_USAGE_UNVERIFIED";
     error.details = {
       unknown_event_types: parsed.unknown_event_types,
       unknown_item_types: parsed.unknown_item_types,
@@ -477,7 +504,12 @@ export function assertCodexOutputPolicy(parsed, budget, {
     };
     throw error;
   }
-  if (stdoutTruncated || parsed.malformed_lines !== 0 || !parsed.usage.verified) {
+  if (
+    stdoutTruncated
+    || parsed.malformed_lines !== 0
+    || !parsed.usage.verified
+    || parsed.usage.external_calls_verified !== true
+  ) {
     const error = new Error(
       "Codex Worker output cannot authoritatively prove completion, token, and external-tool usage",
     );
@@ -490,18 +522,32 @@ export function assertCodexOutputPolicy(parsed, budget, {
     };
     throw error;
   }
-  if (!parsed.usage.cost_available || !parsed.usage.cost_verified) {
-    const error = new Error(
-      "Codex JSONL does not prove monetary cost; an Owner-approved cost authority is required",
-    );
-    error.code = "RUNNER_CODEX_COST_UNVERIFIED";
+  if (parsed.usage.external_calls > budget.max_external_calls) {
+    const error = new Error("Codex Worker exceeded the Owner-approved external-call budget");
+    error.code = "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED";
     error.details = {
-      cost: parsed.usage.cost,
-      currency: parsed.usage.currency,
-      cost_available: parsed.usage.cost_available,
-      cost_verified: parsed.usage.cost_verified,
+      external_calls: parsed.usage.external_calls,
+      max_external_calls: budget.max_external_calls,
     };
     throw error;
+  }
+  if (!parsed.usage.cost_available || !parsed.usage.cost_verified) {
+    if (
+      !unavailableCostAuthorityValid
+    ) {
+      const error = new Error(
+        "Codex JSONL does not prove monetary cost; an Owner-approved cost authority is required",
+      );
+      error.code = "RUNNER_CODEX_COST_AUTHORITY_REQUIRED";
+      error.details = {
+        cost: parsed.usage.cost,
+        currency: parsed.usage.currency,
+        cost_available: parsed.usage.cost_available,
+        cost_verified: parsed.usage.cost_verified,
+      };
+      throw error;
+    }
+    return parsed.usage;
   }
   if (parsed.usage.currency !== budget.currency || parsed.usage.cost > budget.max_cost) {
     const error = new Error("Codex Worker exceeded the Owner-approved cost budget");

@@ -27,6 +27,7 @@ export function summarizeRun({
       error_code: entry.errorCode ?? null,
       diagnostics_path: entry.diagnosticsPath ?? null,
       artifact_paths: entry.artifactPaths ?? null,
+      usage_budget: entry.budgetResult ?? null,
     })),
     error: error === null
       ? null

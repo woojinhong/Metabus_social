@@ -19,7 +19,9 @@ export const RUN_STATES = Object.freeze([
   "COMPLETED",
   "BLOCKED",
   "FAILED",
+  "FAILED_BUDGET",
   "NO_CHANGE",
+  "PATCH_READY_FOR_OWNER_REVIEW",
   "CANCELLED",
 ]);
 
@@ -27,13 +29,15 @@ const TRANSITIONS = Object.freeze({
   PROPOSED: ["APPROVED", "BLOCKED", "CANCELLED"],
   APPROVED: ["PREPARING", "BLOCKED", "CANCELLED"],
   PREPARING: ["RUNNING", "BLOCKED", "FAILED", "CANCELLED"],
-  RUNNING: ["TESTING", "BLOCKED", "FAILED", "CANCELLED"],
-  TESTING: ["PR_DRAFT", "COMPLETED", "NO_CHANGE", "BLOCKED", "FAILED", "CANCELLED"],
+  RUNNING: ["TESTING", "BLOCKED", "FAILED", "FAILED_BUDGET", "CANCELLED"],
+  TESTING: ["PR_DRAFT", "COMPLETED", "NO_CHANGE", "PATCH_READY_FOR_OWNER_REVIEW", "BLOCKED", "FAILED", "FAILED_BUDGET", "CANCELLED"],
   PR_DRAFT: ["COMPLETED", "BLOCKED", "FAILED", "CANCELLED"],
   COMPLETED: [],
   BLOCKED: [],
   FAILED: [],
+  FAILED_BUDGET: [],
   NO_CHANGE: [],
+  PATCH_READY_FOR_OWNER_REVIEW: [],
   CANCELLED: [],
 });
 
@@ -86,6 +90,7 @@ export async function createRunManifest(input, {
       draft_pr_url: null,
       error_code: null,
       diagnostics_path: null,
+      usage_budget: null,
     })),
     error_code: null,
     diagnostics_path: runRoot,

@@ -58,7 +58,9 @@ decision_authority: decisions.md and approved operations policies
   absent from JSONL and is never represented as zero.
 - [AH-P2-11 cost and token authority](../discovery/autonomous-harness-codex-cost-budget-authority.md)
   approves a narrow ChatGPT/docs-only cost exception and a 600000-token post-run
-  hard gate. Runner wiring and a fresh per-run approval remain mandatory.
+  hard gate. Issue #68 wires the exact approval, cost-null, token/external-call,
+  status and artifact contracts under Draft-PR review. No Pilot was rerun; a
+  fresh run ID and fresh per-run approval remain mandatory.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical

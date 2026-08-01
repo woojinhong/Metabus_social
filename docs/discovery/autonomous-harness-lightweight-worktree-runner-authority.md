@@ -190,11 +190,11 @@ OS temp read-only Codex smoke는 repository를 변경하지 않았지만 in-proc
 모든 환경 Gate가 별도로 충족되기 전까지 실행할 수 없다.
 
 Issue #64의 [JSONL evidence](autonomous-harness-codex-jsonl-usage.md)는 0.146.0 usage를 검증한다.
-[AH-P2-11](autonomous-harness-codex-cost-budget-authority.md)은 좁은 cost 예외만 승인하며 Runner wiring과 새 run 승인은 여전히 필요하다.
+[AH-P2-11](autonomous-harness-codex-cost-budget-authority.md)은 좁은 cost 예외만 승인한다. Issue #68은 exact approval, aggregate token/external-call gate, `FAILED_BUDGET`, patch-ready state와 실패 artifact 보존을 Draft PR에서 연결하며 새 run 승인은 여전히 필요하다.
 
 ## 13. AH-P2-05 `EXECUTE_PATCH_ONLY`
 
 Issue #60은 OS-temp disposable clone의 exact `docs/**` 한 파일만 다루는 Worker-only mode를 추가한다. Issue #62는 Owner-approved worktree에서 확인한 real git-dir의 local clone에만 `-c safe.directory=<정규화된 절대 git-dir>`를 적용하며 `*`, global/system/user config 변경과 source 소유권 변경을 금지한다.
 승인은 Dry-run, local source root/SHA, Package revision/digest, allowed/prohibited path, clone root, zero retry/external-call budget과 모든 publication 권한 false를 mode별로 pin한다. 성공·실패 모두 clone 전후 branch, HEAD, status, refs, worktrees와 source Git config hash가 같아야 하며 destination Git metadata는 독립적이어야 한다.
 이 변경은 AH-P2-06의 clone 준비 차단만 해결하며 그 실패 run/artifact는 보존한다. Containment는 계속 `PARTIALLY_VERIFIED`이고 실제 docs-only Pilot은 새 run ID와 잔여 위험을 수락한 새 per-run Owner 승인이 필요하다. 제품 코드 Pilot은 계속 금지한다.
-성공, 실패, timeout과 `NO_CHANGE` 모두 clone과 진단을 보존한다. 제품 code, schema/migration, dependency/workflow와 실제 Pilot은 별도 승인 없이 계속 금지한다.
+성공, budget 실패, timeout과 `NO_CHANGE` 모두 clone과 진단을 보존한다. Issue #68은 fixture만 실행했고 Codex Worker/Pilot은 실행하지 않았다. 제품 code, schema/migration, dependency/workflow Pilot은 계속 금지한다.

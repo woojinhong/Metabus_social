@@ -155,7 +155,7 @@ Issue #58 adds an explicit real-Codex CLI adapter and bounded Windows `taskkill`
 fallback but no strict Job Object or OS network deny. Issue #60 adds the distinct
 `EXECUTE_PATCH_ONLY` path for one exact `docs/**` file. Issue #62 limits dubious-
 ownership handling to `git -c safe.directory=<verified-source-git-dir> clone`: it never uses `*`, changes source ownership, or writes global, system or user Git config.
-Issue #64 parses Codex 0.146.0 usage with unknown-schema fail-closed behavior; Issue #66 approves the AH-P2-11 ChatGPT/docs-only unavailable-cost exception and 600000-token post-run gate as policy only, pending Runner wiring and a fresh run approval.
+Issue #64 parses Codex 0.146.0 usage with unknown-schema fail-closed behavior; Issue #66 approves the AH-P2-11 ChatGPT/docs-only unavailable-cost exception and 600000-token post-run gate. Issue #68 wires the exact pins, budget states/errors and preserved patch-only artifacts under Draft-PR review; no Pilot was rerun and a fresh run ID/approval remain required.
 
 The approval pins the local source root; its Git config and repository state are
 compared after every clone attempt; destination Git metadata must be independent, with no remote and an empty local

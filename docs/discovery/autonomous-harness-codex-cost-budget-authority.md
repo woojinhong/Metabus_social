@@ -2,7 +2,7 @@
 title: AH-P2-11 Codex Cost and Token Budget Authority
 document_type: decision record
 classification: user decision
-status: Approved policy; Runner and approval-contract implementation pending
+status: Approved policy; Issue #68 implementation in Draft-PR review, Pilot not rerun
 implementation_ready: false
 last_verified: 2026-08-01
 related_documents: ["autonomous-harness-lightweight-worktree-runner-authority.md","autonomous-harness-codex-jsonl-usage.md","../operations/github-workflow.md","../operations/README.md"]
@@ -113,9 +113,10 @@ as zero.
 | `RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED` | Authoritative external calls exceed the exact pin. |
 | `PATCH_READY_FOR_OWNER_REVIEW` | Usage, budgets, exact path and required tests passed; no publication authority follows. |
 
-The last three names are the approved follow-up contract. Current Runner code
-still uses `RUNNER_BUDGET_EXCEEDED` and generic result states and keeps real
-execution blocked; this document alone does not claim implementation.
+Issue #68 wires these names into the Runner under Draft-PR review. Token and
+external-call excess use `FAILED_BUDGET`; successful patch-only output uses
+`PATCH_READY_FOR_OWNER_REVIEW`. Wall-clock and other runtime limits retain the
+generic runtime-budget error.
 
 ## Required approval pins
 
@@ -134,9 +135,13 @@ A later Pilot approval must bind at least:
 - `residual_risks_accepted`, including post-run token enforcement;
 - `commit`, `push` and `pr` all `false`.
 
-Before a real Pilot, a separately approved implementation must map the current
-`budget.max_tokens` field to `max_total_tokens` without a silent alias, bind the
-pins above to validated input, map the approved errors/states, retain artifacts on budget
-failure and prove the cost exception cannot reach any broader mode. A fresh run
-ID and fresh approval are mandatory; AH-P2-10 artifacts cannot be inputs.
-Issue #66 ran no Codex Worker or Pilot.
+Issue #68 requires top-level `max_total_tokens` to equal the retained execution
+budget token field, so no silent alias is accepted. It validates every pin,
+keeps unavailable cost null/unverified, skips tests and publication after an
+aggregate budget excess, and preserves clone, patch, logs, manifest and
+diagnostics. `run-result.json`, `final-summary.md` and the manifest expose the
+usage, limits, verification flags, error and terminal state.
+
+No Codex Worker or Pilot ran for Issues #66 or #68. A real Pilot still requires
+a fresh run ID, fresh exact Owner approval and containment-risk acceptance;
+AH-P2-10 artifacts cannot be inputs or reused.

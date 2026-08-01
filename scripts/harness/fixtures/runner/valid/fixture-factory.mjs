@@ -64,12 +64,33 @@ export function makeOwnerApproval(dryRun, overrides = {}) {
     reviewed_warning_ids: dryRun.warnings.map(({ error_id }) => error_id).sort(),
     max_concurrency: overrides.max_concurrency
       ?? (publicationMode === "EXECUTE_PATCH_ONLY" ? 1 : 2),
+    authentication_mode: publicationMode === "EXECUTE_PATCH_ONLY" ? "CHATGPT" : undefined,
+    codex_cli_version: publicationMode === "EXECUTE_PATCH_ONLY" ? "0.146.0" : undefined,
+    usage_schema_version: publicationMode === "EXECUTE_PATCH_ONLY" ? "1.0.0" : undefined,
+    parser_profile: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? "codex-jsonl@0.146.0"
+      : undefined,
+    token_budget_enforcement: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? "POST_RUN_HARD_GATE"
+      : undefined,
+    max_total_tokens: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? overrides.max_total_tokens ?? 600_000
+      : undefined,
+    max_external_calls: publicationMode === "EXECUTE_PATCH_ONLY" ? 0 : undefined,
+    max_retries: publicationMode === "EXECUTE_PATCH_ONLY" ? 0 : undefined,
+    monetary_cost_policy: publicationMode === "EXECUTE_PATCH_ONLY"
+      ? "UNAVAILABLE_ACCEPTED_FOR_THIS_PILOT"
+      : undefined,
+    production: publicationMode === "EXECUTE_PATCH_ONLY" ? false : undefined,
+    residual_risks_accepted: publicationMode === "EXECUTE_PATCH_ONLY" ? true : undefined,
     run_id: overrides.run_id ?? RUN_ID,
     execution_budget: {
       wall_clock_seconds: 600,
       worker_timeout_seconds: 120,
       test_timeout_seconds: 120,
-      max_tokens: 10_000,
+      max_tokens: publicationMode === "EXECUTE_PATCH_ONLY"
+        ? overrides.max_total_tokens ?? 600_000
+        : 10_000,
       max_cost: 0,
       currency: "USD",
       max_external_calls: 0,

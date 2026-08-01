@@ -140,6 +140,18 @@ export async function runCli(args, {
           filesystem: false,
           processTree: false,
         },
+        costAuthority: {
+          authentication_mode: approval.authentication_mode,
+          monetary_cost_policy: approval.monetary_cost_policy,
+          publication_mode: approval.publication_mode,
+          production: approval.production,
+          commit_allowed: approval.commit_allowed,
+          push_allowed: approval.push_allowed,
+          pr_allowed: approval.pr_allowed,
+          exact_allowed_path: approval.allowed_paths?.length === 1
+            ? approval.allowed_paths[0]
+            : null,
+        },
       }),
     };
   }
