@@ -3,7 +3,7 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-08-01
+last_verified: 2026-08-02
 related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
@@ -60,11 +60,12 @@ missing or unsafe proof blocks as `BLOCKED_ENVIRONMENT`, not `NO_CHANGE`.
 Issue #74 makes probe evidence durable before any sandbox or budget verdict:
 sanitized raw JSONL/stdout/stderr, event inventory, usage, binding and filesystem
 results survive parser failure, mismatch and budget failure through atomic
-OS-temp finalization. AH-P2-17 retained only a manifest reporting two external
-calls, so its event cause is unavailable and cannot be inferred; artifact-less
-usage is not authoritative investigation evidence. A next real run waits for
-this fix to merge and needs a new run ID, fresh exact approval and residual-risk
-acceptance.
+OS-temp finalization. `RUN-AH-P2-19-EXTERNAL-HOST-RUNBOOK-007` then proved two
+distinct `node_repl` MCP calls, not parser duplication; its inline PowerShell
+failed with `MissingCatchOrFinally`, so no boundary denial or Worker start was
+proved. The isolated probe disables MCP/web, rejects extra tools, and uses one
+hash-bound PowerShell `-File` script. A next real run needs a new run ID, fresh
+exact approval and residual-risk acceptance.
 
 ## Authority and promotion
 

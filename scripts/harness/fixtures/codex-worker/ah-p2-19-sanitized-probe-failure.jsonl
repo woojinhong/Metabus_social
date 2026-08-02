@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"sanitized-fixture"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"mcp-discovery-a","type":"mcp_tool_call","server":"node_repl","tool":"js","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"mcp-discovery-a","type":"mcp_tool_call","server":"node_repl","tool":"js","status":"completed"}}
+{"type":"item.started","item":{"id":"mcp-discovery-b","type":"mcp_tool_call","server":"node_repl","tool":"js","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"mcp-discovery-b","type":"mcp_tool_call","server":"node_repl","tool":"js","status":"completed"}}
+{"type":"item.started","item":{"id":"probe-file-change","type":"file_change","status":"in_progress","changes":[{"path":"probe.txt","kind":"add"}]}}
+{"type":"item.completed","item":{"id":"probe-file-change","type":"file_change","status":"completed","changes":[{"path":"probe.txt","kind":"add"}]}}
+{"type":"item.started","item":{"id":"boundary-parser-failure","type":"command_execution","command":"<sanitized-inline-boundary>","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"boundary-parser-failure","type":"command_execution","command":"<sanitized-inline-boundary>","aggregated_output":"ParserError: MissingCatchOrFinally\n","exit_code":1,"status":"failed"}}
+{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":20,"reasoning_output_tokens":0,"external_calls":2}}

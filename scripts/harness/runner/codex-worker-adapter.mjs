@@ -1,7 +1,11 @@
 import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import { buildCodexExecCommand } from "./codex-command-builder.mjs";
+import {
+  buildCodexExecCommand,
+  buildCodexProbeCommand,
+} from "./codex-command-builder.mjs";
+import { discoverCodexMcpServerPolicy } from "./codex-mcp-policy.mjs";
 import {
   assertCodexProbeBinding,
   fingerprintCodexHostConfiguration,
@@ -49,8 +53,10 @@ export function createCodexWorkerAdapter({
   maxLogBytes = 1024 * 1024,
   run = runProcess,
   versionProbe = runProcess,
+  mcpListProbe = runProcess,
   costAuthority = null,
   commandBuilder = buildCodexExecCommand,
+  probeCommandBuilder = buildCodexProbeCommand,
   effectiveSandboxProbe = probeCodexEffectiveSandbox,
   configurationFingerprint = fingerprintCodexHostConfiguration,
 } = {}) {
@@ -182,21 +188,30 @@ export function createCodexWorkerAdapter({
       );
     }
     if (requiresEffectiveSandboxProbe) {
-      const fingerprint = async () => configurationFingerprint({
-        executable: executablePath,
-        sandbox,
-        approvalMode,
-        cliVersion: versionOutput,
-        environment,
-      }).catch((cause) => {
-        if (cause.code?.startsWith?.("RUNNER_")) throw cause;
-        throw adapterError(
-          "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
-          "Codex host/configuration fingerprint could not be verified",
-          { cause: cause.code ?? cause.name },
-        );
-      });
-      let currentBinding = await fingerprint();
+      const fingerprint = async () => {
+        const mcpPolicy = await discoverCodexMcpServerPolicy({
+          executable: executablePath,
+          environment,
+          run: mcpListProbe,
+        });
+        const binding = await configurationFingerprint({
+          executable: executablePath,
+          sandbox,
+          approvalMode,
+          cliVersion: versionOutput,
+          environment,
+          probeMcpPolicy: mcpPolicy.fingerprint,
+        }).catch((cause) => {
+          if (cause.code?.startsWith?.("RUNNER_")) throw cause;
+          throw adapterError(
+            "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+            "Codex host/configuration fingerprint could not be verified",
+            { cause: cause.code ?? cause.name },
+          );
+        });
+        return { binding, mcpPolicy };
+      };
+      let current = await fingerprint();
       if (effectiveSandboxEvidence === null) {
         if (budget === null || typeof budget !== "object") {
           throw adapterError(
@@ -212,8 +227,10 @@ export function createCodexWorkerAdapter({
             approvalMode,
             sourceEnvironment,
             environment,
-            binding: currentBinding,
-            commandBuilder,
+            binding: current.binding,
+            mcpServerNames: current.mcpPolicy.serverNames,
+            mcpPolicyFingerprint: current.mcpPolicy.fingerprint,
+            commandBuilder: probeCommandBuilder,
             run,
             budget,
             diagnosticsRoot: probeDiagnosticsRoot,
@@ -231,9 +248,9 @@ export function createCodexWorkerAdapter({
             { cause: cause.code ?? cause.name },
           );
         }
-        currentBinding = await fingerprint();
+        current = await fingerprint();
       }
-      assertCodexProbeBinding(effectiveSandboxEvidence, currentBinding);
+      assertCodexProbeBinding(effectiveSandboxEvidence, current.binding);
     }
     return {
       executable: executablePath,
@@ -248,6 +265,7 @@ export function createCodexWorkerAdapter({
       effective_sandbox_probe: requiresEffectiveSandboxProbe
         ? {
             binding_sha256: effectiveSandboxEvidence.binding_sha256,
+            host_binding_sha256: effectiveSandboxEvidence.host_binding_sha256 ?? null,
             result_path: effectiveSandboxEvidence.result_path ?? null,
             probe_root: effectiveSandboxEvidence.artifact_path ?? null,
             result_hash: effectiveSandboxEvidence.result_hash ?? null,

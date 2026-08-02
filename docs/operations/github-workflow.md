@@ -3,7 +3,7 @@ title: GitHub Documentation Workflow
 document_type: operations
 classification: user decision
 status: Approved operating policy
-last_verified: 2026-08-01
+last_verified: 2026-08-02
 related_documents:
   - ../../AGENTS.md
   - ../INDEX.md
@@ -159,8 +159,8 @@ Issue #70 pins requested `workspace-write`, but requested and effective policy c
 Effective read-only or stale, missing or unsafe evidence blocks before Worker launch as a dedicated sandbox error and is operationally `BLOCKED_ENVIRONMENT`, never `NO_CHANGE`.
 The probe and Worker use the same executable and command policy; executable, version, detected config-source hashes, exact environment-value hashes and host identity bind the evidence without recording config secrets. Success requires an in-workspace write plus a denied outside-boundary write, and probe usage consumes the same Owner budget.
 Issue #74 requires the probe process logs, sanitized event inventory, usage and sandbox/filesystem result to be fsynced into staging and atomically renamed to the final OS-temp diagnostics directory before usage, budget or mismatch throws. Failure and over-budget paths retain that directory and link its hashes from the manifest; artifact write failure exposes no partial final directory, leaves `actual_worker_started: false`, and cannot leave the Package `APPROVED`.
-The preserved AH-P2-17 run has only a manifest for its reported two external calls. Their event cause is unavailable and must not be inferred; artifact-less usage is not authoritative investigation evidence. It is read-only and cannot be rerun or reused. Another Pilot waits for Issue #74 to merge, then needs a new run ID and fresh approval.
-One exact path plus index, HEAD, remote, reparse and fingerprint checks remain. Another Pilot needs a new run ID and fresh approval; containment stays `PARTIALLY_VERIFIED` and product-code Pilots remain prohibited.
+The preserved `RUN-AH-P2-19-EXTERNAL-HOST-RUNBOOK-007` JSONL proves two distinct `node_repl` MCP calls for repository-instruction discovery, not parser duplication. Its `probe.txt` write succeeded, inline PowerShell failed with `MissingCatchOrFinally`, boundary denial stayed false and no Worker started; the `FAILED_BUDGET` run is read-only and cannot be rerun or reused.
+The diagnostic probe must disable every discovered MCP server and web search, make MCP/web/extra command/file changes a primary `RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION`, and execute one hash-bound Runner-owned PowerShell `-File` script with exact argv. One exact path plus index, HEAD, remote, reparse and fingerprint checks remain. Another Pilot needs a new run ID and fresh approval; containment stays `PARTIALLY_VERIFIED` and product-code Pilots remain prohibited.
 
 ## 7. Validation gate
 

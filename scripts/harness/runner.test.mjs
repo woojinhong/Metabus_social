@@ -689,6 +689,7 @@ test("effective sandbox failures block before Worker start and are not NO_CHANGE
   for (const code of [
     "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
     "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+    "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION",
   ]) {
     await t.test(code, async (subtest) => {
       const worker = fakeWorker();
@@ -826,6 +827,50 @@ test("failed sandbox probe usage is charged and budget failure takes precedence"
       assert.equal(worker.calls.length, 0);
     });
   }
+});
+
+test("probe tool-policy violation outranks external budget while preserving usage", async (t) => {
+  const worker = fakeWorker();
+  worker.assertAvailable = async (input) => {
+    const evidence = await preserveFakeProbeEvidence(input, {
+      ...fakeUsage(50),
+      external_calls: 2,
+    }, {
+      verified: false,
+      verificationErrorCode: "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION",
+    });
+    throw Object.assign(new Error("probe used forbidden MCP tools"), {
+      code: "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION",
+      probeResult: evidence.effective_sandbox_probe,
+    });
+  };
+  const publisher = fakePublisher();
+  let roots;
+  await assert.rejects(
+    executeFixture(t, {
+      specs: [{ path: "docs/allowed.md" }],
+      worker,
+      publisher,
+      executionMode: "EXECUTE_PATCH_ONLY",
+      captureRoots: (value) => { roots = value; },
+    }),
+    (error) => error.code === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION",
+  );
+  const manifest = await readRunManifest(join(
+    roots.manifestRoot,
+    RUN_ID,
+    "manifest.json",
+  ));
+  assert.equal(manifest.current_state, "BLOCKED");
+  assert.equal(manifest.error_code, "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION");
+  assert.equal(manifest.probe_error_code, "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION");
+  assert.equal(manifest.probe_terminal_state, "BLOCKED_ENVIRONMENT");
+  assert.equal(manifest.probe_usage.external_calls, 2);
+  assert.equal(manifest.probe_budget_result.error_code, "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED");
+  assert.equal(manifest.packages[0].actual_worker_started, false);
+  assert.equal(worker.calls.length, 0);
+  assert.equal(publisher.publishCalls.length, 0);
+  assert.ok(await readFile(join(manifest.probe_artifact_path, "probe-stdout.jsonl"), "utf8"));
 });
 
 test("probe artifact write failure is BLOCKED and never leaves package APPROVED", async (t) => {

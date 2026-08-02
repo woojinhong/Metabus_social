@@ -16,13 +16,21 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createCodexWorkerAdapter } from "./runner/codex-worker-adapter.mjs";
-import { buildCodexExecCommand } from "./runner/codex-command-builder.mjs";
 import {
-  buildCodexSandboxBoundaryCommand,
+  buildCodexExecCommand,
+  buildCodexProbeCommand,
+} from "./runner/codex-command-builder.mjs";
+import {
+  buildCodexSandboxBoundaryInvocation,
+  buildCodexSandboxProbePrompt,
+  effectiveSandboxBoundaryScript,
   fingerprintCodexHostConfiguration,
+  probeToolPolicyEvidence,
   probeCodexEffectiveSandbox,
   sanitizeCodexDiagnostic,
+  sanitizeCodexProbeJsonl,
 } from "./runner/codex-effective-sandbox.mjs";
+import { parseCodexMcpServerPolicy } from "./runner/codex-mcp-policy.mjs";
 import { createEffectiveSandboxProbeArtifactWriter } from "./runner/effective-sandbox-probe-artifacts.mjs";
 import { validatePatchOnlyLauncherText } from "./runner/external-host-launcher-policy.mjs";
 import {
@@ -50,6 +58,14 @@ const FIXTURE = new URL("./fixtures/codex-worker/fake-worker.mjs", import.meta.u
   .pathname.replace(/^\/([A-Za-z]:)/u, "$1");
 const CODEX_0_146_FIXTURE = new URL(
   "./fixtures/codex-worker/codex-0.146.0-sanitized-success.jsonl",
+  import.meta.url,
+).pathname.replace(/^\/([A-Za-z]:)/u, "$1");
+const AH_P2_19_PROBE_FIXTURE = new URL(
+  "./fixtures/codex-worker/ah-p2-19-sanitized-probe-failure.jsonl",
+  import.meta.url,
+).pathname.replace(/^\/([A-Za-z]:)/u, "$1");
+const AH_P2_19_EVIDENCE_FIXTURE = new URL(
+  "./fixtures/codex-worker/ah-p2-19-sanitized-evidence.json",
   import.meta.url,
 ).pathname.replace(/^\/([A-Za-z]:)/u, "$1");
 
@@ -143,7 +159,8 @@ function adapterFor(mode, {
   effectiveSandboxProbe = async ({ binding }) => ({
     verified: true,
     effective_sandbox: "workspace-write",
-    binding_sha256: binding.binding_sha256,
+    binding_sha256: "fixture-probe-binding",
+    host_binding_sha256: binding.binding_sha256,
     result_path: "fixture-probe.json",
     probe_root: "fixture-probe",
     usage: parseCodexJsonlOutput(codexJsonl()).usage,
@@ -167,6 +184,13 @@ function adapterFor(mode, {
       timedOut: false,
       stdoutTruncated: false,
       stdout: "codex-cli 0.146.0\n",
+    }),
+    mcpListProbe: async () => ({
+      code: 0,
+      timedOut: false,
+      stdoutTruncated: false,
+      stderrTruncated: false,
+      stdout: "[]\n",
     }),
     isolationEvidence: {
       network: true,
@@ -481,6 +505,43 @@ test("non-patch Codex commands retain isolated user-config behavior", () => {
   assert.equal(command.args.includes("--ignore-user-config"), true);
 });
 
+test("probe command pins web and every discovered MCP server disabled", () => {
+  const command = buildCodexProbeCommand({
+    executable: process.execPath,
+    cwd: resolve("."),
+    sandbox: "workspace-write",
+    approvalMode: "never",
+    mcpServerNames: ["node_repl", "fixture server", "node_repl"],
+  });
+  assert.equal(command.args.includes("--ignore-user-config"), false);
+  assert.equal(command.args.includes("--strict-config"), true);
+  assert.equal(command.args.includes('web_search="disabled"'), true);
+  assert.equal(command.args.includes('mcp_servers."fixture server".enabled=false'), true);
+  assert.equal(command.args.includes('mcp_servers."node_repl".enabled=false'), true);
+  assert.deepEqual(command.probeToolPolicy.disabled_mcp_servers, [
+    "fixture server",
+    "node_repl",
+  ]);
+  for (const feature of [
+    "apps", "browser_use", "browser_use_external", "in_app_browser", "plugins",
+    "standalone_web_search",
+  ]) {
+    assert.equal(command.args.includes(feature), true);
+  }
+});
+
+test("MCP inventory parser retains only sorted names and hashed binding evidence", () => {
+  const policy = parseCodexMcpServerPolicy(JSON.stringify([
+    { name: "node_repl", enabled: true, transport: { env: { SECRET: "not-retained" } } },
+    { name: "alpha", enabled: false },
+  ]));
+  assert.deepEqual(policy.serverNames, ["alpha", "node_repl"]);
+  assert.equal(policy.fingerprint.server_count, 2);
+  assert.equal(policy.fingerprint.enabled_server_count, 1);
+  assert.equal(JSON.stringify(policy.fingerprint).includes("node_repl"), false);
+  assert.equal(JSON.stringify(policy.fingerprint).includes("not-retained"), false);
+});
+
 function probeProcess(onRun = async () => {}, {
   stderr = "patch rejected: writing is blocked by sandbox boundary\n",
   boundaryExitCode = 73,
@@ -488,6 +549,10 @@ function probeProcess(onRun = async () => {}, {
   externalEvents = [],
   stdoutTransform = (value) => value,
   stdoutTruncated = false,
+  commandOverride = null,
+  commandTransform = null,
+  commandEvents = null,
+  fileChangeEvents = null,
 } = {}) {
   return async (unusedExecutable, unusedArgs, { cwd }) => {
     await onRun(cwd);
@@ -496,17 +561,64 @@ function probeProcess(onRun = async () => {}, {
       "outside-workspace-boundary",
       "boundary-write-must-fail.txt",
     );
-    const stdout = stdoutTransform(codexJsonl({}, [...externalEvents, {
-      type: "item.completed",
-      item: {
-        id: "boundary-attempt",
-        type: "command_execution",
-        command: `powershell.exe -Command "${buildCodexSandboxBoundaryCommand(boundaryTarget)}"`,
-        aggregated_output: boundaryOutput,
-        exit_code: boundaryExitCode,
-        status: boundaryExitCode === 91 ? "completed" : "failed",
+    const boundaryInvocation = buildCodexSandboxBoundaryInvocation({
+      powershellExecutable: join(
+        process.env.SystemRoot ?? process.env.SYSTEMROOT ?? "C:\\Windows",
+        "System32",
+        "WindowsPowerShell",
+        "v1.0",
+        "powershell.exe",
+      ),
+      scriptPath: join(dirname(cwd), "effective-sandbox-boundary-check.ps1"),
+      boundaryTarget,
+    });
+    const probeChange = {
+      id: "probe-file-change",
+      type: "file_change",
+      changes: [{ path: join(cwd, "probe.txt"), kind: "add" }],
+    };
+    const fileEvents = typeof fileChangeEvents === "function"
+      ? fileChangeEvents(cwd)
+      : fileChangeEvents ?? [
+      { type: "item.started", item: { ...probeChange, status: "in_progress" } },
+      { type: "item.completed", item: { ...probeChange, status: "completed" } },
+      ];
+    const boundaryCommand = commandTransform?.(boundaryInvocation)
+      ?? commandOverride
+      ?? boundaryInvocation.command;
+    const commandItem = {
+      id: "boundary-attempt",
+      type: "command_execution",
+      command: boundaryCommand,
+    };
+    const defaultCommandEvents = [
+      {
+        type: "item.started",
+        item: {
+          ...commandItem,
+          aggregated_output: "",
+          exit_code: null,
+          status: "in_progress",
+        },
       },
-    }]));
+      {
+        type: "item.completed",
+        item: {
+          ...commandItem,
+          aggregated_output: boundaryOutput,
+          exit_code: boundaryExitCode,
+          status: boundaryExitCode === 91 ? "completed" : "failed",
+        },
+      },
+    ];
+    const effectiveCommandEvents = typeof commandEvents === "function"
+      ? commandEvents(commandItem, boundaryOutput, boundaryExitCode)
+      : commandEvents ?? defaultCommandEvents;
+    const stdout = stdoutTransform(codexJsonl({}, [
+      ...externalEvents,
+      ...fileEvents,
+      ...effectiveCommandEvents,
+    ]));
     return {
       code: 0,
       signal: null,
@@ -553,6 +665,126 @@ async function runProbeFixture(t, onRun, options = {}) {
   });
 }
 
+test("fixed boundary script parses and executes through exact argv without inline command", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-boundary-script-");
+  const scriptPath = join(root, "effective-sandbox-boundary-check.ps1");
+  const target = join(root, "fixture-target.txt");
+  const powershell = join(
+    process.env.SystemRoot ?? process.env.SYSTEMROOT ?? "C:\\Windows",
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+    "powershell.exe",
+  );
+  const script = effectiveSandboxBoundaryScript();
+  assert.doesNotMatch(script, /\};\s*catch/iu);
+  await writeFile(scriptPath, script, "utf8");
+  const invocation = buildCodexSandboxBoundaryInvocation({
+    powershellExecutable: powershell,
+    scriptPath,
+    boundaryTarget: target,
+  });
+  assert.deepEqual(invocation.args, [
+    "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", resolve(scriptPath),
+    "-BoundaryTarget", resolve(target),
+  ]);
+  assert.match(invocation.command, /^&\s+'[^']+powershell\.exe'\s+-NoProfile/iu);
+  assert.match(invocation.command, /; exit \$LASTEXITCODE$/u);
+  assert.equal(invocation.command.includes("-Command"), false);
+  try {
+    execFileSync(invocation.executable, invocation.args, { encoding: "utf8" });
+    assert.fail("boundary fixture must exit 91 after the in-temp write succeeds");
+  } catch (error) {
+    assert.equal(error.status, 91);
+    assert.equal(String(error.stdout).trim(), "CODEX_BOUNDARY_WRITE_SUCCEEDED_V1");
+  }
+  assert.equal(await readFile(target, "utf8"), "BOUNDARY_WRITE_MUST_FAIL\n");
+  await writeFile(target, "reset", "utf8");
+  const commandTextPath = join(root, "exact-command-text.ps1");
+  await writeFile(commandTextPath, `${invocation.command}\n`, "utf8");
+  try {
+    execFileSync(powershell, [
+      "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", commandTextPath,
+    ], { encoding: "utf8" });
+    assert.fail("the generated command text must propagate the script exit code");
+  } catch (error) {
+    assert.equal(error.status, 91);
+    assert.equal(String(error.stdout).trim(), "CODEX_BOUNDARY_WRITE_SUCCEEDED_V1");
+    assert.equal(String(error.stderr), "");
+  }
+});
+
+test("boundary command single-quotes every path against PowerShell interpolation", () => {
+  const invocation = buildCodexSandboxBoundaryInvocation({
+    powershellExecutable: "C:\\Temp\\$(injected)-$value-`tick;#\\power'shell.exe",
+    scriptPath: "C:\\Temp\\$(script);#\\boundary'script.ps1",
+    boundaryTarget: "C:\\Temp\\$(target);#\\target's.txt",
+  });
+  assert.equal(invocation.command.includes('"'), false);
+  assert.match(invocation.command, /& 'C:\\Temp\\\$\(injected\)-\$value-`tick;#\\power''shell\.exe'/u);
+  assert.match(invocation.command, /-File 'C:\\Temp\\\$\(script\);#\\boundary''script\.ps1'/u);
+  assert.match(invocation.command, /-BoundaryTarget 'C:\\Temp\\\$\(target\);#\\target''s\.txt'/u);
+  assert.match(invocation.command, /; exit \$LASTEXITCODE$/u);
+});
+
+test("durable probe JSONL removes command, path, agent text, and source IDs", () => {
+  const source = [
+    JSON.stringify({ type: "thread.started", thread_id: "source-thread" }),
+    JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "command-id",
+        type: "command_execution",
+        status: "failed",
+        command: "secret command C:\\private\\target.txt",
+        aggregated_output: "secret output",
+        exit_code: 73,
+      },
+    }),
+    JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "file-id",
+        type: "file_change",
+        status: "completed",
+        changes: [{ kind: "add", path: "C:\\private\\probe.txt" }],
+      },
+    }),
+    JSON.stringify({ type: "item.completed", item: { id: "message", type: "agent_message", text: "private agent text" } }),
+  ].join("\n");
+  const durable = sanitizeCodexProbeJsonl(source);
+  for (const prohibited of [
+    "source-thread", "command-id", "secret command", "private\\target",
+    "secret output", "file-id", "private\\probe", "private agent text",
+  ]) assert.equal(durable.includes(prohibited), false, prohibited);
+  assert.match(durable, /thread_id_sha256/u);
+  assert.match(durable, /command_sha256/u);
+  assert.match(durable, /path_sha256/u);
+});
+
+test("durable probe JSONL hashes duplicate-key lines as malformed", () => {
+  const duplicate = '{"type":"turn.started","type":"turn.completed"}';
+  const durable = sanitizeCodexProbeJsonl(duplicate);
+  assert.match(durable, /"type":"sanitized\.malformed"/u);
+  assert.match(durable, /"source_sha256":"[0-9a-f]{64}"/u);
+  assert.equal(durable.includes("turn.completed"), false);
+});
+
+test("probe prompt permits only one file change and one exact boundary command", () => {
+  const invocation = buildCodexSandboxBoundaryInvocation({
+    powershellExecutable: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    scriptPath: "C:\\Temp\\effective-sandbox-boundary-check.ps1",
+    boundaryTarget: "C:\\Temp\\boundary.txt",
+  });
+  const prompt = buildCodexSandboxProbePrompt(invocation);
+  assert.match(prompt, /file-change tool exactly once/iu);
+  assert.match(prompt, /command execution exactly once/iu);
+  assert.match(prompt, /Forbidden: reading AGENTS\.md or README\.md/iu);
+  assert.match(prompt, /node_repl; every MCP tool; web_search/iu);
+  assert.equal(prompt.includes("Read README.md."), false);
+  assert.equal(prompt.includes("-Command"), false);
+});
+
 test("effective sandbox probe accepts one exact unstaged file and verified usage", async (t) => {
   const result = await runProbeFixture(t, async (cwd) => {
     await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
@@ -582,6 +814,210 @@ test("effective sandbox probe accepts one exact unstaged file and verified usage
       "sanitized-invocation.json",
     ],
   );
+});
+
+test("probe rejects MCP, web, extra command, and extra file changes as tool-policy violations", async (t) => {
+  const cases = [
+    {
+      name: "mcp-started-completed-one-id",
+      options: { externalEvents: [
+        { type: "item.started", item: { id: "mcp-1", type: "mcp_tool_call" } },
+        { type: "item.completed", item: { id: "mcp-1", type: "mcp_tool_call" } },
+      ] },
+      externalCalls: 1,
+    },
+    {
+      name: "web-search",
+      options: { externalEvents: [
+        { type: "item.completed", item: { id: "web-1", type: "web_search" } },
+      ] },
+      externalCalls: 1,
+    },
+    {
+      name: "extra-command",
+      options: { externalEvents: [
+        {
+          type: "item.completed",
+          item: {
+            id: "repository-discovery",
+            type: "command_execution",
+            command: "git status",
+            status: "completed",
+            exit_code: 0,
+            aggregated_output: "",
+          },
+        },
+      ] },
+      externalCalls: 0,
+    },
+    {
+      name: "extra-file-change",
+      options: { fileChangeEvents: [
+        {
+          type: "item.completed",
+          item: {
+            id: "probe-file",
+            type: "file_change",
+            changes: [{ path: "probe.txt", kind: "add" }],
+          },
+        },
+        {
+          type: "item.completed",
+          item: {
+            id: "other-file",
+            type: "file_change",
+            changes: [{ path: "other.txt", kind: "add" }],
+          },
+        },
+      ] },
+      externalCalls: 0,
+    },
+  ];
+  for (const fixture of cases) {
+    await t.test(fixture.name, async (subtest) => {
+      let probeResult;
+      await assert.rejects(
+        runProbeFixture(subtest, async (cwd) => {
+          await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        }, fixture.options),
+        (error) => {
+          probeResult = error.probeResult;
+          return error.code === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION";
+        },
+      );
+      assert.equal(probeResult.external_calls, fixture.externalCalls);
+      assert.equal(probeResult.probe_tool_policy_verified, false);
+      assert.ok(await readFile(probeResult.artifact_paths.stdout, "utf8"));
+      assert.ok(await readFile(probeResult.artifact_paths.usage, "utf8"));
+    });
+  }
+});
+
+test("probe rejects multiple paths hidden in one file_change item", async (t) => {
+  let probeResult;
+  await assert.rejects(
+    runProbeFixture(t, async (cwd) => {
+      await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+    }, {
+      fileChangeEvents: (cwd) => {
+        const item = {
+          id: "one-item-two-paths",
+          type: "file_change",
+          changes: [
+            { path: join(cwd, "probe.txt"), kind: "add" },
+            { path: join(cwd, "transient.txt"), kind: "add" },
+          ],
+        };
+        return [
+          { type: "item.started", item: { ...item, status: "in_progress" } },
+          { type: "item.completed", item: { ...item, status: "completed" } },
+        ];
+      },
+    }),
+    (error) => {
+      probeResult = error.probeResult;
+      return error.code === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION";
+    },
+  );
+  assert.deepEqual(
+    probeResult.probe_tool_policy.policy_violations,
+    ["FILE_CHANGE_SHAPE"],
+  );
+});
+
+test("probe rejects missing, repeated, or reversed command and file lifecycles", async (t) => {
+  const cases = [
+    { name: "file-completed-only", fileChangeEvents: (cwd) => [{
+      type: "item.completed",
+      item: {
+        id: "probe-file-change", type: "file_change", status: "completed",
+        changes: [{ path: join(cwd, "probe.txt"), kind: "add" }],
+      },
+    }] },
+    { name: "file-duplicate-start", fileChangeEvents: (cwd) => {
+      const item = {
+        id: "probe-file-change", type: "file_change",
+        changes: [{ path: join(cwd, "probe.txt"), kind: "add" }],
+      };
+      return [
+        { type: "item.started", item: { ...item, status: "in_progress" } },
+        { type: "item.started", item: { ...item, status: "in_progress" } },
+        { type: "item.completed", item: { ...item, status: "completed" } },
+      ];
+    } },
+    { name: "command-completed-only", commandEvents: (item, output, exitCode) => [{
+      type: "item.completed",
+      item: {
+        ...item, aggregated_output: output, exit_code: exitCode, status: "failed",
+      },
+    }] },
+    { name: "command-duplicate-start", commandEvents: (item, output, exitCode) => [
+      { type: "item.started", item: { ...item, aggregated_output: "", exit_code: null, status: "in_progress" } },
+      { type: "item.started", item: { ...item, aggregated_output: "", exit_code: null, status: "in_progress" } },
+      { type: "item.completed", item: { ...item, aggregated_output: output, exit_code: exitCode, status: "failed" } },
+    ] },
+  ];
+  for (const fixture of cases) {
+    await t.test(fixture.name, async (subtest) => {
+      await assert.rejects(
+        runProbeFixture(subtest, async (cwd) => {
+          await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        }, {
+          fileChangeEvents: fixture.fileChangeEvents,
+          commandEvents: fixture.commandEvents,
+        }),
+        (error) => error.code === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION"
+          && error.probeResult.probe_tool_policy.policy_violations.some((violation) =>
+            violation.endsWith("_LIFECYCLE")),
+      );
+    });
+  }
+});
+
+test("probe treats boundary argv and script integrity mismatches as unverified", async (t) => {
+  const cases = [
+    {
+      name: "inline-command-wrapper",
+      options: { commandOverride: 'powershell.exe -Command "Write-Output forged"' },
+    },
+    {
+      name: "script-path",
+      options: { commandTransform: ({ command }) => command.replace(
+        "effective-sandbox-boundary-check.ps1",
+        "different-boundary-check.ps1",
+      ) },
+    },
+    {
+      name: "boundary-target",
+      options: { commandTransform: ({ command }) => command.replace(
+        "boundary-write-must-fail.txt",
+        "different-target.txt",
+      ) },
+    },
+  ];
+  for (const fixture of cases) {
+    await t.test(fixture.name, async (subtest) => {
+      await assert.rejects(
+        runProbeFixture(subtest, async (cwd) => {
+          await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        }, fixture.options),
+        (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+      );
+    });
+  }
+  await t.test("script-hash", async (subtest) => {
+    await assert.rejects(
+      runProbeFixture(subtest, async (cwd) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        await writeFile(
+          join(dirname(cwd), "effective-sandbox-boundary-check.ps1"),
+          "# tampered fixture\n",
+          "utf8",
+        );
+      }),
+      (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+    );
+  });
 });
 
 test("probe inventory preserves unique external-call evidence without content", () => {
@@ -625,6 +1061,57 @@ test("distinct UUID external-call IDs remain two calls with collision-free pseud
   const durable = sanitizeCodexDiagnostic(`${webId}\n${mcpId}\n`);
   const pseudonyms = durable.match(/REDACTED_ID_SHA256:[0-9a-f]{64}/gu);
   assert.equal(new Set(pseudonyms).size, 2);
+});
+
+test("sanitized AH-P2-19 fixture preserves two MCP calls and yields probe tool-policy violation", async (t) => {
+  const stdout = await readFile(AH_P2_19_PROBE_FIXTURE, "utf8");
+  const evidence = JSON.parse(await readFile(AH_P2_19_EVIDENCE_FIXTURE, "utf8"));
+  const parsed = parseCodexJsonlOutput(stdout);
+  assert.equal(parsed.usage.external_calls, 2);
+  assert.equal(parsed.event_inventory.mcp_tool_call_unique_ids.length, 2);
+  assert.equal(parsed.event_inventory.started_completed_pair_count, 2);
+  assert.equal(parsed.usage.process_calls, 1);
+  assert.deepEqual(evidence.mcp_calls.map(({ server }) => server), ["node_repl", "node_repl"]);
+  assert.deepEqual(evidence.mcp_calls.map(({ purpose }) => purpose), [
+    "repository_guidance_read",
+    "parent_directory_guidance_search",
+  ]);
+  assert.equal(evidence.actual_worker_started, false);
+  assert.equal(evidence.publisher_calls, 0);
+  assert.equal(evidence.boundary_write_denied, false);
+  assert.equal(evidence.boundary_parser_error, "MissingCatchOrFinally");
+  assert.equal(evidence.source_paths_recorded, false);
+  assert.equal(evidence.source_prompt_recorded, false);
+  assert.equal(evidence.source_command_recorded, false);
+  assert.equal(evidence.source_session_or_thread_ids_recorded, false);
+  let probeResult;
+  await assert.rejects(
+    runProbeFixture(t, async () => {}, {
+      runOverride: async (unusedExecutable, unusedArgs, { cwd }) => {
+        await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        return {
+          code: 0,
+          signal: null,
+          timedOut: false,
+          stdout,
+          stderr: "",
+          stdoutBytes: Buffer.byteLength(stdout),
+          stderrBytes: 0,
+          stdoutTruncated: false,
+          stderrTruncated: false,
+        };
+      },
+    }),
+    (error) => {
+      probeResult = error.probeResult;
+      return error.code === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION";
+    },
+  );
+  assert.equal(probeResult.external_calls, 2);
+  assert.equal(probeResult.boundary_write_denied, false);
+  assert.equal(probeResult.verified, false);
+  assert.ok(await readFile(probeResult.artifact_paths.stdout, "utf8"));
+  assert.ok(await readFile(probeResult.artifact_paths.inventory, "utf8"));
 });
 
 test("uppercase UUID uses the same pseudonym in durable JSONL and inventory", () => {
@@ -841,18 +1328,43 @@ test("effective sandbox probe rejects a forged sentinel with unreachable exact s
       run: async (unusedExecutable, unusedArgs, { cwd }) => {
         await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
         const target = join(dirname(cwd), "outside-workspace-boundary", "boundary-write-must-fail.txt");
-        const expected = buildCodexSandboxBoundaryCommand(target);
-        const stdout = codexJsonl({}, [{
-          type: "item.completed",
-          item: {
-            id: "forged-boundary",
-            type: "command_execution",
-            command: `powershell.exe -Command "Write-Output 'CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1'; exit 73; # ${expected}"`,
-            aggregated_output: "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1\n",
-            exit_code: 73,
-            status: "failed",
+        const expected = buildCodexSandboxBoundaryInvocation({
+          powershellExecutable: join(
+            process.env.SystemRoot ?? process.env.SYSTEMROOT ?? "C:\\Windows",
+            "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+          ),
+          scriptPath: join(dirname(cwd), "effective-sandbox-boundary-check.ps1"),
+          boundaryTarget: target,
+        }).command;
+        const fileItem = {
+          id: "probe-file-change",
+          type: "file_change",
+          changes: [{ path: join(cwd, "probe.txt"), kind: "add" }],
+        };
+        const commandItem = {
+          id: "forged-boundary",
+          type: "command_execution",
+          command: `powershell.exe -Command "Write-Output 'CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1'; exit 73; # ${expected}"`,
+        };
+        const stdout = codexJsonl({}, [
+          { type: "item.started", item: { ...fileItem, status: "in_progress" } },
+          { type: "item.completed", item: { ...fileItem, status: "completed" } },
+          {
+            type: "item.started",
+            item: {
+              ...commandItem, aggregated_output: "", exit_code: null, status: "in_progress",
+            },
           },
-        }]);
+          {
+            type: "item.completed",
+            item: {
+              ...commandItem,
+              aggregated_output: "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1\n",
+              exit_code: 73,
+              status: "failed",
+            },
+          },
+        ]);
         return {
           code: 0,
           timedOut: false,
