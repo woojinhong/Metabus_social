@@ -237,6 +237,63 @@ function unverifiedUsage(reason, overrides = {}) {
   };
 }
 
+export function hashCodexEventId(value) {
+  const text = String(value);
+  const canonical = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+    .test(text)
+    ? text.toLowerCase()
+    : text;
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+function inventoryId(value) {
+  return `sha256:${hashCodexEventId(value)}`;
+}
+
+function eventInventory({
+  eventTypeCounts = {},
+  itemTypeCounts = {},
+  externalItems = new Map(),
+  externalItemEvents = [],
+  unknownExternalCallLikeItems = [],
+  totalEvents = 0,
+} = {}) {
+  const webSearchIds = [];
+  const mcpToolCallIds = [];
+  const sourceEventIds = [];
+  const duplicateIds = [];
+  let startedCompletedPairCount = 0;
+  for (const [id, item] of [...externalItems.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))) {
+    const sanitizedId = inventoryId(id);
+    sourceEventIds.push(sanitizedId);
+    if (item.types.has("web_search")) webSearchIds.push(sanitizedId);
+    if (item.types.has("mcp_tool_call")) mcpToolCallIds.push(sanitizedId);
+    if (item.started > 0 && item.completed > 0) startedCompletedPairCount += 1;
+    if (item.started > 1 || item.completed > 1 || item.types.size > 1) {
+      duplicateIds.push(sanitizedId);
+    }
+  }
+  return {
+    record_kind: "CODEX_SANITIZED_EVENT_INVENTORY",
+    inventory_version: "1.0.0",
+    total_event_count: totalEvents,
+    event_type_counts: { ...eventTypeCounts },
+    item_type_counts: { ...itemTypeCounts },
+    web_search_unique_ids: webSearchIds,
+    mcp_tool_call_unique_ids: mcpToolCallIds,
+    started_completed_pair_count: startedCompletedPairCount,
+    duplicate_ids: duplicateIds,
+    external_item_events: externalItemEvents,
+    unknown_external_call_like_items: unknownExternalCallLikeItems,
+    external_calls_formula:
+      "count(unique item.id where item.type is web_search or mcp_tool_call)",
+    external_calls: sourceEventIds.length,
+    source_event_ids: sourceEventIds,
+    content_fields_recorded: false,
+  };
+}
+
 export function parseCodexJsonlOutput(stdout, {
   maxTotalBytes = DEFAULT_MAX_LOG_BYTES,
   maxLineBytes = DEFAULT_MAX_LINE_BYTES,
@@ -265,6 +322,10 @@ export function parseCodexJsonlOutput(stdout, {
   const unknownItemTypes = new Set();
   const externalItemIds = new Set();
   const processItemIds = new Set();
+  const itemTypeCounts = Object.create(null);
+  const externalItems = new Map();
+  const externalItemEvents = [];
+  const unknownExternalCallLikeItems = [];
   const snapshots = [];
 
   if (!Number.isSafeInteger(maxTotalBytes) || maxTotalBytes < 1
@@ -281,6 +342,7 @@ export function parseCodexJsonlOutput(stdout, {
       unknown_event_types: [],
       unknown_item_types: [],
       completion: { count: 0, final: false },
+      event_inventory: eventInventory(),
     };
   }
 
@@ -366,11 +428,28 @@ export function parseCodexJsonlOutput(stdout, {
       const itemId = typeof record.item?.id === "string" && record.item.id !== ""
         ? record.item.id
         : null;
+      const inventoryItemType = itemType ?? "[missing]";
+      itemTypeCounts[inventoryItemType] = (itemTypeCounts[inventoryItemType] ?? 0) + 1;
       if (itemType === null || itemId === null) {
         unknownItemTypes.add(itemType ?? "[missing]");
         schemaUnsupported = true;
       } else if (EXTERNAL_ITEM_TYPES.has(itemType)) {
         externalItemIds.add(itemId);
+        const inventoryItem = externalItems.get(itemId) ?? {
+          types: new Set(),
+          started: 0,
+          completed: 0,
+        };
+        inventoryItem.types.add(itemType);
+        if (type === "item.started") inventoryItem.started += 1;
+        else inventoryItem.completed += 1;
+        externalItems.set(itemId, inventoryItem);
+        externalItemEvents.push({
+          event_type: type,
+          item_type: itemType,
+          item_id: inventoryId(itemId),
+          status: typeof record.item?.status === "string" ? record.item.status : null,
+        });
       } else if (itemType === "command_execution") {
         processItemIds.add(itemId);
       } else if (!INTERNAL_ITEM_TYPES.has(itemType)) {
@@ -380,6 +459,12 @@ export function parseCodexJsonlOutput(stdout, {
       if (hasExternalCallLikeExtension(record.item)) {
         unknownItemTypes.add(`${itemType}:external-call-like-extension`);
         schemaUnsupported = true;
+        unknownExternalCallLikeItems.push({
+          event_type: type,
+          item_type: itemType ?? "[missing]",
+          item_id: itemId === null ? null : inventoryId(itemId),
+          status: typeof record.item?.status === "string" ? record.item.status : null,
+        });
       }
     }
   }
@@ -470,6 +555,14 @@ export function parseCodexJsonlOutput(stdout, {
     unknown_event_types: [...unknownEventTypes].sort(),
     unknown_item_types: [...unknownItemTypes].sort(),
     completion: { count: completionCount, final: completionIsFinal },
+    event_inventory: eventInventory({
+      eventTypeCounts,
+      itemTypeCounts,
+      externalItems,
+      externalItemEvents,
+      unknownExternalCallLikeItems,
+      totalEvents: parsedRecords,
+    }),
   };
 }
 

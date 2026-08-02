@@ -61,6 +61,8 @@ function packageRecord(workPackage, worktreeRoot, workspacePath = null) {
     artifactPaths: null,
     budgetResult: null,
     expectedChangeState: null,
+    worktreePrepared: false,
+    actualWorkerStarted: false,
   };
 }
 
@@ -68,9 +70,10 @@ function manifestPackages(packages) {
   return packages.map((entry) => ({
     work_package_id: entry.workPackageId,
     branch: entry.branch,
-    worktree_path: entry.worktreePath,
+    worktree_path: entry.worktreePrepared ? entry.worktreePath : null,
     state: entry.state,
     worker_pid: entry.workerPid,
+    actual_worker_started: entry.actualWorkerStarted,
     test_results: entry.tests,
     commit_sha: entry.commitSha,
     draft_pr_url: entry.draftPrUrl,
@@ -244,18 +247,18 @@ function assertWorkerUsage(result, budget, aggregate) {
     error_code: null,
     terminal_state: "RUNNING",
   };
-  if (budgetResult.token_budget_exceeded) {
-    budgetResult.error_code = "RUNNER_TOKEN_BUDGET_EXCEEDED";
-    budgetResult.terminal_state = "FAILED_BUDGET";
-    throw Object.assign(new Error("Worker exceeded the Owner-approved total-token budget"), {
-      code: budgetResult.error_code,
-      details: { aggregate: next, budget_result: budgetResult },
-    });
-  }
   if (next.external_calls > budget.max_external_calls) {
     budgetResult.error_code = "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED";
     budgetResult.terminal_state = "FAILED_BUDGET";
     throw Object.assign(new Error("Worker exceeded the Owner-approved external-call budget"), {
+      code: budgetResult.error_code,
+      details: { aggregate: next, budget_result: budgetResult },
+    });
+  }
+  if (budgetResult.token_budget_exceeded) {
+    budgetResult.error_code = "RUNNER_TOKEN_BUDGET_EXCEEDED";
+    budgetResult.terminal_state = "FAILED_BUDGET";
+    throw Object.assign(new Error("Worker exceeded the Owner-approved total-token budget"), {
       code: budgetResult.error_code,
       details: { aggregate: next, budget_result: budgetResult },
     });
@@ -429,24 +432,42 @@ export async function runLightweightRunner({
     await updateRunManifest(manifestPath, "BLOCKED", { error_code: error.code }, { now });
     throw error;
   }
+  let probeEvidence = null;
   try {
-    const [workerAvailability] = await Promise.all([
-      worker.assertAvailable({
-        budget: input.executionBudget,
-        timeoutMs: Math.min(
-          input.executionBudget.worker_timeout_seconds * 1_000,
-          remainingBudgetMs(),
-        ),
-      }),
-      testRunner.assertAvailable(),
-    ]);
-    const probeUsage = workerAvailability?.effective_sandbox_probe?.usage ?? null;
+    const probePackage = packages[0];
+    await testRunner.assertAvailable();
+    const workerAvailability = await worker.assertAvailable({
+      budget: input.executionBudget,
+      timeoutMs: Math.min(
+        input.executionBudget.worker_timeout_seconds * 1_000,
+        remainingBudgetMs(),
+      ),
+      probeDiagnosticsRoot: join(
+        diagnosticsRoot,
+        input.runId,
+        probePackage.workPackageId,
+      ),
+      runId: input.runId,
+      workPackageId: probePackage.workPackageId,
+    });
+    probeEvidence = workerAvailability?.effective_sandbox_probe ?? null;
+    const probeUsage = probeEvidence?.usage ?? null;
     if (probeUsage !== null) {
       assertWorkerUsage({ usage: probeUsage }, input.executionBudget, aggregateUsage);
     }
+    await updateRunManifest(manifestPath, "APPROVED", {
+      packages: manifestPackages(packages),
+      probe_artifact_path: probeEvidence?.probe_root ?? null,
+      probe_result_hash: probeEvidence?.result_hash ?? null,
+      probe_usage: probeUsage,
+      probe_event_inventory_hash: probeEvidence?.event_inventory_hash ?? null,
+      probe_terminal_state: probeEvidence === null ? null : "VERIFIED",
+      probe_error_code: null,
+    }, { now });
   } catch (error) {
     let effectiveError = error;
     let probeBudgetResult = null;
+    probeEvidence = error.probeResult ?? probeEvidence;
     const failedProbeUsage = error.probeResult?.usage ?? null;
     if (failedProbeUsage !== null) {
       try {
@@ -460,6 +481,7 @@ export async function runLightweightRunner({
           "RUNNER_BUDGET_EXCEEDED",
           "RUNNER_TOKEN_BUDGET_EXCEEDED",
           "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
+          "RUNNER_CODEX_USAGE_UNVERIFIED",
         ].includes(usageError.code)) effectiveError = usageError;
       }
     }
@@ -469,10 +491,29 @@ export async function runLightweightRunner({
       "RUNNER_TOKEN_BUDGET_EXCEEDED",
       "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
     ].includes(runnerError.code);
-    await updateRunManifest(manifestPath, budgetFailure ? "FAILED_BUDGET" : "BLOCKED", {
+    const probeArtifactFailure = runnerError.code === "RUNNER_PROBE_ARTIFACT_WRITE_FAILED";
+    const manifestState = budgetFailure
+      ? "FAILED_BUDGET"
+      : probeArtifactFailure
+        ? "BLOCKED"
+        : "BLOCKED";
+    for (const entry of packages) captureFailure(entry, runnerError, manifestState);
+    await updateRunManifest(manifestPath, manifestState, {
+      packages: manifestPackages(packages),
       error_code: runnerError.code,
       aggregate_usage: aggregateUsage,
       probe_budget_result: runnerError.details?.budget_result ?? probeBudgetResult,
+      probe_artifact_path:
+        probeEvidence?.artifact_path ?? probeEvidence?.probe_root ?? null,
+      probe_result_hash: probeEvidence?.result_hash ?? null,
+      probe_usage: failedProbeUsage ?? probeEvidence?.usage ?? null,
+      probe_event_inventory_hash: probeEvidence?.event_inventory_hash ?? null,
+      probe_terminal_state: budgetFailure
+        ? "FAILED_BUDGET"
+        : probeArtifactFailure
+          ? "FAILED_ARTIFACT_WRITE"
+          : "BLOCKED_ENVIRONMENT",
+      probe_error_code: runnerError.code,
     }, { now });
     throw runnerError;
   }
@@ -497,6 +538,7 @@ export async function runLightweightRunner({
           disposableCloneRoot: input.patchOnly?.disposableCloneRoot ?? null,
           ownerApprovedSourceRoot: input.patchOnly?.sourceRepositoryRoot ?? null,
         });
+        entry.worktreePrepared = true;
         if (isPatchOnly) {
           entry.expectedChangeState = await expectedChangeValidator({
             repositoryRoot: entry.worktreePath,
@@ -554,6 +596,7 @@ export async function runLightweightRunner({
           budget: input.executionBudget,
           workPackage: entry.workPackage,
         });
+        entry.actualWorkerStarted = true;
         entry.workerResult = result;
         entry.workerPid = result.pid ?? null;
         entry.budgetResult = assertWorkerUsage(result, input.executionBudget, aggregateUsage);
@@ -566,7 +609,9 @@ export async function runLightweightRunner({
       } catch (error) {
         let effectiveError = error;
         if (error.workerResult) {
+          entry.actualWorkerStarted = true;
           entry.workerResult = error.workerResult;
+          entry.workerPid = error.workerResult.pid ?? null;
           if (!error.details?.budget_result) {
             try {
               entry.budgetResult = assertWorkerUsage(
@@ -745,6 +790,7 @@ export async function runLightweightRunner({
         for (const entry of packages) captureFailure(entry, asRunnerError(error));
       }
       for (const entry of packages) {
+        if (entry.actualWorkerStarted !== true) continue;
         let workspaceState = null;
         let patch = "";
         let artifactTerminalState = entry.state;

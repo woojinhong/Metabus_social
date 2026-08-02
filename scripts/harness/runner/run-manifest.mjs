@@ -28,7 +28,7 @@ export const RUN_STATES = Object.freeze([
 
 const TRANSITIONS = Object.freeze({
   PROPOSED: ["APPROVED", "BLOCKED", "CANCELLED"],
-  APPROVED: ["PREPARING", "BLOCKED", "FAILED_BUDGET", "CANCELLED"],
+  APPROVED: ["PREPARING", "BLOCKED", "FAILED", "FAILED_BUDGET", "CANCELLED"],
   PREPARING: ["RUNNING", "BLOCKED", "FAILED", "FAILED_PATH_POLICY", "CANCELLED"],
   RUNNING: ["TESTING", "BLOCKED", "FAILED", "FAILED_BUDGET", "FAILED_PATH_POLICY", "CANCELLED"],
   TESTING: ["PR_DRAFT", "COMPLETED", "NO_CHANGE", "PATCH_READY_FOR_OWNER_REVIEW", "BLOCKED", "FAILED", "FAILED_BUDGET", "FAILED_PATH_POLICY", "CANCELLED"],
@@ -87,6 +87,7 @@ export async function createRunManifest(input, {
       worktree_path: null,
       state: initialState,
       worker_pid: null,
+      actual_worker_started: false,
       test_results: [],
       commit_sha: null,
       draft_pr_url: null,
@@ -96,6 +97,12 @@ export async function createRunManifest(input, {
     })),
     error_code: null,
     diagnostics_path: runRoot,
+    probe_artifact_path: null,
+    probe_result_hash: null,
+    probe_usage: null,
+    probe_event_inventory_hash: null,
+    probe_terminal_state: null,
+    probe_error_code: null,
     claims: {
       crash_recovery: false,
       multi_host_authority: false,

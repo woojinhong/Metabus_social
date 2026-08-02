@@ -57,7 +57,14 @@ preserved and cannot be reused. Issue #72 requires a same-host/config/version/en
 OS-temp positive-write and denied-boundary probe before a patch-only Worker;
 its usage consumes the same Owner budget. Effective mismatch or stale,
 missing or unsafe proof blocks as `BLOCKED_ENVIRONMENT`, not `NO_CHANGE`.
-Another real run needs a new run ID, fresh exact approval and residual-risk acceptance.
+Issue #74 makes probe evidence durable before any sandbox or budget verdict:
+sanitized raw JSONL/stdout/stderr, event inventory, usage, binding and filesystem
+results survive parser failure, mismatch and budget failure through atomic
+OS-temp finalization. AH-P2-17 retained only a manifest reporting two external
+calls, so its event cause is unavailable and cannot be inferred; artifact-less
+usage is not authoritative investigation evidence. A next real run waits for
+this fix to merge and needs a new run ID, fresh exact approval and residual-risk
+acceptance.
 
 ## Authority and promotion
 

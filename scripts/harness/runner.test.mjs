@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
+  access,
   mkdir,
   mkdtemp,
   readFile,
@@ -173,6 +175,61 @@ function fakeWorker({ onRun = null, exitCode = 0 } = {}) {
       } finally {
         active -= 1;
       }
+    },
+  };
+}
+
+function sha256Record(bytes) {
+  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+async function preserveFakeProbeEvidence({
+  probeDiagnosticsRoot,
+  runId,
+  workPackageId,
+}, usage, {
+  verified = true,
+  verificationErrorCode = null,
+} = {}) {
+  const artifactPath = join(probeDiagnosticsRoot, "effective-sandbox-probe");
+  await mkdir(artifactPath, { recursive: true });
+  const resultBytes = `${JSON.stringify({
+    record_kind: "CODEX_EFFECTIVE_SANDBOX_PROBE",
+    run_id: runId,
+    work_package_id: workPackageId,
+    verified,
+    verification_error_code: verificationErrorCode,
+    usage,
+  })}\n`;
+  const inventoryBytes = `${JSON.stringify({
+    record_kind: "CODEX_SANITIZED_EVENT_INVENTORY",
+    external_calls: usage.external_calls,
+    source_event_ids: usage.external_calls === 2 ? ["mcp-1", "web-1"] : [],
+    content_fields_recorded: false,
+  })}\n`;
+  const contents = {
+    "effective-sandbox-probe.json": resultBytes,
+    "probe-usage.json": `${JSON.stringify(usage)}\n`,
+    "event-inventory.json": inventoryBytes,
+    "probe-stdout.jsonl": "{\"type\":\"fixture\"}\n",
+    "probe-stderr.log": "fixture stderr\n",
+    "sanitized-invocation.json": "{\"prompt_recorded\":false}\n",
+    "binding.json": "{\"binding_sha256\":\"fixture\"}\n",
+    "filesystem-result.json": "{\"probe_target_created\":true}\n",
+    "final-summary.md": "# Fixture probe evidence\n",
+  };
+  for (const [name, content] of Object.entries(contents)) {
+    await writeFile(join(artifactPath, name), content, "utf8");
+  }
+  return {
+    effective_sandbox_probe: {
+      artifact_path: artifactPath,
+      probe_root: artifactPath,
+      result_hash: sha256Record(resultBytes),
+      event_inventory_hash: sha256Record(inventoryBytes),
+      verified,
+      verification_error_code: verificationErrorCode,
+      usage,
     },
   };
 }
@@ -669,9 +726,8 @@ test("effective sandbox probe usage is included in the Owner run budget", async 
 
 test("probe token exhaustion blocks before the actual Worker", async (t) => {
   const worker = fakeWorker();
-  worker.assertAvailable = async () => ({
-    effective_sandbox_probe: { usage: fakeUsage(600_001) },
-  });
+  worker.assertAvailable = async (input) =>
+    preserveFakeProbeEvidence(input, fakeUsage(600_001));
   let roots;
   await assert.rejects(
     executeFixture(t, {
@@ -691,6 +747,11 @@ test("probe token exhaustion blocks before the actual Worker", async (t) => {
   assert.equal(manifest.current_state, "FAILED_BUDGET");
   assert.equal(manifest.aggregate_usage.total_tokens, 600_001);
   assert.equal(manifest.probe_budget_result.terminal_state, "FAILED_BUDGET");
+  assert.equal(manifest.packages[0].state, "FAILED_BUDGET");
+  assert.equal(manifest.packages[0].actual_worker_started, false);
+  assert.equal(manifest.packages[0].worker_pid, null);
+  assert.equal(manifest.packages[0].worktree_path, null);
+  assert.ok(await readFile(join(manifest.probe_artifact_path, "probe-stdout.jsonl"), "utf8"));
 });
 
 test("failed sandbox probe usage is charged and budget failure takes precedence", async (t) => {
@@ -698,16 +759,20 @@ test("failed sandbox probe usage is charged and budget failure takes precedence"
     { name: "tokens", usage: fakeUsage(600_001), code: "RUNNER_TOKEN_BUDGET_EXCEEDED" },
     {
       name: "external-call",
-      usage: { ...fakeUsage(50), external_calls: 1 },
+      usage: { ...fakeUsage(50), external_calls: 2 },
       code: "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
     },
   ]) {
     await t.test(spec.name, async (subtest) => {
       const worker = fakeWorker();
-      worker.assertAvailable = async () => {
+      worker.assertAvailable = async (input) => {
+        const evidence = await preserveFakeProbeEvidence(input, spec.usage, {
+          verified: false,
+          verificationErrorCode: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
+        });
         const error = Object.assign(new Error("sandbox probe failed"), {
           code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH",
-          probeResult: { usage: spec.usage },
+          probeResult: evidence.effective_sandbox_probe,
         });
         throw error;
       };
@@ -730,9 +795,61 @@ test("failed sandbox probe usage is charged and budget failure takes precedence"
       assert.equal(manifest.error_code, spec.code);
       assert.equal(manifest.aggregate_usage.total_tokens, spec.usage.total_tokens);
       assert.equal(manifest.aggregate_usage.external_calls, spec.usage.external_calls);
+      assert.equal(manifest.packages[0].state, "FAILED_BUDGET");
+      assert.equal(manifest.packages[0].actual_worker_started, false);
+      assert.notEqual(manifest.packages[0].state, "APPROVED");
+      assert.equal(manifest.probe_terminal_state, "FAILED_BUDGET");
+      assert.equal(manifest.probe_error_code, spec.code);
+      for (const name of [
+        "effective-sandbox-probe.json",
+        "probe-usage.json",
+        "event-inventory.json",
+        "probe-stdout.jsonl",
+        "probe-stderr.log",
+      ]) {
+        await access(join(manifest.probe_artifact_path, name));
+      }
+      assert.equal(
+        manifest.probe_result_hash,
+        sha256Record(await readFile(join(
+          manifest.probe_artifact_path,
+          "effective-sandbox-probe.json",
+        ))),
+      );
+      assert.equal(
+        manifest.probe_event_inventory_hash,
+        sha256Record(await readFile(join(
+          manifest.probe_artifact_path,
+          "event-inventory.json",
+        ))),
+      );
       assert.equal(worker.calls.length, 0);
     });
   }
+});
+
+test("probe artifact write failure is BLOCKED and never leaves package APPROVED", async (t) => {
+  const worker = fakeWorker();
+  worker.assertAvailable = async () => {
+    throw Object.assign(new Error("probe evidence write failed"), {
+      code: "RUNNER_PROBE_ARTIFACT_WRITE_FAILED",
+    });
+  };
+  let roots;
+  await assert.rejects(
+    executeFixture(t, {
+      worker,
+      executionMode: "EXECUTE_PATCH_ONLY",
+      captureRoots: (value) => { roots = value; },
+    }),
+    (error) => error.code === "RUNNER_PROBE_ARTIFACT_WRITE_FAILED",
+  );
+  const manifest = await readRunManifest(join(roots.manifestRoot, RUN_ID, "manifest.json"));
+  assert.equal(manifest.current_state, "BLOCKED");
+  assert.equal(manifest.packages[0].state, "BLOCKED");
+  assert.equal(manifest.packages[0].actual_worker_started, false);
+  assert.equal(manifest.probe_terminal_state, "FAILED_ARTIFACT_WRITE");
+  assert.equal(worker.calls.length, 0);
 });
 
 test("post-probe runtime write denial remains BLOCKED instead of NO_CHANGE", async (t) => {
@@ -759,6 +876,7 @@ test("post-probe runtime write denial remains BLOCKED instead of NO_CHANGE", asy
 
 test("sandbox mismatch outranks incomplete usage after runtime denial", async (t) => {
   const worker = fakeWorker();
+  let roots;
   worker.run = async (input) => {
     worker.calls.push(input);
     const error = Object.assign(new Error("write denied before valid completion"), {
@@ -766,6 +884,7 @@ test("sandbox mismatch outranks incomplete usage after runtime denial", async (t
       workerResult: {
         code: 0,
         timedOut: false,
+        pid: 4321,
         usage: { verified: false, external_calls: 0 },
       },
     });
@@ -775,6 +894,7 @@ test("sandbox mismatch outranks incomplete usage after runtime denial", async (t
     specs: [{ path: "docs/allowed.md" }],
     worker,
     executionMode: "EXECUTE_PATCH_ONLY",
+    captureRoots: (value) => { roots = value; },
   });
   assert.equal(fixture.result.state, "BLOCKED");
   assert.equal(
@@ -783,6 +903,32 @@ test("sandbox mismatch outranks incomplete usage after runtime denial", async (t
   );
   assert.equal(worker.calls.length, 1);
   assert.equal(fixture.publisher.publishCalls.length, 0);
+  const manifest = await readRunManifest(join(roots.manifestRoot, RUN_ID, "manifest.json"));
+  assert.equal(manifest.packages[0].actual_worker_started, true);
+  assert.equal(manifest.packages[0].worker_pid, 4321);
+});
+
+test("pre-spawn Worker binding failure keeps actual_worker_started false", async (t) => {
+  const worker = fakeWorker();
+  let preSpawnChecks = 0;
+  worker.run = async () => {
+    preSpawnChecks += 1;
+    throw Object.assign(new Error("binding changed before spawn"), {
+      code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+    });
+  };
+  let roots;
+  const fixture = await executeFixture(t, {
+    worker,
+    executionMode: "EXECUTE_PATCH_ONLY",
+    captureRoots: (value) => { roots = value; },
+  });
+  assert.equal(fixture.result.state, "BLOCKED");
+  assert.equal(preSpawnChecks, 1);
+  assert.equal(worker.calls.length, 0);
+  const manifest = await readRunManifest(join(roots.manifestRoot, RUN_ID, "manifest.json"));
+  assert.equal(manifest.packages[0].actual_worker_started, false);
+  assert.equal(manifest.packages[0].worker_pid, null);
 });
 
 test("fake Worker success reaches commit/push/Draft-PR adapter plan only", async (t) => {

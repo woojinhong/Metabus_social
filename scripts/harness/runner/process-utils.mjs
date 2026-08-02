@@ -45,6 +45,23 @@ export async function runProcess(executable, args, {
       if (settled) return;
       settled = true;
       clearTimers();
+      if (Number.isSafeInteger(child.pid) && child.pid > 0 && !error.processResult) {
+        error.processResult = {
+          code: closeRecord?.code ?? null,
+          signal: closeRecord?.signal ?? null,
+          timedOut,
+          pid: child.pid,
+          stdout: Buffer.concat(stdout).toString("utf8"),
+          stderr: Buffer.concat(stderr).toString("utf8"),
+          stdoutBytes: stdoutSeenBytes,
+          stderrBytes: stderrSeenBytes,
+          stdoutTruncated: stdoutSeenBytes > stdoutCapturedBytes,
+          stderrTruncated: stderrSeenBytes > stderrCapturedBytes,
+          durationMs: Math.round(performance.now() - startedAt),
+          termination: null,
+          partial: true,
+        };
+      }
       reject(error);
     };
     const resolveOnce = (termination) => {
