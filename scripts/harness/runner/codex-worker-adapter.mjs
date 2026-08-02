@@ -115,7 +115,13 @@ export function createCodexWorkerAdapter({
     return executionEnvironment;
   };
 
-  const assertAvailable = async ({ budget = null, timeoutMs = null } = {}) => {
+  const assertAvailable = async ({
+    budget = null,
+    timeoutMs = null,
+    probeDiagnosticsRoot = null,
+    runId = null,
+    workPackageId = null,
+  } = {}) => {
     await access(executablePath).catch((cause) => {
       throw adapterError(
         "RUNNER_CODEX_UNAVAILABLE",
@@ -210,6 +216,9 @@ export function createCodexWorkerAdapter({
             commandBuilder,
             run,
             budget,
+            diagnosticsRoot: probeDiagnosticsRoot,
+            runId: runId ?? "UNBOUND-PROBE-RUN",
+            workPackageId: workPackageId ?? "UNBOUND-PROBE-WORK-PACKAGE",
             timeoutMs: Number.isFinite(timeoutMs)
               ? Math.max(1, Math.min(timeoutMs, budget.worker_timeout_seconds * 1_000))
               : budget.worker_timeout_seconds * 1_000,
@@ -240,7 +249,12 @@ export function createCodexWorkerAdapter({
         ? {
             binding_sha256: effectiveSandboxEvidence.binding_sha256,
             result_path: effectiveSandboxEvidence.result_path ?? null,
-            probe_root: effectiveSandboxEvidence.probe_root ?? null,
+            probe_root: effectiveSandboxEvidence.artifact_path ?? null,
+            result_hash: effectiveSandboxEvidence.result_hash ?? null,
+            event_inventory_hash:
+              effectiveSandboxEvidence.event_inventory_hash ?? null,
+            verification_error_code:
+              effectiveSandboxEvidence.verification_error_code ?? null,
             usage: effectiveSandboxEvidence.usage ?? null,
           }
         : null,
@@ -303,6 +317,27 @@ export function createCodexWorkerAdapter({
           stdinData: invocation.prompt,
         });
       } catch (cause) {
+        if (cause.processResult) {
+          const partial = cause.processResult;
+          cause.workerResult = {
+            code: partial.code ?? -1,
+            signal: partial.signal ?? null,
+            timedOut: partial.timedOut === true,
+            pid: partial.pid ?? null,
+            duration_ms: partial.durationMs ?? null,
+            stdoutPath: null,
+            stderrPath: null,
+            metadataPath: null,
+            stdoutTruncated: partial.stdoutTruncated === true,
+            stderrTruncated: partial.stderrTruncated === true,
+            usage: parseCodexJsonlOutput(redact(partial.stdout ?? "", secretValues(
+              sourceEnvironment,
+              filteredEnvironment.removedSecretNames,
+            ))).usage,
+            processTermination: partial.termination ?? null,
+            partial: true,
+          };
+        }
         if (cause.code?.startsWith?.("RUNNER_")) throw cause;
         throw adapterError(
           "RUNNER_CODEX_UNAVAILABLE",

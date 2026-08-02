@@ -79,6 +79,17 @@ decision_authority: decisions.md and approved operations policies
   denial is `RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH`; absent, unsafe or stale
   evidence is `RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED`. Both block before
   Worker launch and are operationally `BLOCKED_ENVIRONMENT`, never `NO_CHANGE`.
+- Issue #74 persists sanitized raw probe JSONL/stdout/stderr, event inventory,
+  usage, binding and filesystem verification to an atomically finalized OS-temp
+  artifact directory before sandbox or budget classification. Parser failure,
+  truncation, mismatch and `FAILED_BUDGET` retain the evidence; artifact write
+  failure exposes no partial final directory and uses
+  `RUNNER_PROBE_ARTIFACT_WRITE_FAILED`.
+- `RUN-AH-P2-17-EXTERNAL-HOST-RUNBOOK-006` retained only a manifest reporting
+  two external calls, so their item types and whether calls or parsing produced
+  the number are unavailable evidence. Artifact-less usage is not authoritative
+  investigation evidence. That run is immutable; a next Pilot waits for this
+  fix to merge and requires a new run ID and fresh Owner approval.
 - [Machine schemas](../../schemas/automation/requirement.schema.json) and
   `scripts/harness` canonical tests implement AH-P0-02. The bounded
   `scripts/harness/planner` implementation compiles only Owner-pinned canonical

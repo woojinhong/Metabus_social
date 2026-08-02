@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
+  access,
   mkdtemp,
   mkdir,
+  open,
   readFile,
+  readdir,
   rm,
   symlink,
   writeFile,
@@ -19,9 +23,11 @@ import {
   probeCodexEffectiveSandbox,
   sanitizeCodexDiagnostic,
 } from "./runner/codex-effective-sandbox.mjs";
+import { createEffectiveSandboxProbeArtifactWriter } from "./runner/effective-sandbox-probe-artifacts.mjs";
 import { validatePatchOnlyLauncherText } from "./runner/external-host-launcher-policy.mjs";
 import {
   assertCodexOutputPolicy,
+  hashCodexEventId,
   parseCodexJsonlOutput,
 } from "./runner/codex-output-parser.mjs";
 import { parseRunnerArgs, runCli } from "./runner/cli.mjs";
@@ -35,6 +41,10 @@ import {
   filterWorkerEnvironment,
   validateApprovedWorkerPolicy,
 } from "./runner/worker-policy.mjs";
+
+function inventoryId(value) {
+  return `sha256:${hashCodexEventId(value)}`;
+}
 
 const FIXTURE = new URL("./fixtures/codex-worker/fake-worker.mjs", import.meta.url)
   .pathname.replace(/^\/([A-Za-z]:)/u, "$1");
@@ -327,6 +337,13 @@ test("external tools are deduplicated by item id while shell executions remain p
   assert.equal(parsed.usage.external_calls, 1);
   assert.equal(parsed.usage.process_calls, 1);
   assert.equal(parsed.usage.external_calls_verified, true);
+  assert.deepEqual(parsed.event_inventory.web_search_unique_ids, [inventoryId("call-1")]);
+  assert.deepEqual(parsed.event_inventory.mcp_tool_call_unique_ids, []);
+  assert.equal(parsed.event_inventory.started_completed_pair_count, 1);
+  assert.deepEqual(parsed.event_inventory.duplicate_ids, []);
+  assert.equal(parsed.event_inventory.external_calls, 1);
+  assert.deepEqual(parsed.event_inventory.source_event_ids, [inventoryId("call-1")]);
+  assert.equal(parsed.event_inventory.content_fields_recorded, false);
   assert.throws(
     () => assertCodexOutputPolicy(parsed, budget()),
     (error) => error.code === "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
@@ -468,6 +485,9 @@ function probeProcess(onRun = async () => {}, {
   stderr = "patch rejected: writing is blocked by sandbox boundary\n",
   boundaryExitCode = 73,
   boundaryOutput = "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1\n",
+  externalEvents = [],
+  stdoutTransform = (value) => value,
+  stdoutTruncated = false,
 } = {}) {
   return async (unusedExecutable, unusedArgs, { cwd }) => {
     await onRun(cwd);
@@ -476,7 +496,7 @@ function probeProcess(onRun = async () => {}, {
       "outside-workspace-boundary",
       "boundary-write-must-fail.txt",
     );
-    const stdout = codexJsonl({}, [{
+    const stdout = stdoutTransform(codexJsonl({}, [...externalEvents, {
       type: "item.completed",
       item: {
         id: "boundary-attempt",
@@ -486,7 +506,7 @@ function probeProcess(onRun = async () => {}, {
         exit_code: boundaryExitCode,
         status: boundaryExitCode === 91 ? "completed" : "failed",
       },
-    }]);
+    }]));
     return {
       code: 0,
       signal: null,
@@ -497,7 +517,7 @@ function probeProcess(onRun = async () => {}, {
       stderr,
       stdoutBytes: Buffer.byteLength(stdout),
       stderrBytes: Buffer.byteLength(stderr),
-      stdoutTruncated: false,
+      stdoutTruncated,
       stderrTruncated: false,
       termination: null,
     };
@@ -506,6 +526,12 @@ function probeProcess(onRun = async () => {}, {
 
 async function runProbeFixture(t, onRun, options = {}) {
   const root = await temporaryDirectory(t, "propscans-effective-sandbox-");
+  const {
+    artifactWriter,
+    sourceEnvironment = process.env,
+    runOverride = null,
+    ...processOptions
+  } = options;
   return probeCodexEffectiveSandbox({
     executable: process.execPath,
     sandbox: "workspace-write",
@@ -515,8 +541,13 @@ async function runProbeFixture(t, onRun, options = {}) {
       executable_sha256: "fixture-executable",
       codex_cli_version: "codex-cli 0.146.0",
     },
-    run: probeProcess(onRun, options),
+    run: runOverride ?? probeProcess(onRun, processOptions),
     probeRootFactory: async () => root,
+    diagnosticsRoot: join(root, "diagnostics"),
+    runId: "RUN-PROBE-FIXTURE",
+    workPackageId: "WP-PROBE-FIXTURE",
+    artifactWriter,
+    sourceEnvironment,
     timeoutMs: 5_000,
     budget: budget(),
   });
@@ -537,9 +568,216 @@ test("effective sandbox probe accepts one exact unstaged file and verified usage
   assert.equal(result.boundary_target_created, false);
   assert.equal(result.git_metadata_unchanged, true);
   assert.ok(await readFile(result.result_path, "utf8"));
+  assert.deepEqual(
+    (await readdir(result.artifact_path)).sort(),
+    [
+      "binding.json",
+      "effective-sandbox-probe.json",
+      "event-inventory.json",
+      "filesystem-result.json",
+      "final-summary.md",
+      "probe-stderr.log",
+      "probe-stdout.jsonl",
+      "probe-usage.json",
+      "sanitized-invocation.json",
+    ],
+  );
+});
+
+test("probe inventory preserves unique external-call evidence without content", () => {
+  const parsed = parseCodexJsonlOutput(codexJsonl({}, [
+    { type: "item.started", item: { id: "web-1", type: "web_search", query: "secret" } },
+    { type: "item.started", item: { id: "web-1", type: "web_search", query: "secret" } },
+    { type: "item.completed", item: { id: "web-1", type: "web_search", response: "secret" } },
+    { type: "item.started", item: { id: "mcp-1", type: "mcp_tool_call", arguments: "secret" } },
+    { type: "item.completed", item: { id: "mcp-1", type: "mcp_tool_call", result: "secret" } },
+  ]));
+  assert.equal(parsed.usage.external_calls, 2);
+  assert.deepEqual(parsed.event_inventory.web_search_unique_ids, [inventoryId("web-1")]);
+  assert.deepEqual(parsed.event_inventory.mcp_tool_call_unique_ids, [inventoryId("mcp-1")]);
+  assert.deepEqual(parsed.event_inventory.duplicate_ids, [inventoryId("web-1")]);
+  assert.equal(parsed.event_inventory.started_completed_pair_count, 2);
+  assert.deepEqual(parsed.event_inventory.source_event_ids, [
+    inventoryId("mcp-1"),
+    inventoryId("web-1"),
+  ]);
+  assert.equal(JSON.stringify(parsed.event_inventory).includes("secret"), false);
+});
+
+test("distinct UUID external-call IDs remain two calls with collision-free pseudonyms", () => {
+  const webId = "11111111-1111-4111-8111-111111111111";
+  const mcpId = "22222222-2222-4222-8222-222222222222";
+  const parsed = parseCodexJsonlOutput(codexJsonl({}, [
+    { type: "item.started", item: { id: webId, type: "web_search" } },
+    { type: "item.completed", item: { id: webId, type: "web_search" } },
+    { type: "item.started", item: { id: mcpId, type: "mcp_tool_call" } },
+    { type: "item.completed", item: { id: mcpId, type: "mcp_tool_call" } },
+  ]));
+  assert.equal(parsed.usage.external_calls, 2);
+  assert.deepEqual(parsed.event_inventory.web_search_unique_ids, [inventoryId(webId)]);
+  assert.deepEqual(parsed.event_inventory.mcp_tool_call_unique_ids, [inventoryId(mcpId)]);
+  assert.deepEqual(parsed.event_inventory.source_event_ids, [
+    inventoryId(webId),
+    inventoryId(mcpId),
+  ]);
+  assert.equal(JSON.stringify(parsed.event_inventory).includes(webId), false);
+  assert.equal(JSON.stringify(parsed.event_inventory).includes(mcpId), false);
+  const durable = sanitizeCodexDiagnostic(`${webId}\n${mcpId}\n`);
+  const pseudonyms = durable.match(/REDACTED_ID_SHA256:[0-9a-f]{64}/gu);
+  assert.equal(new Set(pseudonyms).size, 2);
+});
+
+test("uppercase UUID uses the same pseudonym in durable JSONL and inventory", () => {
+  const id = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+  const parsed = parseCodexJsonlOutput(codexJsonl({}, [
+    { type: "item.started", item: { id, type: "web_search" } },
+    { type: "item.completed", item: { id, type: "web_search" } },
+  ]));
+  const durable = sanitizeCodexDiagnostic(JSON.stringify({ id }));
+  const durableHash = durable.match(/REDACTED_ID_SHA256:([0-9a-f]{64})/u)?.[1];
+  assert.equal(parsed.event_inventory.source_event_ids[0], `sha256:${durableHash}`);
+  assert.equal(parsed.event_inventory.source_event_ids[0], inventoryId(id));
+});
+
+test("malformed and truncated probe output preserves raw logs before usage failure", async (t) => {
+  for (const fixture of [
+    {
+      name: "malformed",
+      options: { stdoutTransform: (value) => value.replace('{"type":"turn.started"}', "not-json") },
+    },
+    { name: "truncated", options: { stdoutTruncated: true } },
+  ]) {
+    await t.test(fixture.name, async (subtest) => {
+      let probeResult;
+      await assert.rejects(
+        runProbeFixture(subtest, async (cwd) => {
+          await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+        }, fixture.options),
+        (error) => {
+          probeResult = error.probeResult;
+          return error.code === "RUNNER_CODEX_USAGE_UNVERIFIED";
+        },
+      );
+      assert.ok((await readFile(probeResult.artifact_paths.stdout, "utf8")).length > 0);
+      assert.ok(await readFile(probeResult.artifact_paths.stderr, "utf8"));
+      assert.equal(probeResult.usage_verified, false);
+      assert.equal(probeResult.stdout_truncated, fixture.name === "truncated");
+    });
+  }
+});
+
+test("durable probe logs redact removed environment secrets before fsync", async (t) => {
+  const secret = "sk-probe-fixture-secret-value";
+  const result = await runProbeFixture(t, async (cwd) => {
+    await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+  }, {
+    sourceEnvironment: { ...process.env, OPENAI_API_KEY: secret },
+    stderr: `diagnostic ${secret} Bearer ${secret}\n`,
+  });
+  const persisted = await readFile(result.artifact_paths.stderr, "utf8");
+  assert.equal(persisted.includes(secret), false);
+  assert.match(persisted, /\[REDACTED_(?:ENV_)?SECRET\]/u);
+});
+
+test("probe process start failure atomically preserves empty raw streams and failure evidence", async (t) => {
+  let probeResult;
+  await assert.rejects(
+    runProbeFixture(t, async () => {}, {
+      runOverride: async () => {
+        throw Object.assign(new Error("fixture spawn failure with secret detail"), {
+          code: "ENOENT",
+        });
+      },
+    }),
+    (error) => {
+      probeResult = error.probeResult;
+      return error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED";
+    },
+  );
+  assert.equal(await readFile(probeResult.artifact_paths.stdout, "utf8"), "");
+  assert.match(await readFile(probeResult.artifact_paths.stderr, "utf8"), /ENOENT/u);
+  assert.equal(
+    (await readFile(probeResult.artifact_paths.stderr, "utf8")).includes("secret detail"),
+    false,
+  );
+  assert.equal(probeResult.usage_verified, false);
+  assert.equal(probeResult.verification_error_code, "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED");
+});
+
+test("post-spawn probe rejection preserves collected JSONL and filesystem evidence", async (t) => {
+  let probeResult;
+  const partialRun = probeProcess(async (cwd) => {
+    await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
+  });
+  await assert.rejects(
+    runProbeFixture(t, async () => {}, {
+      runOverride: async (...args) => {
+        const processResult = await partialRun(...args);
+        processResult.timedOut = true;
+        throw Object.assign(new Error("post-spawn termination failed"), {
+          code: "RUNNER_PROCESS_TREE_TERMINATION_FAILED",
+          processResult,
+        });
+      },
+    }),
+    (error) => {
+      probeResult = error.probeResult;
+      return error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED";
+    },
+  );
+  assert.match(await readFile(probeResult.artifact_paths.stdout, "utf8"), /turn\.completed/u);
+  const filesystem = JSON.parse(await readFile(probeResult.artifact_paths.filesystem, "utf8"));
+  assert.equal(filesystem.probe_target_created, true);
+  assert.equal(probeResult.process_error_code, "RUNNER_PROCESS_TREE_TERMINATION_FAILED");
+  assert.equal(probeResult.usage_verified, true);
+});
+
+async function commitArtifactFixture(writer, diagnosticsRoot) {
+  const session = await writer.begin({ diagnosticsRoot });
+  await session.writeRaw({ stdout: "{}\n", stderr: "fixture stderr\n" });
+  return session.commit({
+    result: { run_id: "RUN", work_package_id: "WP", verified: false },
+    usage: { verified: false },
+    eventInventory: { external_calls: 0 },
+    invocation: { prompt_recorded: false },
+    binding: { binding_sha256: "fixture" },
+    filesystemResult: { probe_target_created: false },
+  });
+}
+
+test("probe artifact staging write failure exposes no final directory", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-probe-write-failure-");
+  const writer = createEffectiveSandboxProbeArtifactWriter({
+    openFile: async (path, flags) => {
+      if (path.endsWith("probe-usage.json")) {
+        throw Object.assign(new Error("fixture write denied"), { code: "EACCES" });
+      }
+      return open(path, flags);
+    },
+  });
+  await assert.rejects(
+    commitArtifactFixture(writer, root),
+    (error) => error.code === "RUNNER_PROBE_ARTIFACT_WRITE_FAILED",
+  );
+  await assert.rejects(access(join(root, "effective-sandbox-probe")), { code: "ENOENT" });
+});
+
+test("probe artifact atomic rename failure exposes no partial final directory", async (t) => {
+  const root = await temporaryDirectory(t, "propscans-probe-rename-failure-");
+  const writer = createEffectiveSandboxProbeArtifactWriter({
+    renamePath: async () => {
+      throw Object.assign(new Error("fixture rename failed"), { code: "EXDEV" });
+    },
+  });
+  await assert.rejects(
+    commitArtifactFixture(writer, root),
+    (error) => error.code === "RUNNER_PROBE_ARTIFACT_WRITE_FAILED",
+  );
+  await assert.rejects(access(join(root, "effective-sandbox-probe")), { code: "ENOENT" });
 });
 
 test("effective sandbox probe rejects broader-than-workspace-write access", async (t) => {
+  let probeResult;
   await assert.rejects(
     runProbeFixture(t, async (cwd) => {
       await writeFile(join(cwd, "probe.txt"), "CODEX_EFFECTIVE_SANDBOX_OK\n", "utf8");
@@ -553,9 +791,16 @@ test("effective sandbox probe rejects broader-than-workspace-write access", asyn
       boundaryExitCode: 91,
       boundaryOutput: "CODEX_BOUNDARY_WRITE_SUCCEEDED_V1\n",
     }),
-    (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
-      && error.details.effective_sandbox === "broader-than-workspace-write",
+    (error) => {
+      probeResult = error.probeResult;
+      return error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+        && error.details.effective_sandbox === "broader-than-workspace-write";
+    },
   );
+  for (const name of ["probe-stdout.jsonl", "probe-stderr.log", "event-inventory.json"]) {
+    await access(join(probeResult.artifact_path, name));
+  }
+  assert.equal(probeResult.verified, false);
 });
 
 test("effective sandbox probe classifies write denial instead of NO_CHANGE", async (t) => {
@@ -708,7 +953,7 @@ test("diagnostic sanitizer removes UUIDv7/session secrets without corrupting ask
     `{"thread_id":"${uuidv7}"}\n--ask-for-approval never\nsess-secret-value\n`,
   );
   assert.equal(sanitized.includes(uuidv7), false);
-  assert.match(sanitized, /\[REDACTED_ID\]/u);
+  assert.match(sanitized, /\[REDACTED_ID_SHA256:[0-9a-f]{64}\]/u);
   assert.match(sanitized, /--ask-for-approval never/u);
   assert.equal(sanitized.includes("sess-secret-value"), false);
 });
@@ -851,13 +1096,13 @@ test("external-host launcher fixture pins workspace-write and rejects read-only"
   );
   assert.throws(
     () => validatePatchOnlyLauncherText(
-      fixture.replace("  '--require-effective-sandbox-probe'\n", ""),
+      fixture.replace(/^\s*'--require-effective-sandbox-probe'\r?\n/mu, ""),
     ),
     (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
   );
   assert.throws(
     () => validatePatchOnlyLauncherText(
-      `${fixture.replace("  '--require-effective-sandbox-probe'\n", "")}\n# '--require-effective-sandbox-probe'\n`,
+      `${fixture.replace(/^\s*'--require-effective-sandbox-probe'\r?\n/mu, "")}\n# '--require-effective-sandbox-probe'\n`,
     ),
     (error) => error.code === "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
   );
@@ -1005,7 +1250,9 @@ test("termination adapter failures propagate without hanging", async (t) => {
         throw terminationError;
       },
     }),
-    (error) => error === terminationError,
+    (error) => error === terminationError
+      && Number.isSafeInteger(error.processResult?.pid)
+      && error.processResult.partial === true,
   );
   assert.ok(Date.now() - startedAt < 2_000);
 });
@@ -1021,7 +1268,9 @@ test("a stalled termination adapter is bounded by one hard deadline", async (t) 
       terminationTimeoutMs: 150,
       terminate: async () => new Promise(() => {}),
     }),
-    (error) => error.code === "RUNNER_PROCESS_TREE_TERMINATION_FAILED",
+    (error) => error.code === "RUNNER_PROCESS_TREE_TERMINATION_FAILED"
+      && Number.isSafeInteger(error.processResult?.pid)
+      && error.processResult.partial === true,
   );
   assert.ok(Date.now() - startedAt < 2_000);
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 250));

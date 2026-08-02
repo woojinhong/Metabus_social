@@ -9,9 +9,13 @@ import {
 import { homedir, hostname, release, tmpdir, type } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { buildCodexExecCommand } from "./codex-command-builder.mjs";
-import { parseCodexJsonlOutput } from "./codex-output-parser.mjs";
+import {
+  hashCodexEventId,
+  parseCodexJsonlOutput,
+} from "./codex-output-parser.mjs";
 import { runProcess } from "./process-utils.mjs";
 import { filterWorkerEnvironment } from "./worker-policy.mjs";
+import { createEffectiveSandboxProbeArtifactWriter } from "./effective-sandbox-probe-artifacts.mjs";
 
 const PROBE_CONTENT = "CODEX_EFFECTIVE_SANDBOX_OK\n";
 const BOUNDARY_DENIED_SENTINEL = "CODEX_BOUNDARY_DENIED_UNAUTHORIZED_V1";
@@ -60,7 +64,10 @@ function probeError(code, message, details = {}) {
 
 export function sanitizeCodexDiagnostic(text, secretValues = []) {
   let result = String(text)
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu, "[REDACTED_ID]")
+    .replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu,
+      (value) => `[REDACTED_ID_SHA256:${hashCodexEventId(value)}]`,
+    )
     .replace(/(^|[\s"':])(?:sk-|sess-)[A-Za-z0-9._-]+/gu, "$1[REDACTED_SECRET]")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gu, "Bearer [REDACTED_SECRET]");
   for (const value of secretValues) result = result.split(value).join("[REDACTED_ENV_SECRET]");
@@ -254,6 +261,11 @@ export async function probeCodexEffectiveSandbox({
   timeoutMs = 180_000,
   maxOutputBytes = 1024 * 1024,
   budget = null,
+  diagnosticsRoot = null,
+  runId = "UNBOUND-PROBE-RUN",
+  workPackageId = "UNBOUND-PROBE-WORK-PACKAGE",
+  artifactWriter = createEffectiveSandboxProbeArtifactWriter(),
+  now = () => new Date(),
 } = {}) {
   if (sandbox !== "workspace-write") {
     throw probeError(
@@ -330,66 +342,192 @@ export async function probeCodexEffectiveSandbox({
     approvalMode,
     loadUserConfig: true,
   });
-  const processResult = await run(command.executable, command.args, {
-    cwd: repository,
-    env: processEnvironment,
-    timeoutMs,
-    maxOutputBytes,
-    stdinData: probePrompt(boundaryTarget),
-  }).catch((cause) => {
-    throw probeError(
-      "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
-      "Effective sandbox probe process could not start",
-      { cause: cause.code ?? cause.name, probe_root: root },
-    );
-  });
-  const stdout = sanitizeCodexDiagnostic(processResult.stdout, secretValues);
+  const startedAt = now().toISOString();
+  let processResult;
+  try {
+    processResult = await run(command.executable, command.args, {
+      cwd: repository,
+      env: processEnvironment,
+      timeoutMs,
+      maxOutputBytes,
+      stdinData: probePrompt(boundaryTarget),
+    });
+  } catch (cause) {
+    const failureCode = cause.code ?? cause.name ?? "UNKNOWN";
+    if (cause.processResult) {
+      processResult = {
+        ...cause.processResult,
+        code: cause.processResult.code ?? -1,
+        process_error_code: failureCode,
+      };
+    } else {
+      const completedAt = now().toISOString();
+      const stderr = sanitizeCodexDiagnostic(
+        `Effective sandbox probe process start failed: ${failureCode}\n`,
+        secretValues,
+      );
+      const artifactSession = await artifactWriter.begin({
+        diagnosticsRoot: diagnosticsRoot ?? root,
+      });
+      await artifactSession.writeRaw({ stdout: "", stderr });
+      const result = {
+      record_kind: "CODEX_EFFECTIVE_SANDBOX_PROBE",
+      run_id: runId,
+      work_package_id: workPackageId,
+      started_at: startedAt,
+      completed_at: completedAt,
+      executable_sha256: binding?.executable_sha256 ?? null,
+      codex_cli_version: binding?.codex_cli_version ?? null,
+      parser_profile: "codex-jsonl@0.146.0",
+      binding_sha256: binding?.binding_sha256 ?? null,
+      requested_sandbox: sandbox,
+      effective_sandbox: null,
+      verified: false,
+      verification_error_code: "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+      probe_target_created: false,
+      boundary_write_denied: false,
+      external_calls: null,
+      process_calls: null,
+      total_tokens: null,
+      usage_verified: false,
+      stdout_truncated: false,
+      stderr_truncated: false,
+      process_start_error_code: failureCode,
+      secret_values_recorded: false,
+    };
+      const emptyParse = parseCodexJsonlOutput("");
+      const usage = {
+        ...emptyParse.usage,
+        verification_reason: "PROBE_PROCESS_START_FAILED",
+      };
+      const committed = await artifactSession.commit({
+      result,
+      usage,
+      eventInventory: emptyParse.event_inventory,
+      invocation: {
+        record_kind: "CODEX_EFFECTIVE_SANDBOX_SANITIZED_INVOCATION",
+        executable_name: basename(resolve(executable)),
+        executable_sha256: binding?.executable_sha256 ?? null,
+        requested_sandbox: sandbox,
+        approval_mode: approvalMode,
+        network_access: false,
+        prompt_recorded: false,
+        command_content_recorded: false,
+        secret_values_recorded: false,
+      },
+      binding: binding ?? {
+        record_kind: "CODEX_EFFECTIVE_SANDBOX_BINDING",
+        binding_sha256: null,
+        secret_values_recorded: false,
+      },
+      filesystemResult: {
+        record_kind: "CODEX_EFFECTIVE_SANDBOX_FILESYSTEM_RESULT",
+        probe_target_created: false,
+        boundary_write_denied: false,
+        inspection_skipped_reason: "PROBE_PROCESS_START_FAILED",
+      },
+    });
+      Object.assign(result, committed.result, {
+      result_path: committed.artifact_paths.result,
+      artifact_path: committed.artifact_path,
+      artifact_paths: committed.artifact_paths,
+      result_hash: committed.result_hash,
+      event_inventory_hash: committed.event_inventory_hash,
+      usage,
+    });
+      const error = probeError(
+        "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
+        "Effective sandbox probe process could not start",
+        { cause: failureCode, probe_artifact_path: committed.artifact_path },
+      );
+      error.probeResult = result;
+      throw error;
+    }
+  }
+  const completedAt = now().toISOString();
+  const rawStdout = String(processResult.stdout);
+  const stdout = sanitizeCodexDiagnostic(rawStdout, secretValues);
   const stderr = sanitizeCodexDiagnostic(processResult.stderr, secretValues);
-  const stdoutPath = join(root, "probe.stdout.jsonl");
-  const stderrPath = join(root, "probe.stderr.log");
-  await writeFile(stdoutPath, stdout, { encoding: "utf8", flag: "wx" });
-  await writeFile(stderrPath, stderr, { encoding: "utf8", flag: "wx" });
+  const artifactSession = await artifactWriter.begin({
+    diagnosticsRoot: diagnosticsRoot ?? root,
+  });
+  await artifactSession.writeRaw({ stdout, stderr });
 
-  const probeContent = await readFile(join(repository, "probe.txt"), "utf8").catch((error) => {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  });
-  const boundaryContent = await readFile(boundaryTarget, "utf8").catch((error) => {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  });
-  const boundaryEntries = (await readdir(boundaryDirectory)).sort();
-  const gitMetadataAfterWorker = await gitMetadataHash(join(repository, ".git"));
-  const status = await git(repository, ["status", "--porcelain=v1", "--untracked-files=all"], processEnvironment);
-  const staged = await git(repository, ["diff", "--cached", "--name-only"], processEnvironment);
-  const remotes = await git(repository, ["remote"], processEnvironment);
-  const headAfter = await git(repository, ["rev-parse", "HEAD"], processEnvironment);
-  const rootEntries = (await readdir(repository))
-    .filter((name) => name !== ".git")
-    .sort();
   let parsed = null;
   let parserFailure = null;
   try {
-    parsed = parseCodexJsonlOutput(stdout, {
+    parsed = parseCodexJsonlOutput(rawStdout, {
       maxTotalBytes: maxOutputBytes,
       maxLineBytes: Math.min(maxOutputBytes, 256 * 1024),
     });
   } catch (cause) {
     parserFailure = cause.code ?? cause.name;
   }
+  const inspectionErrors = [];
+  const inspect = async (check, operation, fallback) => {
+    try {
+      return await operation();
+    } catch (cause) {
+      inspectionErrors.push({ check, error_code: cause.code ?? cause.name });
+      return fallback;
+    }
+  };
+  const probeContent = await inspect("probe_content", async () =>
+    readFile(join(repository, "probe.txt"), "utf8").catch((error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }), null);
+  const boundaryContent = await inspect("boundary_content", async () =>
+    readFile(boundaryTarget, "utf8").catch((error) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }), null);
+  const boundaryEntries = await inspect(
+    "boundary_entries",
+    async () => (await readdir(boundaryDirectory)).sort(),
+    ["[INSPECTION_FAILED]"],
+  );
+  const gitMetadataAfterWorker = await inspect(
+    "git_metadata",
+    () => gitMetadataHash(join(repository, ".git")),
+    null,
+  );
+  const status = await inspect(
+    "git_status",
+    () => git(repository, ["status", "--porcelain=v1", "--untracked-files=all"], processEnvironment),
+    null,
+  );
+  const staged = await inspect(
+    "git_index",
+    () => git(repository, ["diff", "--cached", "--name-only"], processEnvironment),
+    null,
+  );
+  const remotes = await inspect(
+    "git_remotes",
+    () => git(repository, ["remote"], processEnvironment),
+    null,
+  );
+  const headAfter = await inspect(
+    "git_head",
+    () => git(repository, ["rev-parse", "HEAD"], processEnvironment),
+    null,
+  );
+  const rootEntries = await inspect(
+    "workspace_entries",
+    async () => (await readdir(repository)).filter((name) => name !== ".git").sort(),
+    ["[INSPECTION_FAILED]"],
+  );
   const writeRejected = /read-only sandbox|rejected by user approval settings|writing is blocked/iu
     .test(`${stdout}\n${stderr}`);
   const readOnlyOrApprovalDenial = /read-only sandbox|rejected by user approval settings/iu
     .test(`${stdout}\n${stderr}`);
-  const boundaryExecution = boundaryExecutionEvidence(stdout, boundaryTarget);
+  const boundaryExecution = boundaryExecutionEvidence(rawStdout, boundaryTarget);
   const boundaryDenied = boundaryContent === null
     && boundaryExecution.attempted
     && boundaryExecution.denied
     && !boundaryExecution.succeeded;
-  const success = processResult.code === 0
+  const sandboxVerified = processResult.code === 0
     && processResult.timedOut !== true
-    && processResult.stdoutTruncated !== true
-    && processResult.stderrTruncated !== true
     && probeContent === PROBE_CONTENT
     && boundaryContent === null
     && boundaryEntries.length === 0
@@ -400,18 +538,51 @@ export async function probeCodexEffectiveSandbox({
     && headAfter === headBefore
     && gitMetadataAfterWorker === gitMetadataBefore
     && rootEntries.join("|") === "README.md|probe.txt"
+    && inspectionErrors.length === 0;
+  const usageVerified = parserFailure === null
+    && processResult.stdoutTruncated !== true
+    && processResult.stderrTruncated !== true
     && parsed?.usage.verified === true
-    && parsed.usage.external_calls_verified === true
-    && parsed.usage.external_calls === 0;
-  const observedEffectiveSandbox = success
+    && parsed.usage.external_calls_verified === true;
+  const success = sandboxVerified && usageVerified;
+  const observedEffectiveSandbox = sandboxVerified
     ? "workspace-write"
     : boundaryContent !== null || boundaryExecution.succeeded
       ? "broader-than-workspace-write"
       : probeContent === null && readOnlyOrApprovalDenial
         ? "read-only"
         : null;
+  const verificationErrorCode = usageVerified !== true
+    ? "RUNNER_CODEX_USAGE_UNVERIFIED"
+    : observedEffectiveSandbox !== null && observedEffectiveSandbox !== "workspace-write"
+      ? "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
+      : sandboxVerified !== true
+        ? "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED"
+        : null;
+  const filesystemResult = {
+    record_kind: "CODEX_EFFECTIVE_SANDBOX_FILESYSTEM_RESULT",
+    probe_target_created: probeContent !== null,
+    probe_target_content_sha256: probeContent === null ? null : sha256(probeContent),
+    expected_probe_content_sha256: sha256(PROBE_CONTENT),
+    boundary_attempt_observed: boundaryExecution.attempted,
+    boundary_write_denied: boundaryDenied,
+    boundary_target_created: boundaryContent !== null,
+    boundary_directory_entries: boundaryEntries,
+    changed_paths: status === null || status === "" ? [] : status.split(/\r?\n/u),
+    staged_paths: staged === null || staged === "" ? [] : staged.split(/\r?\n/u),
+    remotes: remotes === null || remotes === "" ? [] : remotes.split(/\r?\n/u),
+    head_unchanged: headAfter !== null && headAfter === headBefore,
+    git_metadata_unchanged:
+      gitMetadataAfterWorker !== null && gitMetadataAfterWorker === gitMetadataBefore,
+    workspace_entries: rootEntries,
+    inspection_errors: inspectionErrors,
+  };
   const result = {
     record_kind: "CODEX_EFFECTIVE_SANDBOX_PROBE",
+    run_id: runId,
+    work_package_id: workPackageId,
+    started_at: startedAt,
+    completed_at: completedAt,
     requested_sandbox: sandbox,
     effective_sandbox: observedEffectiveSandbox,
     verified: success,
@@ -421,51 +592,96 @@ export async function probeCodexEffectiveSandbox({
     executable_sha256: binding?.executable_sha256 ?? null,
     codex_cli_version: binding?.codex_cli_version ?? null,
     config_binding_sha256: binding?.binding_sha256 ?? null,
-    probe_root: root,
-    repository_path: repository,
-    stdout_path: stdoutPath,
-    stderr_path: stderrPath,
+    parser_profile: "codex-jsonl@0.146.0",
     exit_code: processResult.code,
     timed_out: processResult.timedOut,
     write_rejection_observed: writeRejected,
     boundary_attempt_observed: boundaryExecution.attempted,
     boundary_denial_observed: boundaryDenied,
+    boundary_write_denied: boundaryDenied,
     boundary_target_created: boundaryContent !== null,
     boundary_directory_entries: boundaryEntries,
     target_created: probeContent !== null,
+    probe_target_created: probeContent !== null,
     target_content_sha256: probeContent === null ? null : sha256(probeContent),
     expected_content_sha256: sha256(PROBE_CONTENT),
-    changed_paths: status === "" ? [] : status.split(/\r?\n/u),
-    staged_paths: staged === "" ? [] : staged.split(/\r?\n/u),
-    remotes: remotes === "" ? [] : remotes.split(/\r?\n/u),
+    changed_paths: filesystemResult.changed_paths,
+    staged_paths: filesystemResult.staged_paths,
+    remotes: filesystemResult.remotes,
     head_unchanged: headAfter === headBefore,
     git_metadata_unchanged: gitMetadataAfterWorker === gitMetadataBefore,
     parser_failure: parserFailure,
     external_calls: parsed?.usage.external_calls ?? null,
-    usage_verified: parsed?.usage.verified ?? false,
+    process_calls: parsed?.usage.process_calls ?? null,
+    process_error_code: processResult.process_error_code ?? null,
+    total_tokens: parsed?.usage.total_tokens ?? null,
+    usage_verified: usageVerified,
     usage: parsed?.usage ?? null,
+    stdout_truncated: processResult.stdoutTruncated === true,
+    stderr_truncated: processResult.stderrTruncated === true,
+    verification_error_code: verificationErrorCode,
     secret_values_recorded: false,
   };
-  const resultPath = join(root, "effective-sandbox-probe.json");
-  await writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, {
-    encoding: "utf8",
-    flag: "wx",
+  const invocation = {
+    record_kind: "CODEX_EFFECTIVE_SANDBOX_SANITIZED_INVOCATION",
+    executable_name: basename(resolve(executable)),
+    executable_sha256: binding?.executable_sha256 ?? null,
+    requested_sandbox: sandbox,
+    approval_mode: approvalMode,
+    network_access: false,
+    ephemeral: true,
+    jsonl: true,
+    user_config_loaded: true,
+    prompt_transport: "STDIN",
+    cwd_identity_sha256: sha256(resolve(repository).toLowerCase()),
+    prompt_recorded: false,
+    command_content_recorded: false,
+    secret_values_recorded: false,
+  };
+  const committed = await artifactSession.commit({
+    result,
+    usage: parsed?.usage ?? {
+      record_kind: "CODEX_WORKER_USAGE",
+      verified: false,
+      verification_reason: parserFailure ?? "PARSER_FAILED",
+    },
+    eventInventory: parsed?.event_inventory ?? {
+      record_kind: "CODEX_SANITIZED_EVENT_INVENTORY",
+      total_event_count: 0,
+      external_calls: 0,
+      source_event_ids: [],
+      parser_failure: parserFailure,
+      content_fields_recorded: false,
+    },
+    invocation,
+    binding: binding ?? {
+      record_kind: "CODEX_EFFECTIVE_SANDBOX_BINDING",
+      binding_sha256: null,
+      secret_values_recorded: false,
+    },
+    filesystemResult,
   });
-  result.result_path = resultPath;
+  Object.assign(result, committed.result, {
+    result_path: committed.artifact_paths.result,
+    artifact_path: committed.artifact_path,
+    artifact_paths: committed.artifact_paths,
+    result_hash: committed.result_hash,
+    event_inventory_hash: committed.event_inventory_hash,
+  });
   if (!success) {
     const error = probeError(
-      observedEffectiveSandbox !== null
-        ? "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
-        : "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
-      observedEffectiveSandbox !== null
-        ? "Requested workspace-write did not match the effective sandbox boundary"
-        : "Effective workspace-write could not be verified safely",
+      verificationErrorCode,
+      verificationErrorCode === "RUNNER_CODEX_USAGE_UNVERIFIED"
+        ? "Effective sandbox probe usage could not be verified"
+        : observedEffectiveSandbox !== null
+          ? "Requested workspace-write did not match the effective sandbox boundary"
+          : "Effective workspace-write could not be verified safely",
       {
         requested_sandbox: sandbox,
         effective_sandbox: result.effective_sandbox,
         environment_state: "BLOCKED_ENVIRONMENT",
-        probe_root: root,
-        result_path: resultPath,
+        probe_artifact_path: committed.artifact_path,
+        result_path: committed.artifact_paths.result,
       },
     );
     error.probeResult = result;
