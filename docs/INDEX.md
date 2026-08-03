@@ -3,8 +3,8 @@ title: Documentation Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-08-02
-related_documents: ["../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+last_verified: 2026-08-03
+related_documents: ["operations/agent-automation-overview.md","operations/openclaw-omx-workflow.md","operations/agent-lessons.md","archive/autonomous-harness-experiment.md","../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -32,7 +32,15 @@ operation remain separately gated.
 8. [Research](research/README.md), including [Korean MVP vendor verification](research/technology/korean-mvp-vendor-verification.md).
 9. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
 
-For Harness work, read the [readiness audit](operations/autonomous-harness-readiness-audit-2026-07-31.md)
+For new Agent automation work, read the
+[Agent automation overview](operations/agent-automation-overview.md), the
+[OpenClaw and OMX workflow](operations/openclaw-omx-workflow.md) and the
+[Agent lessons](operations/agent-lessons.md). The default next target is the
+local Propscans-only Phase 1 workflow; Slack/OpenClaw connection is uninstalled
+future work. Existing Harness code and schemas are preserved as
+[experimental reference](archive/autonomous-harness-experiment.md).
+
+For historical Harness work, read the [readiness audit](operations/autonomous-harness-readiness-audit-2026-07-31.md)
 and [AH-P0-01 foundation](discovery/autonomous-harness-foundation-approval-plan.md),
 then [AH-P1-01 authority](discovery/autonomous-harness-readonly-planner-authority.md)
 and [AH-P2-01 authority](discovery/autonomous-harness-lightweight-worktree-runner-authority.md),
@@ -111,10 +119,11 @@ continues to block broad production promotion, not the exact merged PR A/B basel
 | docs/adr | Accepted architecture decisions and their gates |
 | docs/architecture | Selected deployment/vendor boundaries and broader analysis |
 | docs/research | External evidence and limitations |
-| docs/operations | Approved operational policy and procedural drafts |
+| docs/operations | Approved operational policy, Agent automation direction and procedural drafts |
+| docs/archive | Preserved historical/experimental navigation; no authority promotion |
 | docs/wiki | Non-authoritative human/LLM navigation |
-| schemas/automation | AH-P0-02 machine-readable contract schemas; no runtime authority |
-| scripts/harness | Deterministic Planner/Runner, gated Codex adapter, patch-only artifacts and command-scoped safe-directory clone preparation; no product Pilot |
+| schemas/automation | Preserved AH-P0-02 experimental contract schemas; not the default runtime authority |
+| scripts/harness | Preserved experimental Planner/Runner and artifacts; not the default automation path or a product Pilot |
 
 ## Stable IDs and document rules
 

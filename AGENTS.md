@@ -3,8 +3,8 @@ title: Repository Operating Contract
 document_type: guidance
 classification: confirmed fact
 status: Active
-last_verified: 2026-07-31
-related_documents: ["docs/INDEX.md","docs/discovery/decisions.md","docs/discovery/slice-01-current-authority.md","docs/operations/github-workflow.md"]
+last_verified: 2026-08-03
+related_documents: ["docs/INDEX.md","docs/discovery/decisions.md","docs/discovery/slice-01-current-authority.md","docs/operations/github-workflow.md","docs/operations/agent-automation-overview.md"]
 decision_authority: explicit user approvals recorded in decisions.md and repository-owner workflow delegation
 ---
 
@@ -86,6 +86,16 @@ Do not repeat research in specifications. Do not infer UI from architecture. Dra
 ## OMX workflow
 
 Use best-practice-research for official evidence, analyze for repository synthesis, ralplan for trade-offs, prometheus-strict for high-risk stress testing, code-review and ultraqa for documentation verification. Team/implementation workflows require an approved execution scope; do not recreate OMX skills locally.
+
+For new Propscans Agent automation, the default next target is the local Phase 1
+workflow in [Agent automation overview](docs/operations/agent-automation-overview.md):
+native Planner, one task worktree, native Executor, tests, native Architect and
+native Code Reviewer, then one Draft PR, configured Actions and human review.
+Actions failure keeps the PR Draft and returns to fixes and local gates. Initial
+concurrency is one. `scripts/harness/**` and `schemas/automation/**` remain
+preserved experimental reference, not the default orchestration path.
+OpenClaw/Slack are uninstalled future integration and their runtime state never
+overrides the repository SOT.
 
 ## Git safety
 
