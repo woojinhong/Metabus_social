@@ -91,6 +91,36 @@ test("keyboard path and modal focus behavior", async ({ page }) => {
   await expect(page.getByRole("button", { name: "대화상자 닫기" })).toBeFocused();
 });
 
+test("P16 recovers a submitted person only through explicit none withdrawal", async ({ page }) => {
+  await page.goto("/");
+  await applyScenario(page, "Happy path");
+  await page.getByRole("button", { name: "점검 완료" }).click();
+  await page.getByRole("button", { name: "준비됐어요" }).click();
+  await page.getByRole("button", { name: "입장하기" }).click();
+  await page.getByRole("button", { name: "이해했어요" }).click();
+  await page.getByRole("button", { name: "대표 게임 검토 완료" }).click();
+  await page.getByRole("button", { name: "초기 관심 단계 보기" }).click();
+  await page.getByRole("checkbox", { name: /한별님/ }).check();
+  await page.getByRole("button", { name: "내 선택 제출" }).click();
+  await page.getByRole("button", { name: "검토용 다음 단계" }).click();
+  await page.getByRole("button", { name: "공개하지 않기" }).click();
+
+  await page.getByRole("radio", { name: "한별님" }).check();
+  await page.getByRole("button", { name: "내 선택 제출" }).click();
+
+  await expect(page.getByRole("radio", { name: "한별님" })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "다온님" })).toBeDisabled();
+  await page.getByRole("button", { name: "전체 철회해 없음으로" }).click();
+
+  await expect(page.getByRole("radio", { name: "아무도 선택하지 않기" })).toBeChecked();
+  await expect(page.getByText("내 최종 선택을 철회했어요.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 철회해 없음으로" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "내 다음 단계 확인" }).click();
+  await expect(page.getByText("이번에는 다음 음성 대화가 열리지 않았어요.")).toBeVisible();
+  await expect(page.getByText("P18 전환")).toHaveCount(0);
+});
+
 test("automated accessibility smoke check", async ({ page }) => {
   await page.goto("/");
   await applyScenario(page, "공개 동의 거절");
