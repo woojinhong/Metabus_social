@@ -3,12 +3,24 @@ title: Operations Index
 document_type: navigation
 classification: confirmed fact
 status: Active
-last_verified: 2026-08-02
-related_documents: ["../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","../discovery/autonomous-harness-codex-jsonl-usage.md","../discovery/autonomous-harness-codex-cost-budget-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+last_verified: 2026-08-03
+related_documents: ["agent-automation-overview.md","openclaw-omx-workflow.md","agent-lessons.md","../archive/autonomous-harness-experiment.md","../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","../discovery/autonomous-harness-codex-jsonl-usage.md","../discovery/autonomous-harness-codex-cost-budget-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
 # Operations Index
+
+## Agent automation default
+
+- [Agent automation overview](agent-automation-overview.md) makes the
+  Propscans-only local OMX/Codex Phase 1 workflow the default next target.
+- [OpenClaw and OMX workflow](openclaw-omx-workflow.md) defines native role,
+  worktree, test, review and Draft PR gates. Slack/OpenClaw remain uninstalled
+  Phase 2 integration.
+- [Agent automation lessons](agent-lessons.md) is reviewed reference, not
+  automatic policy or execution authority.
+- The [Autonomous Harness experiment inventory](../archive/autonomous-harness-experiment.md)
+  preserves existing code, schemas, tests and evidence outside the default path.
 
 ## Approved policy principles
 
@@ -18,6 +30,9 @@ decision_authority: decisions.md and approved operations policies
 ## Operating guidance and drafts
 
 - [AI runtime](ai-runtime.md) records current repository execution guidance.
+- The Autonomous Harness entries below are historical/experimental reference.
+  They do not restore the custom Runner, WorkGraph or Ledger as the default
+  orchestration path and do not change their recorded approval/run status.
 - [Initial backlog](github-initial-backlog.md) is a reconciled historical/candidate register; it does not override the approved GitHub workflow.
 - [Content operations](content-operations.md), [session operations](session-operations.md), [trust/safety operations](trust-safety-operations.md) and [vendor operations](vendor-operations.md) remain procedure drafts where they conflict with current decisions.
 - [Requirement extraction schema](automation/requirement-schema.md) retains the
@@ -102,8 +117,8 @@ decision_authority: decisions.md and approved operations policies
   schemas. The Planner is merged and remains non-executing. Issue #56 implements
   the Runner foundation without running a Pilot. Issues #58/#60 add fake/local
   adapter and patch-only validation but run no actual Codex Pilot. No
-  Extractor, Project writer, Dispatcher, Runtime
-  Ledger or Critic exists, and product execution remains gated.
+  custom Harness Extractor, Project writer, Dispatcher, Runtime
+  Ledger or Critic implementation exists, and product execution remains gated.
 
 Update procedure drafts after the relevant approval and before live Pilot.
 
