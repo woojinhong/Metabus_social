@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-08-03
-related_documents: ["operations/agent-automation-overview.md","operations/openclaw-omx-workflow.md","operations/agent-lessons.md","archive/autonomous-harness-experiment.md","../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
+related_documents: ["operations/native-agent-phase1-pilot.md","operations/agent-automation-overview.md","operations/openclaw-omx-workflow.md","operations/agent-lessons.md","archive/autonomous-harness-experiment.md","../schemas/automation/requirement.schema.json","discovery/decisions.md","discovery/slice-01-current-authority.md","discovery/autonomous-harness-foundation-approval-plan.md","discovery/autonomous-harness-readonly-planner-authority.md","discovery/autonomous-harness-lightweight-worktree-runner-authority.md","discovery/autonomous-harness-codex-jsonl-usage.md","discovery/autonomous-harness-codex-cost-budget-authority.md","operations/autonomous-harness-readiness-audit-2026-07-31.md","discovery/implementation-contract-promotion-proposal.md","discovery/slice-01-account-session-authorization-plan.md","discovery/slice-01-product-implementation-approval-plan.md","spec/traceability-ux-implementation.md","spec/actor-authorization-contract.md","spec/lifecycle-contract.md","spec/realtime-contract.md","spec/api-contract.md","spec/data-contract.md","spec/ux/README.md","operations/github-workflow.md","wiki/README.md"]
 decision_authority: discovery/decisions.md, Issue #7 documentation-phase approval and repository-owner workflow delegation
 ---
 
@@ -33,6 +33,7 @@ operation remain separately gated.
 9. [Wiki](wiki/README.md) and [Korean owner overview](../korea.md) for non-authoritative navigation.
 
 For new Agent automation work, read the
+[Native Agent Phase 1 Pilot runbook](operations/native-agent-phase1-pilot.md),
 [Agent automation overview](operations/agent-automation-overview.md), the
 [OpenClaw and OMX workflow](operations/openclaw-omx-workflow.md) and the
 [Agent lessons](operations/agent-lessons.md). The default next target is the
