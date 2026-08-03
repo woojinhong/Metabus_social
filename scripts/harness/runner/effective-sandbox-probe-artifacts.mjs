@@ -117,7 +117,7 @@ export function createEffectiveSandboxProbeArtifactWriter({
               `- Verification error: \`${resultRecord.verification_error_code ?? "none"}\``,
               `- Usage verified: ${resultRecord.usage_verified}`,
               `- Tokens/external/process calls: ${resultRecord.total_tokens ?? "unverified"} / ${resultRecord.external_calls ?? "unverified"} / ${resultRecord.process_calls ?? "unverified"}`,
-              "- Captured stdout/stderr were secret-redacted before durable storage.",
+              "- Captured JSONL was structurally redacted and stderr was secret-redacted before durable storage.",
               "- Inventory records only event type, item type, ID, status, and counts.",
               "",
             ].join("\n");

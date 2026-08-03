@@ -1,0 +1,28 @@
+{
+  "record_kind": "SANITIZED_PRESERVED_PROBE_EVIDENCE",
+  "terminal_state": "FAILED_BUDGET",
+  "external_calls": 2,
+  "mcp_calls": [
+    {
+      "id": "mcp-discovery-a",
+      "server": "node_repl",
+      "tool": "js",
+      "purpose": "repository_guidance_read"
+    },
+    {
+      "id": "mcp-discovery-b",
+      "server": "node_repl",
+      "tool": "js",
+      "purpose": "parent_directory_guidance_search"
+    }
+  ],
+  "probe_target_created": true,
+  "boundary_parser_error": "MissingCatchOrFinally",
+  "boundary_write_denied": false,
+  "actual_worker_started": false,
+  "publisher_calls": 0,
+  "source_paths_recorded": false,
+  "source_prompt_recorded": false,
+  "source_command_recorded": false,
+  "source_session_or_thread_ids_recorded": false
+}

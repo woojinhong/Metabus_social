@@ -154,6 +154,22 @@ function asRunnerError(error) {
   return error;
 }
 
+const PROBE_FAILURE_PRECEDENCE = new Map([
+  ["RUNNER_CODEX_USAGE_UNVERIFIED", 50],
+  ["RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION", 40],
+  ["RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED", 30],
+  ["RUNNER_TOKEN_BUDGET_EXCEEDED", 20],
+  ["RUNNER_BUDGET_EXCEEDED", 20],
+  ["RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH", 10],
+  ["RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED", 10],
+]);
+
+function higherPriorityProbeFailure(current, candidate) {
+  const currentRank = PROBE_FAILURE_PRECEDENCE.get(current?.code) ?? 0;
+  const candidateRank = PROBE_FAILURE_PRECEDENCE.get(candidate?.code) ?? 0;
+  return candidateRank > currentRank ? candidate : current;
+}
+
 function assertWorkerUsage(result, budget, aggregate) {
   const usage = result.usage;
   const usageVerified = usage?.verified === true
@@ -482,7 +498,10 @@ export async function runLightweightRunner({
           "RUNNER_TOKEN_BUDGET_EXCEEDED",
           "RUNNER_EXTERNAL_CALL_BUDGET_EXCEEDED",
           "RUNNER_CODEX_USAGE_UNVERIFIED",
-        ].includes(usageError.code)) effectiveError = usageError;
+        ].includes(usageError.code)) {
+          probeBudgetResult = usageError.details?.budget_result ?? null;
+          effectiveError = higherPriorityProbeFailure(effectiveError, usageError);
+        }
       }
     }
     const runnerError = asRunnerError(effectiveError);

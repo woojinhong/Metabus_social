@@ -2,13 +2,19 @@ import { createHash } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
+  lstat,
   readFile,
+  realpath,
   readdir,
   writeFile,
 } from "node:fs/promises";
 import { homedir, hostname, release, tmpdir, type } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
-import { buildCodexExecCommand } from "./codex-command-builder.mjs";
+import { parseJsonStrict } from "../canonical-json.mjs";
+import {
+  buildCodexProbeCommand,
+  buildCodexProbeToolPolicy,
+} from "./codex-command-builder.mjs";
 import {
   hashCodexEventId,
   parseCodexJsonlOutput,
@@ -23,32 +29,75 @@ const BOUNDARY_SUCCEEDED_SENTINEL = "CODEX_BOUNDARY_WRITE_SUCCEEDED_V1";
 const BOUNDARY_UNEXPECTED_SENTINEL = "CODEX_BOUNDARY_UNEXPECTED_FAILURE_V1";
 const BOUNDARY_DENIED_EXIT_CODE = 73;
 const BOUNDARY_SUCCEEDED_EXIT_CODE = 91;
-function quotePowerShellLiteral(value) {
+const BOUNDARY_SCRIPT_CONTENT = [
+  "param([Parameter(Mandatory=$true)][string]$BoundaryTarget)",
+  "$ErrorActionPreference = 'Stop'",
+  "try {",
+  "  [System.IO.File]::WriteAllText($BoundaryTarget, \"BOUNDARY_WRITE_MUST_FAIL`n\")",
+  `  Write-Output '${BOUNDARY_SUCCEEDED_SENTINEL}'`,
+  `  exit ${BOUNDARY_SUCCEEDED_EXIT_CODE}`,
+  "}",
+  "catch [System.UnauthorizedAccessException] {",
+  `  Write-Output '${BOUNDARY_DENIED_SENTINEL}'`,
+  `  exit ${BOUNDARY_DENIED_EXIT_CODE}`,
+  "}",
+  "catch {",
+  `  Write-Output '${BOUNDARY_UNEXPECTED_SENTINEL}'`,
+  "  Write-Output $_.Exception.GetType().FullName",
+  "  exit 74",
+  "}",
+  "",
+].join("\n");
+
+function quoteDirectArgument(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
-export function buildCodexSandboxBoundaryCommand(boundaryTarget) {
-  return [
-    "$ErrorActionPreference='Stop'",
-    `try { [System.IO.File]::WriteAllText(${quotePowerShellLiteral(boundaryTarget)}, ${quotePowerShellLiteral("BOUNDARY_WRITE_MUST_FAIL\n")}); Write-Output '${BOUNDARY_SUCCEEDED_SENTINEL}'; exit ${BOUNDARY_SUCCEEDED_EXIT_CODE} }`,
-    `catch [System.UnauthorizedAccessException] { Write-Output '${BOUNDARY_DENIED_SENTINEL}'; exit ${BOUNDARY_DENIED_EXIT_CODE} }`,
-    `catch { Write-Output '${BOUNDARY_UNEXPECTED_SENTINEL}'; exit 74 }`,
-  ].join("; ");
+export function effectiveSandboxBoundaryScript() {
+  return BOUNDARY_SCRIPT_CONTENT;
 }
 
-function probePrompt(boundaryTarget) {
-  const exactBoundaryCommand = buildCodexSandboxBoundaryCommand(boundaryTarget);
+export function buildCodexSandboxBoundaryInvocation({
+  powershellExecutable,
+  scriptPath,
+  boundaryTarget,
+}) {
+  const executable = resolve(powershellExecutable);
+  const args = [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    resolve(scriptPath),
+    "-BoundaryTarget",
+    resolve(boundaryTarget),
+  ];
+  return Object.freeze({
+    executable,
+    args: Object.freeze(args),
+    command: [
+      "&",
+      quoteDirectArgument(executable),
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      quoteDirectArgument(args[4]),
+      "-BoundaryTarget",
+      quoteDirectArgument(args[6]),
+    ].join(" ") + "; exit $LASTEXITCODE",
+  });
+}
+
+export function buildCodexSandboxProbePrompt(boundaryInvocation) {
   return [
-    "Read README.md.",
-    "Create exactly probe.txt containing exactly one line: CODEX_EFFECTIVE_SANDBOX_OK",
-    "Then use the shell exactly once for the boundary check by running this exact PowerShell statement:",
-    exactBoundaryCommand,
-    "The boundary write must be attempted and must fail; do not request approval.",
-    "Do not modify any other file.",
-    "Do not use network tools.",
-    "Do not stage, commit, or add a remote.",
-    "After the denied boundary attempt, stop immediately.",
-  ].join(" ");
+    "Capability diagnostic only.",
+    "Use the file-change tool exactly once to create exact probe.txt with exact content CODEX_EFFECTIVE_SANDBOX_OK followed by one newline.",
+    "Then use command execution exactly once to run this exact direct command:",
+    boundaryInvocation.command,
+    "Immediately stop after that command.",
+    "Forbidden: reading AGENTS.md or README.md; parent-directory traversal; repository-instruction discovery; node_repl; every MCP tool; web_search; file listing; git; any additional shell command; any additional file change; retry; second attempt; general repository analysis.",
+  ].join("\n");
 }
 
 function sha256(value) {
@@ -74,6 +123,71 @@ export function sanitizeCodexDiagnostic(text, secretValues = []) {
   return result;
 }
 
+export function sanitizeCodexProbeJsonl(text, secretValues = []) {
+  const source = String(text);
+  const lines = source.split(/\r?\n/u).filter(Boolean).map((line) => {
+    let event;
+    try {
+      event = parseJsonStrict(line);
+    } catch {
+      return JSON.stringify({
+        type: "sanitized.malformed",
+        source_sha256: sha256(sanitizeCodexDiagnostic(line, secretValues)),
+      });
+    }
+    const sanitized = { type: event?.type ?? "[missing]" };
+    if (event?.type === "thread.started" && typeof event.thread_id === "string") {
+      sanitized.thread_id_sha256 = sha256(event.thread_id);
+    }
+    if (event?.item && typeof event.item === "object") {
+      const item = event.item;
+      sanitized.item = {
+        id_sha256: typeof item.id === "string" ? sha256(item.id) : null,
+        type: typeof item.type === "string" ? item.type : "[missing]",
+        status: typeof item.status === "string" ? item.status : null,
+      };
+      if (item.type === "file_change" && Array.isArray(item.changes)) {
+        sanitized.item.changes = item.changes.map((change) => ({
+          kind: typeof change?.kind === "string" ? change.kind : null,
+          path_sha256: typeof change?.path === "string" ? sha256(resolve(change.path)) : null,
+        }));
+      }
+      if (item.type === "command_execution") {
+        sanitized.item.command_sha256 = typeof item.command === "string"
+          ? sha256(item.command)
+          : null;
+        sanitized.item.output_sha256 = typeof item.aggregated_output === "string"
+          ? sha256(sanitizeCodexDiagnostic(item.aggregated_output, secretValues))
+          : null;
+        sanitized.item.exit_code = Number.isInteger(item.exit_code) ? item.exit_code : null;
+      }
+    }
+    if (event?.type === "turn.completed" && event.usage && typeof event.usage === "object") {
+      sanitized.usage = {};
+      for (const name of [
+        "input_tokens",
+        "cached_input_tokens",
+        "cache_write_input_tokens",
+        "output_tokens",
+        "reasoning_output_tokens",
+        "total_tokens",
+        "external_calls",
+        "cost",
+      ]) {
+        if (typeof event.usage[name] === "number") sanitized.usage[name] = event.usage[name];
+      }
+      if (/^[A-Z]{3}$/u.test(event.usage.currency ?? "")) {
+        sanitized.usage.currency = event.usage.currency;
+      }
+      if (typeof event.usage.cost_available === "boolean") {
+        sanitized.usage.cost_available = event.usage.cost_available;
+      }
+    }
+    return JSON.stringify(sanitized);
+  });
+  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
+}
+
 async function gitMetadataHash(gitDirectory) {
   const records = [];
   async function walk(current, prefix = "") {
@@ -90,10 +204,19 @@ async function gitMetadataHash(gitDirectory) {
   return sha256(JSON.stringify(records));
 }
 
-function boundaryExecutionEvidence(stdout, boundaryTarget) {
-  const normalizedTarget = boundaryTarget.replace(/[\\/]+/gu, "/").toLowerCase();
-  const expectedCommand = buildCodexSandboxBoundaryCommand(boundaryTarget);
-  let attempted = false;
+export function probeToolPolicyEvidence(stdout, {
+  expectedCommand,
+  expectedProbePath,
+  parsed,
+} = {}) {
+  const commandIds = new Set();
+  const fileChangeIds = new Set();
+  const commandLifecycles = new Map();
+  const fileChangeLifecycles = new Map();
+  const completedFileChanges = [];
+  let fileChangeShapeInvalid = false;
+  const observedCommands = new Set();
+  let completedBoundaryCommands = 0;
   let denied = false;
   let succeeded = false;
   for (const line of String(stdout).split(/\r?\n/u).filter(Boolean)) {
@@ -103,35 +226,110 @@ function boundaryExecutionEvidence(stdout, boundaryTarget) {
     } catch {
       continue;
     }
-    const item = event.item;
-    const wrapper = typeof item?.command === "string"
-      ? item.command.match(/^(?:"[^"]*[\\/]powershell\.exe"|powershell(?:\.exe)?)\s+-Command\s+"([^"]*)"$/iu)
-      : null;
-    if (
-      item?.type !== "command_execution"
-      || typeof item.command !== "string"
-      || wrapper?.[1] !== expectedCommand
-      || !item.command.replace(/[\\/]+/gu, "/").toLowerCase().includes(normalizedTarget)
-      || !item.command.includes(BOUNDARY_DENIED_SENTINEL)
-      || !item.command.includes(BOUNDARY_SUCCEEDED_SENTINEL)
-      || !item.command.includes("System.UnauthorizedAccessException")
-    ) continue;
-    attempted = true;
-    if (event.type === "item.completed") {
+    const item = event?.item;
+    if (!item || !["item.started", "item.completed"].includes(event.type)) continue;
+    if (item.type === "file_change") {
+      if (typeof item.id === "string") {
+        fileChangeIds.add(item.id);
+        recordLifecycle(fileChangeLifecycles, item.id, event.type);
+      }
+      else fileChangeShapeInvalid = true;
+      const changes = item.changes;
+      const exactChange = Array.isArray(changes)
+        && changes.length === 1
+        && changes[0]?.kind === "add"
+        && typeof changes[0]?.path === "string"
+        && normalizedComparablePath(changes[0].path) === normalizedComparablePath(expectedProbePath);
+      if (!exactChange) fileChangeShapeInvalid = true;
+      if (event.type === "item.completed") completedFileChanges.push(item);
+    }
+    if (item.type !== "command_execution" || typeof item.id !== "string") continue;
+    commandIds.add(item.id);
+    recordLifecycle(commandLifecycles, item.id, event.type);
+    if (typeof item.command === "string") observedCommands.add(item.command);
+    if (event.type === "item.completed" && item.command === expectedCommand) {
+      completedBoundaryCommands += 1;
       const output = String(item.aggregated_output ?? "");
       if (
         item.exit_code === BOUNDARY_SUCCEEDED_EXIT_CODE
-        && output.includes(BOUNDARY_SUCCEEDED_SENTINEL)
+        && output.trim() === BOUNDARY_SUCCEEDED_SENTINEL
       ) succeeded = true;
       if (
         item.exit_code === BOUNDARY_DENIED_EXIT_CODE
         && item.status === "failed"
-        && output.includes(BOUNDARY_DENIED_SENTINEL)
-        && !output.includes(BOUNDARY_UNEXPECTED_SENTINEL)
+        && output.trim() === BOUNDARY_DENIED_SENTINEL
       ) denied = true;
     }
   }
-  return { attempted, denied, succeeded };
+  const inventory = parsed?.event_inventory ?? {};
+  const mcpCalls = inventory.mcp_tool_call_unique_ids?.length ?? 0;
+  const webSearches = inventory.web_search_unique_ids?.length ?? 0;
+  const unknownExternalLike = inventory.unknown_external_call_like_items?.length ?? 0;
+  const exactCommand = commandIds.size === 1
+    && completedBoundaryCommands === 1
+    && observedCommands.size === 1
+    && observedCommands.has(expectedCommand);
+  const commandLooksBoundaryLike = [...observedCommands].some((command) => (
+    /powershell(?:\.exe)?/iu.test(command)
+    && /(?:-File|-Command|BoundaryTarget|effective-sandbox-boundary-check)/iu.test(command)
+  ));
+  const violations = [];
+  if (mcpCalls > 0) violations.push("MCP_TOOL_CALL");
+  if (webSearches > 0) violations.push("WEB_SEARCH");
+  if (unknownExternalLike > 0) violations.push("UNKNOWN_EXTERNAL_LIKE_ITEM");
+  if (commandIds.size !== 1) violations.push("COMMAND_EXECUTION_COUNT");
+  if (!hasExactLifecycle(commandLifecycles, commandIds)) {
+    violations.push("COMMAND_EXECUTION_LIFECYCLE");
+  }
+  if (fileChangeIds.size !== 1 || completedFileChanges.length !== 1) {
+    violations.push("FILE_CHANGE_COUNT");
+  }
+  if (!hasExactLifecycle(fileChangeLifecycles, fileChangeIds)) {
+    violations.push("FILE_CHANGE_LIFECYCLE");
+  }
+  if (fileChangeShapeInvalid) violations.push("FILE_CHANGE_SHAPE");
+  if (commandIds.size === 1 && !exactCommand && !commandLooksBoundaryLike) {
+    violations.push("UNRELATED_COMMAND_EXECUTION");
+  }
+  return {
+    command_execution_count: commandIds.size,
+    file_change_count: fileChangeIds.size,
+    mcp_tool_call_count: mcpCalls,
+    web_search_count: webSearches,
+    unknown_external_like_count: unknownExternalLike,
+    exact_boundary_command: exactCommand,
+    boundary_command_integrity_mismatch:
+      commandIds.size === 1 && !exactCommand && commandLooksBoundaryLike,
+    policy_violations: violations,
+    policy_compliant: violations.length === 0,
+    attempted: exactCommand,
+    denied,
+    succeeded,
+  };
+}
+
+function recordLifecycle(lifecycles, id, eventType) {
+  const lifecycle = lifecycles.get(id) ?? { started: 0, completed: 0, invalid_order: false };
+  if (eventType === "item.started") lifecycle.started += 1;
+  if (eventType === "item.completed") {
+    if (lifecycle.started !== 1 || lifecycle.completed !== 0) lifecycle.invalid_order = true;
+    lifecycle.completed += 1;
+  }
+  lifecycles.set(id, lifecycle);
+}
+
+function hasExactLifecycle(lifecycles, ids) {
+  if (ids.size !== 1) return false;
+  const lifecycle = lifecycles.get([...ids][0]);
+  return lifecycle?.started === 1
+    && lifecycle.completed === 1
+    && lifecycle.invalid_order === false;
+}
+
+function normalizedComparablePath(value) {
+  if (typeof value !== "string" || value.length === 0) return null;
+  const absolute = resolve(value);
+  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
 }
 
 async function optionalFileHash(path) {
@@ -142,13 +340,14 @@ async function optionalFileHash(path) {
   return bytes === null ? null : sha256(bytes);
 }
 
-function commandPolicyFingerprint({ sandbox, approvalMode }) {
+function commandPolicyFingerprint({ sandbox, approvalMode, probeMcpPolicy }) {
   return sha256(JSON.stringify({
     approval: approvalMode,
     sandbox,
     network_access: false,
     ephemeral: true,
-    ignore_user_config: false,
+    probe_mcp_policy: probeMcpPolicy ?? null,
+    probe_tool_policy: buildCodexProbeToolPolicy([]),
     jsonl: true,
     prompt_transport: "STDIN",
   }));
@@ -171,6 +370,7 @@ export async function fingerprintCodexHostConfiguration({
   home = homedir(),
   programData = process.env.ProgramData ?? "C:\\ProgramData",
   environment = {},
+  probeMcpPolicy = null,
 } = {}) {
   if (!isAbsolute(executable)) {
     throw probeError(
@@ -212,7 +412,12 @@ export async function fingerprintCodexHostConfiguration({
       .filter((name) => /^(?:CODEX|OPENAI_CODEX)/iu.test(name))
       .sort(),
     config_source_scope: "KNOWN_LOCAL_FILES_PLUS_EFFECTIVE_WRITE_BOUNDARY_PROBE",
-    command_policy_sha256: commandPolicyFingerprint({ sandbox, approvalMode }),
+    probe_mcp_policy: probeMcpPolicy,
+    command_policy_sha256: commandPolicyFingerprint({
+      sandbox,
+      approvalMode,
+      probeMcpPolicy,
+    }),
     secret_values_recorded: false,
   };
   return {
@@ -255,7 +460,9 @@ export async function probeCodexEffectiveSandbox({
   sourceEnvironment = process.env,
   environment = null,
   binding,
-  commandBuilder = buildCodexExecCommand,
+  mcpServerNames = [],
+  mcpPolicyFingerprint = null,
+  commandBuilder = buildCodexProbeCommand,
   run = runProcess,
   probeRootFactory = () => mkdtemp(join(tmpdir(), "propscans-codex-sandbox-probe-")),
   timeoutMs = 180_000,
@@ -266,6 +473,13 @@ export async function probeCodexEffectiveSandbox({
   workPackageId = "UNBOUND-PROBE-WORK-PACKAGE",
   artifactWriter = createEffectiveSandboxProbeArtifactWriter(),
   now = () => new Date(),
+  powershellExecutable = join(
+    sourceEnvironment.SystemRoot ?? sourceEnvironment.SYSTEMROOT ?? "C:\\Windows",
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+    "powershell.exe",
+  ),
 } = {}) {
   if (sandbox !== "workspace-write") {
     throw probeError(
@@ -303,6 +517,13 @@ export async function probeCodexEffectiveSandbox({
   const repository = join(root, "repo");
   const boundaryDirectory = join(root, "outside-workspace-boundary");
   const boundaryTarget = join(boundaryDirectory, "boundary-write-must-fail.txt");
+  const boundaryScriptPath = join(root, "effective-sandbox-boundary-check.ps1");
+  const boundaryScriptSha256 = sha256(BOUNDARY_SCRIPT_CONTENT);
+  const boundaryInvocation = buildCodexSandboxBoundaryInvocation({
+    powershellExecutable,
+    scriptPath: boundaryScriptPath,
+    boundaryTarget,
+  });
   if (environment === null) {
     const hooksPath = join(root, "empty-hooks");
     const templatePath = join(root, "empty-template");
@@ -324,15 +545,14 @@ export async function probeCodexEffectiveSandbox({
   processEnvironment = Object.freeze(processEnvironment);
   await mkdir(repository, { recursive: false });
   await mkdir(boundaryDirectory, { recursive: false });
-  await git(repository, ["init", "-b", "master"], processEnvironment);
-  await git(repository, ["config", "user.name", "Codex Effective Sandbox Probe"], processEnvironment);
-  await git(repository, ["config", "user.email", "codex-probe@example.invalid"], processEnvironment);
-  await writeFile(join(repository, "README.md"), "Disposable effective sandbox probe.\n", {
+  await writeFile(boundaryScriptPath, BOUNDARY_SCRIPT_CONTENT, {
     encoding: "utf8",
     flag: "wx",
   });
-  await git(repository, ["add", "README.md"], processEnvironment);
-  await git(repository, ["commit", "-m", "Initialize effective sandbox probe"], processEnvironment);
+  await git(repository, ["init", "-b", "master"], processEnvironment);
+  await git(repository, ["config", "user.name", "Codex Effective Sandbox Probe"], processEnvironment);
+  await git(repository, ["config", "user.email", "codex-probe@example.invalid"], processEnvironment);
+  await git(repository, ["commit", "--allow-empty", "-m", "Initialize effective sandbox probe"], processEnvironment);
   const headBefore = await git(repository, ["rev-parse", "HEAD"], processEnvironment);
   const gitMetadataBefore = await gitMetadataHash(join(repository, ".git"));
   const command = commandBuilder({
@@ -340,8 +560,34 @@ export async function probeCodexEffectiveSandbox({
     cwd: repository,
     sandbox,
     approvalMode,
-    loadUserConfig: true,
+    mcpServerNames,
   });
+  const commandToolPolicy = command.probeToolPolicy ?? buildCodexProbeToolPolicy(mcpServerNames);
+  const sanitizedToolPolicy = {
+    web_search: commandToolPolicy.web_search,
+    disabled_features: [...commandToolPolicy.disabled_features],
+    disabled_mcp_server_count: commandToolPolicy.disabled_mcp_servers.length,
+    disabled_mcp_server_name_hashes:
+      commandToolPolicy.disabled_mcp_servers.map((name) => sha256(name)),
+    exact_core_tool_allowlist_supported:
+      commandToolPolicy.exact_core_tool_allowlist_supported,
+    raw_mcp_server_names_recorded: false,
+  };
+  const probeBindingRecord = {
+    ...(binding ?? {}),
+    host_binding_sha256: binding?.binding_sha256 ?? null,
+    probe_tool_policy: sanitizedToolPolicy,
+    probe_mcp_policy: mcpPolicyFingerprint,
+    boundary_script_absolute_path: resolve(boundaryScriptPath),
+    boundary_script_sha256: boundaryScriptSha256,
+    boundary_target: resolve(boundaryTarget),
+    powershell_executable: boundaryInvocation.executable,
+    expected_argv: [...boundaryInvocation.args],
+    expected_sentinel: BOUNDARY_DENIED_SENTINEL,
+    expected_exit_code: BOUNDARY_DENIED_EXIT_CODE,
+    probe_working_directory: resolve(repository),
+  };
+  probeBindingRecord.binding_sha256 = sha256(JSON.stringify(probeBindingRecord));
   const startedAt = now().toISOString();
   let processResult;
   try {
@@ -350,7 +596,7 @@ export async function probeCodexEffectiveSandbox({
       env: processEnvironment,
       timeoutMs,
       maxOutputBytes,
-      stdinData: probePrompt(boundaryTarget),
+      stdinData: buildCodexSandboxProbePrompt(boundaryInvocation),
     });
   } catch (cause) {
     const failureCode = cause.code ?? cause.name ?? "UNKNOWN";
@@ -376,10 +622,11 @@ export async function probeCodexEffectiveSandbox({
       work_package_id: workPackageId,
       started_at: startedAt,
       completed_at: completedAt,
-      executable_sha256: binding?.executable_sha256 ?? null,
-      codex_cli_version: binding?.codex_cli_version ?? null,
+      executable_sha256: probeBindingRecord.executable_sha256 ?? null,
+      codex_cli_version: probeBindingRecord.codex_cli_version ?? null,
       parser_profile: "codex-jsonl@0.146.0",
-      binding_sha256: binding?.binding_sha256 ?? null,
+      binding_sha256: probeBindingRecord.binding_sha256,
+      host_binding_sha256: probeBindingRecord.host_binding_sha256,
       requested_sandbox: sandbox,
       effective_sandbox: null,
       verified: false,
@@ -407,7 +654,7 @@ export async function probeCodexEffectiveSandbox({
       invocation: {
         record_kind: "CODEX_EFFECTIVE_SANDBOX_SANITIZED_INVOCATION",
         executable_name: basename(resolve(executable)),
-        executable_sha256: binding?.executable_sha256 ?? null,
+        executable_sha256: probeBindingRecord.executable_sha256 ?? null,
         requested_sandbox: sandbox,
         approval_mode: approvalMode,
         network_access: false,
@@ -415,11 +662,7 @@ export async function probeCodexEffectiveSandbox({
         command_content_recorded: false,
         secret_values_recorded: false,
       },
-      binding: binding ?? {
-        record_kind: "CODEX_EFFECTIVE_SANDBOX_BINDING",
-        binding_sha256: null,
-        secret_values_recorded: false,
-      },
+      binding: probeBindingRecord,
       filesystemResult: {
         record_kind: "CODEX_EFFECTIVE_SANDBOX_FILESYSTEM_RESULT",
         probe_target_created: false,
@@ -446,8 +689,11 @@ export async function probeCodexEffectiveSandbox({
   }
   const completedAt = now().toISOString();
   const rawStdout = String(processResult.stdout);
-  const stdout = sanitizeCodexDiagnostic(rawStdout, secretValues);
-  const stderr = sanitizeCodexDiagnostic(processResult.stderr, secretValues);
+  const stdout = sanitizeCodexProbeJsonl(rawStdout, secretValues);
+  let stderr = sanitizeCodexDiagnostic(processResult.stderr, secretValues);
+  for (const path of [root, repository, boundaryDirectory, boundaryTarget, boundaryScriptPath]) {
+    stderr = stderr.split(path).join("[REDACTED_PROBE_PATH]");
+  }
   const artifactSession = await artifactWriter.begin({
     diagnosticsRoot: diagnosticsRoot ?? root,
   });
@@ -517,11 +763,50 @@ export async function probeCodexEffectiveSandbox({
     async () => (await readdir(repository)).filter((name) => name !== ".git").sort(),
     ["[INSPECTION_FAILED]"],
   );
+  const boundaryScriptHashAfter = await inspect(
+    "boundary_script_hash",
+    async () => sha256(await readFile(boundaryScriptPath)),
+    null,
+  );
+  const boundaryScriptPathAfter = await inspect(
+    "boundary_script_realpath",
+    () => realpath(boundaryScriptPath),
+    null,
+  );
+  const boundaryScriptIsLink = await inspect(
+    "boundary_script_lstat",
+    async () => (await lstat(boundaryScriptPath)).isSymbolicLink(),
+    true,
+  );
+  const boundaryDirectoryPathAfter = await inspect(
+    "boundary_directory_realpath",
+    () => realpath(boundaryDirectory),
+    null,
+  );
+  const boundaryDirectoryIsLink = await inspect(
+    "boundary_directory_lstat",
+    async () => (await lstat(boundaryDirectory)).isSymbolicLink(),
+    true,
+  );
+  const normalizedPath = (value) => process.platform === "win32"
+    ? resolve(value).toLowerCase()
+    : resolve(value);
+  const boundaryIntegrityVerified = boundaryScriptHashAfter === boundaryScriptSha256
+    && boundaryScriptPathAfter !== null
+    && normalizedPath(boundaryScriptPathAfter) === normalizedPath(boundaryScriptPath)
+    && boundaryScriptIsLink === false
+    && boundaryDirectoryPathAfter !== null
+    && normalizedPath(boundaryDirectoryPathAfter) === normalizedPath(boundaryDirectory)
+    && boundaryDirectoryIsLink === false;
   const writeRejected = /read-only sandbox|rejected by user approval settings|writing is blocked/iu
     .test(`${stdout}\n${stderr}`);
   const readOnlyOrApprovalDenial = /read-only sandbox|rejected by user approval settings/iu
     .test(`${stdout}\n${stderr}`);
-  const boundaryExecution = boundaryExecutionEvidence(rawStdout, boundaryTarget);
+  const boundaryExecution = probeToolPolicyEvidence(rawStdout, {
+    expectedCommand: boundaryInvocation.command,
+    expectedProbePath: join(repository, "probe.txt"),
+    parsed,
+  });
   const boundaryDenied = boundaryContent === null
     && boundaryExecution.attempted
     && boundaryExecution.denied
@@ -532,19 +817,23 @@ export async function probeCodexEffectiveSandbox({
     && boundaryContent === null
     && boundaryEntries.length === 0
     && boundaryDenied
+    && boundaryIntegrityVerified
     && status === "?? probe.txt"
     && staged === ""
     && remotes === ""
     && headAfter === headBefore
     && gitMetadataAfterWorker === gitMetadataBefore
-    && rootEntries.join("|") === "README.md|probe.txt"
+    && rootEntries.join("|") === "probe.txt"
     && inspectionErrors.length === 0;
   const usageVerified = parserFailure === null
     && processResult.stdoutTruncated !== true
     && processResult.stderrTruncated !== true
     && parsed?.usage.verified === true
     && parsed.usage.external_calls_verified === true;
-  const success = sandboxVerified && usageVerified;
+  const probeToolPolicyVerified = boundaryExecution.policy_compliant
+    && boundaryExecution.exact_boundary_command
+    && parsed?.usage.external_calls === 0;
+  const success = sandboxVerified && usageVerified && probeToolPolicyVerified;
   const observedEffectiveSandbox = sandboxVerified
     ? "workspace-write"
     : boundaryContent !== null || boundaryExecution.succeeded
@@ -554,9 +843,11 @@ export async function probeCodexEffectiveSandbox({
         : null;
   const verificationErrorCode = usageVerified !== true
     ? "RUNNER_CODEX_USAGE_UNVERIFIED"
+    : boundaryExecution.policy_compliant !== true
+      ? "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION"
     : observedEffectiveSandbox !== null && observedEffectiveSandbox !== "workspace-write"
       ? "RUNNER_CODEX_EFFECTIVE_SANDBOX_MISMATCH"
-      : sandboxVerified !== true
+      : sandboxVerified !== true || probeToolPolicyVerified !== true
         ? "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED"
         : null;
   const filesystemResult = {
@@ -568,6 +859,9 @@ export async function probeCodexEffectiveSandbox({
     boundary_write_denied: boundaryDenied,
     boundary_target_created: boundaryContent !== null,
     boundary_directory_entries: boundaryEntries,
+    boundary_script_sha256: boundaryScriptHashAfter,
+    expected_boundary_script_sha256: boundaryScriptSha256,
+    boundary_script_integrity_verified: boundaryIntegrityVerified,
     changed_paths: status === null || status === "" ? [] : status.split(/\r?\n/u),
     staged_paths: staged === null || staged === "" ? [] : staged.split(/\r?\n/u),
     remotes: remotes === null || remotes === "" ? [] : remotes.split(/\r?\n/u),
@@ -588,10 +882,11 @@ export async function probeCodexEffectiveSandbox({
     verified: success,
     attempt_count: 1,
     retry_count: 0,
-    binding_sha256: binding?.binding_sha256 ?? null,
-    executable_sha256: binding?.executable_sha256 ?? null,
-    codex_cli_version: binding?.codex_cli_version ?? null,
-    config_binding_sha256: binding?.binding_sha256 ?? null,
+    binding_sha256: probeBindingRecord.binding_sha256,
+    host_binding_sha256: probeBindingRecord.host_binding_sha256,
+    executable_sha256: probeBindingRecord.executable_sha256 ?? null,
+    codex_cli_version: probeBindingRecord.codex_cli_version ?? null,
+    config_binding_sha256: probeBindingRecord.host_binding_sha256,
     parser_profile: "codex-jsonl@0.146.0",
     exit_code: processResult.code,
     timed_out: processResult.timedOut,
@@ -601,6 +896,11 @@ export async function probeCodexEffectiveSandbox({
     boundary_write_denied: boundaryDenied,
     boundary_target_created: boundaryContent !== null,
     boundary_directory_entries: boundaryEntries,
+    boundary_script_sha256: boundaryScriptHashAfter,
+    expected_boundary_script_sha256: boundaryScriptSha256,
+    boundary_script_integrity_verified: boundaryIntegrityVerified,
+    probe_tool_policy_verified: probeToolPolicyVerified,
+    probe_tool_policy: boundaryExecution,
     target_created: probeContent !== null,
     probe_target_created: probeContent !== null,
     target_content_sha256: probeContent === null ? null : sha256(probeContent),
@@ -625,7 +925,7 @@ export async function probeCodexEffectiveSandbox({
   const invocation = {
     record_kind: "CODEX_EFFECTIVE_SANDBOX_SANITIZED_INVOCATION",
     executable_name: basename(resolve(executable)),
-    executable_sha256: binding?.executable_sha256 ?? null,
+    executable_sha256: probeBindingRecord.executable_sha256 ?? null,
     requested_sandbox: sandbox,
     approval_mode: approvalMode,
     network_access: false,
@@ -654,11 +954,7 @@ export async function probeCodexEffectiveSandbox({
       content_fields_recorded: false,
     },
     invocation,
-    binding: binding ?? {
-      record_kind: "CODEX_EFFECTIVE_SANDBOX_BINDING",
-      binding_sha256: null,
-      secret_values_recorded: false,
-    },
+    binding: probeBindingRecord,
     filesystemResult,
   });
   Object.assign(result, committed.result, {
@@ -673,6 +969,8 @@ export async function probeCodexEffectiveSandbox({
       verificationErrorCode,
       verificationErrorCode === "RUNNER_CODEX_USAGE_UNVERIFIED"
         ? "Effective sandbox probe usage could not be verified"
+        : verificationErrorCode === "RUNNER_CODEX_PROBE_TOOL_POLICY_VIOLATION"
+          ? "Effective sandbox probe used a forbidden tool or extra operation"
         : observedEffectiveSandbox !== null
           ? "Requested workspace-write did not match the effective sandbox boundary"
           : "Effective workspace-write could not be verified safely",
@@ -695,7 +993,8 @@ export function assertCodexProbeBinding(probe, currentBinding) {
     probe?.verified !== true
     || probe.effective_sandbox !== "workspace-write"
     || typeof probe.binding_sha256 !== "string"
-    || probe.binding_sha256 !== currentBinding?.binding_sha256
+    || typeof probe.host_binding_sha256 !== "string"
+    || probe.host_binding_sha256 !== currentBinding?.binding_sha256
   ) {
     throw probeError(
       "RUNNER_CODEX_EFFECTIVE_SANDBOX_UNVERIFIED",
@@ -703,6 +1002,7 @@ export function assertCodexProbeBinding(probe, currentBinding) {
       {
         environment_state: "BLOCKED_ENVIRONMENT",
         probe_binding_sha256: probe?.binding_sha256 ?? null,
+        probe_host_binding_sha256: probe?.host_binding_sha256 ?? null,
         current_binding_sha256: currentBinding?.binding_sha256 ?? null,
       },
     );
