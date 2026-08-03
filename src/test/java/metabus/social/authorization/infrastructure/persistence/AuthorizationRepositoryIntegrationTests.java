@@ -73,23 +73,187 @@ class AuthorizationRepositoryIntegrationTests extends PostgresIntegrationTestSup
   }
 
   @Test
-  void excludesExpiredRowsFromEffectiveAuthorizations() {
+  void includesActiveAuthorizationWhenValidFromEqualsNow() {
     UUID accountId = UUID.randomUUID();
     insertActiveAccount(jdbc, accountId, NOW);
     currentAuthorizations.saveAndFlush(
         new CurrentAuthorizationEntity(
             UUID.randomUUID(),
             accountId,
-            "resource.access",
+            "boundary.valid-from-now",
             "resource",
-            accountId.toString(),
+            "valid-from-now",
             AuthorizationStatus.ACTIVE,
-            NOW.minusSeconds(3600),
-            NOW.minusSeconds(1),
-            NOW.minusSeconds(3600),
-            NOW.minusSeconds(1)));
+            NOW,
+            NOW.plusSeconds(3600),
+            NOW,
+            NOW));
 
-    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW)).isEmpty();
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .containsExactly("boundary.valid-from-now");
+  }
+
+  @Test
+  void includesActiveAuthorizationWhenExpiresAtIsNull() {
+    UUID accountId = UUID.randomUUID();
+    insertActiveAccount(jdbc, accountId, NOW);
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.no-expiry",
+            "resource",
+            "no-expiry",
+            AuthorizationStatus.ACTIVE,
+            NOW.minusSeconds(1),
+            null,
+            NOW.minusSeconds(1),
+            NOW));
+
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .containsExactly("boundary.no-expiry");
+  }
+
+  @Test
+  void excludesActiveAuthorizationWhenValidFromIsAfterNow() {
+    UUID accountId = UUID.randomUUID();
+    insertActiveAccount(jdbc, accountId, NOW);
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.current-control",
+            "resource",
+            "future-valid-from-control",
+            AuthorizationStatus.ACTIVE,
+            NOW,
+            null,
+            NOW,
+            NOW));
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.future-valid-from",
+            "resource",
+            "future-valid-from",
+            AuthorizationStatus.ACTIVE,
+            NOW.plusSeconds(1),
+            null,
+            NOW,
+            NOW));
+
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .contains("boundary.current-control")
+        .doesNotContain("boundary.future-valid-from");
+  }
+
+  @Test
+  void excludesActiveAuthorizationWhenExpiresAtEqualsNow() {
+    UUID accountId = UUID.randomUUID();
+    insertActiveAccount(jdbc, accountId, NOW);
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.current-control",
+            "resource",
+            "expires-at-now-control",
+            AuthorizationStatus.ACTIVE,
+            NOW.minusSeconds(1),
+            null,
+            NOW.minusSeconds(1),
+            NOW));
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.expires-at-now",
+            "resource",
+            "expires-at-now",
+            AuthorizationStatus.ACTIVE,
+            NOW.minusSeconds(1),
+            NOW,
+            NOW.minusSeconds(1),
+            NOW));
+
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .contains("boundary.current-control")
+        .doesNotContain("boundary.expires-at-now");
+  }
+
+  @Test
+  void excludesRevokedAuthorizationEvenWithinEffectiveTimeRange() {
+    UUID accountId = UUID.randomUUID();
+    insertActiveAccount(jdbc, accountId, NOW);
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.current-control",
+            "resource",
+            "revoked-control",
+            AuthorizationStatus.ACTIVE,
+            NOW.minusSeconds(1),
+            null,
+            NOW.minusSeconds(1),
+            NOW));
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.revoked",
+            "resource",
+            "revoked",
+            AuthorizationStatus.REVOKED,
+            NOW.minusSeconds(1),
+            NOW.plusSeconds(1),
+            NOW.minusSeconds(1),
+            NOW));
+
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .contains("boundary.current-control")
+        .doesNotContain("boundary.revoked");
+  }
+
+  @Test
+  void excludesExpiredAuthorizationEvenWithinEffectiveTimeRange() {
+    UUID accountId = UUID.randomUUID();
+    insertActiveAccount(jdbc, accountId, NOW);
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.current-control",
+            "resource",
+            "expired-control",
+            AuthorizationStatus.ACTIVE,
+            NOW.minusSeconds(1),
+            null,
+            NOW.minusSeconds(1),
+            NOW));
+    currentAuthorizations.saveAndFlush(
+        new CurrentAuthorizationEntity(
+            UUID.randomUUID(),
+            accountId,
+            "boundary.expired",
+            "resource",
+            "expired",
+            AuthorizationStatus.EXPIRED,
+            NOW.minusSeconds(1),
+            NOW.plusSeconds(1),
+            NOW.minusSeconds(1),
+            NOW));
+
+    assertThat(currentAuthorizations.findEffectiveByAccountId(accountId, NOW))
+        .extracting(CurrentAuthorizationEntity::getAuthority)
+        .contains("boundary.current-control")
+        .doesNotContain("boundary.expired");
   }
 
   @Test
