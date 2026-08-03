@@ -3,7 +3,7 @@ title: MVP UX 저충실도 프로토타입 검증 기록
 document_type: review
 classification: confirmed fact
 status: completed local validation
-last_verified: 2026-07-28
+last_verified: 2026-08-03
 related_documents: ["../spec/ux/README.md","../../DESIGN.md","../../prototype/ux-mock/README.md"]
 decision_authority: D-024
 implementation_ready: false
@@ -34,6 +34,8 @@ Happy path, 초기 상호 관심 없음, 공개 동의 거절, 공개 자원 이
 상호 최종 결과, 상대 미입장, 약한 연결, 재연결 성공, 만료 후 재연결,
 마이크 거절, 미지원 기기, 6인 미충원 취소, 시작 후 이탈, 남은 5인
 비공개 계속 동의, 사용자 나가기, 차단, 최소 신고 시작을 포함한다.
+P16에서는 특정 사람 제출 뒤 다른 사람으로 바꾸지 못하며, 명시적 전체
+철회로만 아무도 선택하지 않음 상태와 다음 단계 없음 결과를 복구한다.
 
 ## 접근성·브라우저 검증
 
@@ -73,7 +75,8 @@ DESIGN과 시각 브리프의 차분한 비경쟁 톤, 성별 비코딩 색, 한
 2. P14 사용자 동의와 P15 상대 권한을 독립시켜, 허용되지 않은 자원과
    내부 원인을 노출하지 않도록 수정했다.
 3. P13/P16의 빈 초안을 자동 의도로 처리하지 않고 명시 제출과 확인을
-   요구하며, 합성 상호 권한 없이는 P18을 열지 않도록 수정했다.
+   요구하며, P16의 특정 사람 제출 뒤에는 다른 사람 변경 없이 전체 철회로
+   없음 상태만 복구하도록 수정했다. 합성 상호 권한 없이는 P18을 열지 않는다.
 4. 나가기·차단·긴급 도움을 실제 로컬 확인/종료 상태로 연결하고 신고와
    독립시켰다.
 5. 모달 고유 이름, 포커스 복귀와 재연결→안전 전환의 중첩을 수정했다.
@@ -85,9 +88,9 @@ DESIGN과 시각 브리프의 차분한 비경쟁 톤, 성별 비코딩 색, 한
 | dependency audit | 취약점 0 |
 | Biome lint | 통과, 8개 파일 |
 | TypeScript | 통과 |
-| Vitest | 통과, 7/7 |
+| Vitest | 통과, 8/8 |
 | Vite build | 통과, 29 modules |
-| Playwright Chromium | 통과, 3/3 |
+| Playwright Chromium | 통과, 4/4 |
 | 콘솔·반응형·키보드·axe | 통과 |
 
 ## 남은 위험

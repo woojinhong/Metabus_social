@@ -172,6 +172,7 @@ function App() {
   const [interestWithdrawn, setInterestWithdrawn] = useState(false);
   const [finalChoice, setFinalChoice] = useState("");
   const [finalSubmitted, setFinalSubmitted] = useState(false);
+  const [finalWithdrawn, setFinalWithdrawn] = useState(false);
   const [resources, setResources] = useState({ photo: false, age: false, job: false });
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [safetyStep, setSafetyStep] = useState<"menu" | "leave" | "block" | "emergency">("menu");
@@ -219,6 +220,7 @@ function App() {
     setInterestWithdrawn(false);
     setFinalChoice("");
     setFinalSubmitted(false);
+    setFinalWithdrawn(false);
     setResources({ photo: false, age: false, job: false });
     setSafetyOpen(false);
     setSafetyStep("menu");
@@ -469,18 +471,19 @@ function App() {
     <section className="task-card protected">
       <p className="eyebrow">P16 · 보호된 선택</p>
       <h2>10분 음성 대화를 이어 가고 싶은 한 분을 선택할 수 있어요.</h2>
-      <p className="lede">0명 또는 1명만 선택해요. 제출 뒤에는 다른 사람으로 바꿀 수 없어요.</p>
-      {finalSubmitted ? <div className="notice good" role="status"><strong>내 최종 선택을 제출했어요.</strong><span>다른 사람의 선택이나 제출 여부는 표시하지 않아요.</span></div> : null}
+      <p className="lede">0명 또는 1명만 선택해요. 제출 뒤에는 다른 사람으로 바꿀 수 없고, 전체 철회해 없음으로만 바꿀 수 있어요.</p>
+      {finalWithdrawn ? <div className="notice" role="status"><strong>내 최종 선택을 철회했어요.</strong><span>아무도 선택하지 않음으로 마쳤어요.</span></div> : null}
+      {finalSubmitted && !finalWithdrawn ? <div className="notice good" role="status"><strong>내 최종 선택을 제출했어요.</strong><span>다른 사람의 선택이나 제출 여부는 표시하지 않아요.</span></div> : null}
       <fieldset className="choice-panel" disabled={finalSubmitted}>
         <legend>내 최종 선택</legend>
         {people.slice(0, 2).map((person) => <label key={person}><input type="radio" name="final" value={person} checked={finalChoice === person} onChange={(e) => setFinalChoice(e.target.value)} /> {person}님</label>)}
         <label><input type="radio" name="final" value="none" checked={finalChoice === "none"} onChange={(e) => setFinalChoice(e.target.value)} /> 아무도 선택하지 않기</label>
       </fieldset>
-      {!finalSubmitted ? (
-        <Button disabled={!finalChoice} onClick={() => { setFinalSubmitted(true); setAnnouncement("내 최종 선택을 제출했어요."); }}>내 선택 제출</Button>
-      ) : (
-        <Button onClick={() => moveTo("result", "내 다음 권한을 확인했어요.")}>내 다음 단계 확인</Button>
-      )}
+      <div className="actions">
+        {!finalSubmitted ? <Button disabled={!finalChoice} onClick={() => { setFinalSubmitted(true); setAnnouncement("내 최종 선택을 제출했어요."); }}>내 선택 제출</Button> : null}
+        {finalSubmitted && finalChoice !== "none" ? <Button className="secondary" onClick={() => { setFinalChoice("none"); setFinalWithdrawn(true); setAnnouncement("내 최종 선택을 철회하고 없음으로 마쳤어요."); }}>전체 철회해 없음으로</Button> : null}
+        {finalSubmitted ? <Button onClick={() => moveTo("result", "내 다음 권한을 확인했어요.")}>내 다음 단계 확인</Button> : null}
+      </div>
     </section>
   );
 

@@ -76,6 +76,40 @@ describe("Propscans UX mock", () => {
     expect(screen.getByText("이번에는 다음 음성 대화가 열리지 않았어요.")).toBeInTheDocument();
   });
 
+  it("allows a submitted final person to be withdrawn only to explicit none", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("검토 시나리오"), {
+      target: { value: "happy" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "시나리오 적용" }));
+    fireEvent.click(screen.getByRole("button", { name: "점검 완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "준비됐어요" }));
+    fireEvent.click(screen.getByRole("button", { name: "입장하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "이해했어요" }));
+    fireEvent.click(screen.getByRole("button", { name: "대표 게임 검토 완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "초기 관심 단계 보기" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /한별님/ }));
+    fireEvent.click(screen.getByRole("button", { name: "내 선택 제출" }));
+    fireEvent.click(screen.getByRole("button", { name: "검토용 다음 단계" }));
+    fireEvent.click(screen.getByRole("button", { name: "공개하지 않기" }));
+
+    fireEvent.click(screen.getByRole("radio", { name: "한별님" }));
+    fireEvent.click(screen.getByRole("button", { name: "내 선택 제출" }));
+
+    expect(screen.getByRole("radio", { name: "한별님" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "다온님" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "전체 철회해 없음으로" }));
+
+    expect(screen.getByRole("radio", { name: "아무도 선택하지 않기" })).toBeChecked();
+    expect(screen.getByText("내 최종 선택을 철회했어요.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "전체 철회해 없음으로" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "내 다음 단계 확인" }));
+    expect(screen.getByText("이번에는 다음 음성 대화가 열리지 않았어요.")).toBeInTheDocument();
+    expect(screen.queryByText("P18 전환")).not.toBeInTheDocument();
+  });
+
   it("keeps leave, block and report independent", () => {
     render(<App />);
     fireEvent.change(screen.getByLabelText("검토 시나리오"), {
