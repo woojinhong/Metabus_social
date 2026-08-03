@@ -4,7 +4,7 @@ document_type: navigation
 classification: confirmed fact
 status: Active
 last_verified: 2026-08-03
-related_documents: ["agent-automation-overview.md","openclaw-omx-workflow.md","agent-lessons.md","../archive/autonomous-harness-experiment.md","../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","../discovery/autonomous-harness-codex-jsonl-usage.md","../discovery/autonomous-harness-codex-cost-budget-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
+related_documents: ["native-agent-phase1-pilot.md","agent-automation-overview.md","openclaw-omx-workflow.md","agent-lessons.md","../archive/autonomous-harness-experiment.md","../../schemas/automation/requirement.schema.json","../discovery/decisions.md","../discovery/slice-01-current-authority.md","../discovery/autonomous-harness-foundation-approval-plan.md","../discovery/autonomous-harness-readonly-planner-authority.md","../discovery/autonomous-harness-lightweight-worktree-runner-authority.md","../discovery/autonomous-harness-codex-jsonl-usage.md","../discovery/autonomous-harness-codex-cost-budget-authority.md","autonomous-harness-readiness-audit-2026-07-31.md","../spec/ux/README.md","github-workflow.md","automation/requirement-schema.md","automation/work-package-and-issue-schema.md","automation/workgraph-state-lock-schema.md","automation/dry-run-planner-contract.md"]
 decision_authority: decisions.md and approved operations policies
 ---
 
@@ -12,6 +12,8 @@ decision_authority: decisions.md and approved operations policies
 
 ## Agent automation default
 
+- [Native Agent Phase 1 Pilot runbook](native-agent-phase1-pilot.md) is the
+  checklist for the first documentation-only Native Codex/Worktree Pilot.
 - [Agent automation overview](agent-automation-overview.md) makes the
   Propscans-only local OMX/Codex Phase 1 workflow the default next target.
 - [OpenClaw and OMX workflow](openclaw-omx-workflow.md) defines native role,
